@@ -1,24 +1,32 @@
 
 from django.http import HttpResponse, HttpResponseRedirect, Http404
-from django.shortcuts import render_to_response
+from django.shortcuts import redirect, render_to_response
 from django.template import RequestContext
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
+from django.core.urlresolvers import reverse
+from django.contrib.auth import authenticate, login, logout
 
 import datetime
 import settings
 import reports
+import urllib
 from api import API
 
 #===============================================================================
 
 # Min mumber of node usage we will show in graph
-node_usage_count = 5
+node_usage_count = 100
 # Max number of rows we are going to get by query
 limit = 20
 # Houdini base products
 apprentice = "Apprentice"
-commercial = "Houdini FX"
+commercial = "Commercial"
+
+#Possible products: houdini (Houdini FX), hexper (Houdini FX experimental), 
+#hescape (base Houdini), hbatch (Batch), mantra (Mantra), mplay (MPlay)
 
 #===============================================================================
 
@@ -30,64 +38,30 @@ def render_response(page, vals, request):
     context_instance = RequestContext(request)
     return render_to_response(page, vals, context_instance=context_instance)
 
-#------------------------------------------------------------------------------- 
-def _get_start_request(request):
+#-------------------------------------------------------------------------------           
+def make_url_absolute(url):
     """
-    Get start date from the request.
+    Make sure a URL starts with '/'.
     """
-    return request.GET.get("start", None)
+    if not url.startswith('/'):
+        url = "/" + url
+    return url         
 
-#------------------------------------------------------------------------------- 
-def _get_end_request(request):
+#-------------------------------------------------------------------------------
+def _add_GET_param_to_path(path, param_name):
     """
-    Get end date from the request.
+    To add the given param name to the GET request url
     """
-    return request.GET.get("end", None)
-
-#-------------------------------------------------------------------------------     
-def _series_range(start_request, end_request):
-    """
-    Series range parameter to pass for the reports
-    """    
-    # Get the time interval for the graphs
-    if start_request is not None:
-        t = time.strptime(start_request, "%d/%m/%Y")
-        start = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
-    else:
-        # We launched the site in August
-        start = settings.STARTING_DATE
-
-    if end_request is not None:
-        t = time.strptime(end_request, "%d/%m/%Y")
-        end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
-    else:
-        end = datetime.datetime.now()
+    prefix = ("&" if "?" in path else "?")
     
-    # By default, time_series will get the count
-    return [start, end]
-
-#------------------------------------------------------------------------------- 
-def _get_aggregation(request):
+    return path + prefix + param_name
+#-------------------------------------------------------------------------------
+def _remove_POST_param_from_path(path, param_name):
     """
-    Get aggregation from the request.
+    To remove the the given param name from the POST request url
     """
-    # For aggregation 
-    valid_agg = ["monthly", "weekly", "yearly"]
-    if "ag" not in request:
-        return None
-    
-    aggregation = request.GET["ag"].lower()    
-    return aggregation if aggregation in valid_agg else None
-
-#------------------------------------------------------------------------------- 
-def _get_common_vars(request):
-    """
-    Get all variables that will be used for the reports.
-    """
-    return _get_start_request(request), _get_end_request(request), \
-           _series_range(_get_start_request(request), 
-                         _get_end_request(request)), \
-           _get_aggregation(request.GET)
+    return path.replace("?" + param_name, "").replace(
+                "&" + param_name , "")
 
 #===============================================================================
 @require_http_methods(["POST"])
@@ -101,14 +75,122 @@ def api_view(request):
 
 #-------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
+def login_view(request):
+    """
+    Log the user in.
+    """
+    # Getting the page, so display it.  Also handle the case where they didn't
+    # send credentials.
+    from django.core.urlresolvers import resolve
+        
+    if request.method == "GET" or "username" not in request.POST:
+        next = (request.GET if request.method == "GET" else request.POST).get(
+                "next", reverse("index"))
+        
+        return render_response("login.html",
+                          {"next": next,
+                           'is_logged_in' : request.user.is_authenticated(),
+                            'user':request.user,
+                            'stay_on_login_after_failure': True },   
+                            request)  
+    # Get the page to redirect to after login.  If they failed to login,
+    # we'll go to that path by default but if they attempted to log in from
+    # this page originally then we'll stay here.  Otherwise, that other page
+    # might redirect them back here and double-encode the "invalid_login"
+    # variable.
+    next = make_url_absolute(request.POST["next"])
+    if "stay_on_login_after_failure" in request.POST:
+        path_for_failed_login = (
+            request.get_full_path() + "?" +
+            urllib.urlencode({"next": next}, True))
+    else:
+        path_for_failed_login = next
+
+    # Get credentials and authenticate.
+    username = request.POST["username"]
+    password = request.POST["password"]
+
+    user = authenticate(username=username, password=password)
+
+    # Unrecognized user.
+    if user is None:
+        # Redirect to the same page, but display a message to say they've
+        # logged in incorrectly.
+        if "invalid_login" in path_for_failed_login:
+            return redirect(path_for_failed_login)
+        else:
+            return render_response("login.html",
+                          {"next": next,
+                           'is_logged_in' : False,
+                            'user': None,
+                            'invalid_login': True },   
+                            request)  
+            #return redirect(
+            #   _add_GET_param_to_path(path_for_failed_login, "invalid_login"))
+
+    # See if the user has been locked out.
+    if not user.is_active:
+        raise UnauthorizedError(errmsg.AUTH_ACCOUNT_LOCKED, user=username)
+
+    # If the user came from a page that forced the login popup to appear
+    # or it has previously appeared because of an invalid login, remove the
+    # parameter from the destination page.
+    next = _remove_POST_param_from_path(next, "invalid_login")
+        
+    login(request, user)
+    return redirect(next) 
+
+#-------------------------------------------------------------------------------
+@require_GET
+@login_required
+def logout_view(request):
+    """
+    Log the user out.
+    """
+    logout(request)
+    return redirect(reverse("index"))
+
+#-------------------------------------------------------------------------------
+
+@require_http_methods(["GET", "POST"])
+@login_required
 def index_view(request):
     """
     Home page analytics.
     """
     series = {}
-    pies = {}
     
-    start_request, end_request, series_range, aggregation = _get_common_vars(
+    start_request, end_request, series_range, aggregation = reports.get_common_vars(
+                                                                        request)
+    series['users_over_time'] = reports.get_users_over_time(
+                                                     series_range, aggregation)
+    
+    #series['hou_average_usage_by_machine'] = reports.average_usage_by_machine(
+    #                                                      series_range[0],
+    #                                                      series_range[1]) 
+    
+    return render_response("index.html",
+                          {"series": series,
+                           "range": [start_request,end_request] if (
+                                       start_request and end_request) else None,
+                           "date_format": "M j",
+                           "active_index": True,
+                           'is_logged_in' : request.user.is_authenticated(),
+                           'url': "/index",
+                           'user':request.user},
+                            request)
+    
+#-------------------------------------------------------------------------------  
+
+@require_http_methods(["GET", "POST"])
+@login_required
+def hou_uptime_view(request):
+    """
+    Houdini uptime reports.
+    """
+    series = {}
+    
+    start_request, end_request, series_range, aggregation = reports.get_common_vars(
                                                                         request)
 
     series['hou_average_session_length'] = reports.average_session_length(
@@ -117,39 +199,26 @@ def index_view(request):
                                                           series_range[0],
                                                           series_range[1]) 
     
-   # Pie Charts
-    pies['houdini_versions'] =  reports.usage_by_hou_version_or_build()
-    pies['houdini_builds'] =  reports.usage_by_hou_version_or_build(True)
-    
-    pies['houdini_versions_apprentice'] =  reports.usage_by_hou_version_or_build(
-                                               hou_product=apprentice)
-    pies['houdini_builds_apprentice'] =  reports.usage_by_hou_version_or_build(
-                                                      build=True, 
-                                                      hou_product=apprentice)
-    
-    pies['houdini_versions_commercial'] =  reports.usage_by_hou_version_or_build(
-                                               hou_product=commercial)
-    pies['houdini_builds_commercial'] =  reports.usage_by_hou_version_or_build(
-                                                      build=True, 
-                                                      hou_product=commercial)
-    
-    return render_response("index.html",
+    return render_response("uptime.html",
                           {"series": series,
-                           "pies": pies,
                            "range": [start_request,end_request] if (
                                        start_request and end_request) else None,
                            "date_format": "M j",
-                           "active_index": True},
+                           "active_uptime": True,
+                           'is_logged_in' : request.user.is_authenticated(),
+                           'url': "/index/uptime",
+                           'user':request.user},
                             request)
     
 #-------------------------------------------------------------------------------    
 @require_http_methods(["GET", "POST"])
+@login_required
 def hou_crashes_view(request):
     """
     Houdini crashes reports.
     """
     series = {}
-    start_request, end_request, series_range, aggregation = _get_common_vars(
+    start_request, end_request, series_range, aggregation = reports.get_common_vars(
                                                                         request)
 
     series['hou_crashes_over_time'] = reports.get_hou_crashes_over_time(
@@ -159,17 +228,21 @@ def hou_crashes_view(request):
                            "range": [start_request,end_request] if (
                                        start_request and end_request) else None,
                            "date_format": "M j",
-                           "active_crashes": True},
+                           "active_crashes": True,
+                           'is_logged_in' : request.user.is_authenticated(),
+                           'url': "/index/crashes",
+                           'user':request.user},
                             request)
     
 #-------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
+@login_required
 def hou_nodes_usage_view(request):
     """
     Houdini nodes usage reports.
     """
     series = {}
-    start_request, end_request, series_range, aggregation = _get_common_vars(
+    start_request, end_request, series_range, aggregation = reports.get_common_vars(
                                                                         request)
     series['hou_most_popular_nodes'] = reports.most_popular_nodes(
                                                               node_usage_count,
@@ -180,40 +253,48 @@ def hou_nodes_usage_view(request):
                            "range": [start_request,end_request] if (
                                        start_request and end_request) else None,
                            "date_format": "M j",
-                           "active_nodes_usage": True},
+                           "active_nodes_usage": True,
+                           'is_logged_in' : request.user.is_authenticated(),
+                           'url': "/index/node_usage",
+                           'user':request.user},
                             request)
     
 #-------------------------------------------------------------------------------  
 @require_http_methods(["GET", "POST"])
+@login_required
 def hou_versions_and_builds_view(request):
     """
     Houdini nodes usage reports.
     """
     pies = {}
-    start_request, end_request, series_range, aggregation = _get_common_vars(
+    start_request, end_request, series_range, aggregation = reports.get_common_vars(
                                                                         request)
     # Pie Charts
     pies['houdini_versions'] =  reports.usage_by_hou_version_or_build()
-    pies['houdini_builds'] =  reports.usage_by_hou_version_or_build(True)
+    pies['houdini_builds'] =  reports.usage_by_hou_version_or_build(build=True)
     
     pies['houdini_versions_apprentice'] =  reports.usage_by_hou_version_or_build(
-                                               hou_product=apprentice)
+                                               all=False, is_apprentice=True)
     pies['houdini_builds_apprentice'] =  reports.usage_by_hou_version_or_build(
+                                                      all=False,
                                                       build=True, 
-                                                      hou_product=apprentice)
+                                                      is_apprentice=True)
     
     pies['houdini_versions_commercial'] =  reports.usage_by_hou_version_or_build(
-                                               hou_product=commercial)
+                                                                      all=False)
     pies['houdini_builds_commercial'] =  reports.usage_by_hou_version_or_build(
-                                                      build=True, 
-                                                      hou_product=commercial)
+                                                      all=False,
+                                                      build=True)
     
     return render_response("hou_versions_builds_reports.html",
                           {"pies": pies,
                            "range": [start_request,end_request] if (start_request and 
                                                         end_request) else None,
                            "date_format": "M j",
-                           "active_ver_builds": True},
+                           "active_ver_builds": True,
+                           'is_logged_in' : request.user.is_authenticated(),
+                           'url': "/index/versions_and_builds",
+                           'user':request.user},
                             request)
    
     

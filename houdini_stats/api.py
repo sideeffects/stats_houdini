@@ -89,8 +89,8 @@ class API(object):
         json_data = json.loads(stats['json_content'])
         
         # Get total seconds
-        total_sec = date_range_to_seconds(str_to_datetime(json_data["start_time"]), 
-                                         str_to_datetime(json_data["end_time"]))
+        total_sec = json_data["end_time"] - json_data["start_time"]
+        
         # Save uptime
         save_uptime(machine_config, total_sec)
         
@@ -101,13 +101,20 @@ class API(object):
 
     @login_not_required
     def send_crash(self, request, user_info, crashlog):
-        #print user_info
-        #print crashlog
+        """
+        Save houdini crashes
+        """
+        # Get or save machine config
+        machine_config = get_or_save_machine_config(user_info)
+        
+        # Save the crash
+        save_crash(machine_config, crashlog)
+        
         return json_http_response(True)
 
     @login_not_required
     def send_license_failure(self, request, user_info, failure_info):
-        #print user_info
-        #print failure_info
+        print "user info (fail): ", user_info
+        print "failure info: ", failure_info
         return json_http_response(True) 
                 

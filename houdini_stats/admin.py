@@ -21,10 +21,11 @@ class MachineConfigAdmin(admin.ModelAdmin):
     """
     Control how the admin site displays machine configurations.
     """
-    list_filter = ("last_active_date", "operating_system" , "product", 
-                   "graphics_card", "hardware_id")
+    list_filter = ("config_hash", "last_active_date", "houdini_major_version", 
+                   "houdini_minor_version", "houdini_build_number", "product",
+                   "is_apprentice", "operating_system",)
     list_display = list_filter 
-    list_display_links =("hardware_id", "last_active_date")
+    list_display_links =("config_hash", "last_active_date", "product")
     list_per_page = 20
     ordering = ["last_active_date"]
 

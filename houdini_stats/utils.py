@@ -3,6 +3,7 @@ import json
 import datetime
 from django.http import HttpResponse
 from houdini_stats.models import *
+from datetime import datetime, timedelta
 
 #-------------------------------------------------------------------------------
 
@@ -36,7 +37,7 @@ class ServerError(ApiError):
     def __init__(self, msg_template, **kwargs):
         ApiError.__init__(self, 500, msg_template, **kwargs)       
 
-#----------------------------------------------------------------------------
+#---------------------------from datetime import datetime, timedelta-------------------------------------------------
 
 def json_http_response(content, status=200):
     """
@@ -97,18 +98,42 @@ def date_range_to_seconds(datetime1, datetime2):
 
 #-------------------------------------------------------------------------------
 
+def get_time(secs):
+    """
+    This functions receives a number of seconds and return how many min, hours,
+    days those seconds represent.
+    """
+    secs = timedelta(seconds=int(secs))
+    
+    d = datetime(1,1,1) + secs
+   
+    return {"days": d.day-1, 
+            "hours": d.hour,
+            "minutes": d.minute,
+            "seconds": d.second }
+#-------------------------------------------------------------------------------
+
+def get_percent(part, whole):
+    """
+    Get which percentage is a from b, and round it to 2 decimal numbers.
+    """
+    return round(100 * float(part)/float(whole)  if whole !=0 else 0.0, 2)
+
+#-------------------------------------------------------------------------------
+
 def get_or_save_machine_config(user_info):
     """
     Get or save if not already in db the machine config
         
-    User Info:{ u'operating_system': u'linux-x86_64-gcc4.4', 
-                u'system_memory': u'31.44 GB', 
-                u'osname': u'Linux', 
-                u'houdini_build_version': u'129', 
-                u'houdini_major_version': u'13',
-                u'number_of_processors': u'12', 
-                u'houdini_minor_version': u'0', 
-                u'config_hash': u'571b5d3e7addd7746d0efbd15833384f'
+    User Info:{ 'config_hash': '7ef9c42fe4d3748dc9aad755e02852d8',
+                'houdini_build_version': '146',
+                'houdini_major_version': '13',
+                'houdini_minor_version': '0',
+                'operating_system': 'linux-x86_64-gcc4.7',
+                'system_memory': '23.55 GB', 
+                'application_name': 'houdini',
+                'license_category': 'Commercial',
+                'number_of_processors': '12',
               }
     """
     # Get config_hash
@@ -119,21 +144,20 @@ def get_or_save_machine_config(user_info):
                                                 config_hash__exact=config_hash)
     except MachineConfig.DoesNotExist:
         
-        houd_major_ver = user_info['houdini_major_version'] if 'houdini_major_version' in user_info else 0 
-        houd_minor_ver = user_info['houdini_minor_version'] if 'houdini_minor_version' in user_info else 0 
-        houd_build_num = user_info['houdini_build_number'] if 'houdini_build_number' in user_info else 0
-        operating_system = user_info['osname'] if 'osname' in user_info else ""
-        
-        sys_memory = parse_byte_size_string(user_info['system_memory']) if 'system_memory' in user_info else 0
+        sys_memory = user_info.get('system_memory',0)
+        product = user_info.get('application_name',"") + " " + user_info.get('license_category',"")
         
         # Create new machine config 
         machine_config = MachineConfig(config_hash = config_hash, 
+             operating_system = user_info.get('operating_system', ""),
+             houdini_major_version = user_info.get('houdini_major_version',0),
+             houdini_minor_version = user_info.get('houdini_minor_version',0),
+             houdini_build_number = user_info.get('houdini_build_number',0),
+             number_of_processors = user_info.get('number_of_processors',0),
              last_active_date = datetime.datetime.now(),
-             system_memory = sys_memory,
-             operating_system = operating_system,
-             houdini_major_version = houd_major_ver,
-             houdini_minor_version = houd_minor_ver,
-             houdini_build_number = houd_build_num
+             system_memory = parse_byte_size_string(sys_memory),
+             product = user_info.get('application_name',"").title(),
+             is_apprentice = user_info.get('license_category',"") == 'Apprentice',
         )
         # Save the asset version status
         machine_config.save()
@@ -144,7 +168,7 @@ def get_or_save_machine_config(user_info):
     
 def save_uptime(machine_config, num_seconds):
     """
-    Create Uptime record and save it
+    Create Uptime record and save it in DB.
     """
     uptime = Uptime(machine_config = machine_config,
                     date = datetime.datetime.now(),
@@ -155,7 +179,7 @@ def save_uptime(machine_config, num_seconds):
     
 def save_nodetypes(machine_config, counts_dict):
     """
-    Create NodeTypeUsage record and save it
+    Create NodeTypeUsage object and save it in DB.
     """
     for key, count in counts_dict.iteritems():
         for mode, name in NodeTypeUsage.NODE_CREATION_MODES:
@@ -172,7 +196,25 @@ def save_nodetypes(machine_config, counts_dict):
                                               )
                 node_type_usage.save()
                 break          
-    
-      
-        
 
+#-------------------------------------------------------------------------------    
+      
+def save_crash(machine_config, crash_log):
+    """
+    Create a HoudiniCrash object and save it in DB..
+    
+    crash_log: { 
+                 u'log_data': u'Caught signal 11\\n\\nAP_Interface::
+                              createCrashLog(UTsignalHandlerArg....' 
+                 u'log_type': u'crash',
+                 u'logged_date_and_time': u'2013-08-20 16:25:43'
+    }
+    """
+    crash = HoudiniCrash(machine_config = machine_config,
+                  date = crash_log.get('logged_date_and_time',
+                                       datetime.datetime.now()),
+                  stack_trace = crash_log.get('log_data',""),
+                  type = crash_log.get('log_type',"")
+                  )                    
+    crash.save()     
+    

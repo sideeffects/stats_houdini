@@ -44,9 +44,15 @@ class MachineConfig(models.Model):
     )
     
     product = models.CharField(                                              
-        help_text='''Name of the product used (ex. Houdini FX, Apprentice).''',
+        help_text='''Name of the product used (houdini hexper, hescape, hbatch
+                     mantra, mplay.''',
         max_length=20,
         blank=True,
+    )
+    
+    is_apprentice = models.BooleanField(
+        help_text='''Is the product Houdini Apprentice??''',
+        default=False
     )
     
     graphics_card = models.CharField(
@@ -55,8 +61,8 @@ class MachineConfig(models.Model):
         blank=True,                               
     )
     
-    graphics_card_version = models.CharField(
-        help_text='''Graphic card version.''',
+    graphics_card_vendor = models.CharField(
+        help_text='''Graphic card vendor.''',
         max_length=20,
         blank=True,                               
     )
@@ -120,8 +126,14 @@ class HoudiniCrash(models.Model):
         help_text='''Stack Trace for the crash.''',
         blank=True,
         default=''
-    )    
-        
+    )
+    
+    type = models.CharField(
+        help_text='''Type logged.''',
+        default='',
+        max_length=10
+    )
+    
     def __unicode__(self):
         return "HoudiniCrash(%s)" % \
             (self.stack_trace)
