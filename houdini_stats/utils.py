@@ -1,6 +1,4 @@
-
 import json
-import datetime
 from django.http import HttpResponse
 from houdini_stats.models import *
 from datetime import datetime, timedelta
@@ -86,7 +84,7 @@ def str_to_datetime(str_date):
     """
     Converts a string into a datetime object
     """ 
-    return datetime.datetime.strptime(str_date.strip(), "%a %b  %d %H:%M:%S %Y")
+    return datetime.strptime(str_date.strip(), "%a %b  %d %H:%M:%S %Y")
 
 #-------------------------------------------------------------------------------
     
@@ -100,17 +98,16 @@ def date_range_to_seconds(datetime1, datetime2):
 
 def get_time(secs):
     """
-    This functions receives a number of seconds and return how many min, hours,
+    This function receives a number of seconds and return how many min, hours,
     days those seconds represent.
     """
-    secs = timedelta(seconds=int(secs))
-    
-    d = datetime(1,1,1) + secs
-   
-    return {"days": d.day-1, 
-            "hours": d.hour,
-            "minutes": d.minute,
-            "seconds": d.second }
+    return {
+        "seconds": int(secs),
+        "minutes": round(int(secs) / 60.0),
+        "hours": round(int(secs) / (60.0 * 60.0)),
+        "days": round(int(secs) / (60.0 * 60.0 * 24.0)),
+    }
+
 #-------------------------------------------------------------------------------
 
 def get_percent(part, whole):
@@ -154,7 +151,7 @@ def get_or_save_machine_config(user_info):
              houdini_minor_version = user_info.get('houdini_minor_version',0),
              houdini_build_number = user_info.get('houdini_build_number',0),
              number_of_processors = user_info.get('number_of_processors',0),
-             last_active_date = datetime.datetime.now(),
+             last_active_date = datetime.now(),
              system_memory = parse_byte_size_string(sys_memory),
              product = user_info.get('application_name',"").title(),
              is_apprentice = user_info.get('license_category',"") == 'Apprentice',
@@ -171,7 +168,7 @@ def save_uptime(machine_config, num_seconds):
     Create Uptime record and save it in DB.
     """
     uptime = Uptime(machine_config = machine_config,
-                    date = datetime.datetime.now(),
+                    date = datetime.now(),
                     number_of_seconds = num_seconds)                    
     uptime.save()        
     
@@ -186,7 +183,7 @@ def save_nodetypes(machine_config, counts_dict):
             prefix = "tools/"+ name + '/'
             if key.startswith(prefix):
                 node_type_usage = NodeTypeUsage(machine_config = machine_config,
-                                                date = datetime.datetime.now(),
+                                                date = datetime.now(),
                                                 node_type = key[len(prefix):],
                                                 node_creation_mode= mode,
                                                 count = count
@@ -212,7 +209,7 @@ def save_crash(machine_config, crash_log):
     """
     crash = HoudiniCrash(machine_config = machine_config,
                   date = crash_log.get('logged_date_and_time',
-                                       datetime.datetime.now()),
+                                       datetime.now()),
                   stack_trace = crash_log.get('log_data',""),
                   type = crash_log.get('log_type',"")
                   )                    
