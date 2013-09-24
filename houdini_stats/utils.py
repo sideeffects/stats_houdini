@@ -69,7 +69,7 @@ def parse_byte_size_string(string):
     num = float(num_string)
 
     # Look for the suffix.
-    suffix = string.strip()
+    suffix = string.strip() or "B"
     suffix_set = ('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')
 
     prefix = {suffix_set[0]: 1}
@@ -141,7 +141,7 @@ def get_or_save_machine_config(user_info):
                                                 config_hash__exact=config_hash)
     except MachineConfig.DoesNotExist:
         
-        sys_memory = user_info.get('system_memory',0)
+        sys_memory = user_info.get('system_memory', "0")
         product = user_info.get('application_name',"") + " " + user_info.get('license_category',"")
         
         # Create new machine config 

@@ -1,4 +1,3 @@
-
 from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import redirect, render_to_response
 from django.template import RequestContext
@@ -165,10 +164,6 @@ def index_view(request):
     series['users_over_time'] = reports.get_users_over_time(
                                                      series_range, aggregation)
     
-    #series['hou_average_usage_by_machine'] = reports.average_usage_by_machine(
-    #                                                      series_range[0],
-    #                                                      series_range[1]) 
-    
     return render_response("index.html",
                           {"series": series,
                            "range": [start_request,end_request] if (
@@ -192,12 +187,12 @@ def hou_uptime_view(request):
     
     start_request, end_request, series_range, aggregation = reports.get_common_vars(
                                                                         request)
-
+    
     series['hou_average_session_length'] = reports.average_session_length(
                                                      series_range, aggregation)
     series['hou_average_usage_by_machine'] = reports.average_usage_by_machine(
-                                                          series_range[0],
-                                                          series_range[1]) 
+                                                                   series_range, 
+                                                                   aggregation) 
     
     return render_response("uptime.html",
                           {"series": series,
@@ -296,5 +291,30 @@ def hou_versions_and_builds_view(request):
                            'url': "/index/versions_and_builds",
                            'user':request.user},
                             request)
-   
+ 
+#-------------------------------------------------------------------------------  
+@require_http_methods(["GET", "POST"])
+@login_required
+def hou_licenses_view(request):
+    """
+    Houdini licenses reports.
+    """
+    series = {}
+    
+    start_request, end_request, series_range, aggregation = reports.get_common_vars(
+                                                                        request)
+    series['apprentice_lic_over_time'] = reports.apprentice_activations_over_time(
+                                                          series_range, aggregation) 
+    
+    return render_response("licenses_reports.html",
+                          {"series": series,
+                           "range": [start_request,end_request] if (
+                                       start_request and end_request) else None,
+                           "date_format": "M j",
+                           "active_licenses": True,
+                           'is_logged_in' : request.user.is_authenticated(),
+                           'url': "/index/licenses",
+                           'user':request.user},
+                            request)
+      
     

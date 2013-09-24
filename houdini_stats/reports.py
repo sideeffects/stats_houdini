@@ -1,5 +1,6 @@
-
 from houdini_stats.models import *
+from houdini_licenses.models import *
+
 from qsstats import QuerySetStats
 from django.db.models import Avg, Sum, Count
 from django.db import connections, connection 
@@ -9,6 +10,7 @@ from utils import get_time
 import time
 import datetime
 import settings
+from dircache import annotate
 
 #===============================================================================
 def _get_start_request(request):
@@ -44,7 +46,6 @@ def _series_range(start_request, end_request):
         end = datetime.datetime.now()
 
     # By default, time_series will get the count
-    print [start, end]
     return [start, end]
 
 #------------------------------------------------------------------------------- 
@@ -97,12 +98,15 @@ def _fill_missing_dates_with_zeros(time_series, agg_by, interval):
         current_date = current_date.replace(day=1)
     elif agg_by == "year":
         current_date = current_date.replace(day=1, month=1)
+    elif agg_by == "daily":
+        agg_by = "day"
     else:
         assert False, "Unknown aggregation type"
 
     # Loop through all the dates from the start up to and including the end,
     # filling any missing data points with zeros.
     index = 0
+    
     while current_date <= interval[1]:
         if current_date in dates: 
             result_time_series.append([current_date, time_series[index][1]])
@@ -257,30 +261,34 @@ def get_hou_crashes_group_by_product(series_range):
 #===============================================================================
 # Houdini Uptime related reports
 
-def average_session_length(series_range, aggregation, ):
+def average_session_length(series_range, aggregation):
     """
     Get Houdini average session length. Column Chart.
     """
-    # Get all Uptimes
-    uptimes = Uptime.objects.values('machine_config') \
-                            .annotate(m_count=Count('machine_config')) \
-                            .order_by('date')
+    
+    uptimes = Uptime.objects.all()
     
     time_serie = _time_series(uptimes, 'date', series_range, 
-                                          func=Avg('number_of_seconds'), 
+                                          func=Avg("number_of_seconds"), 
                                           agg=aggregation)
-    
+
     return _get_right_time(_compute_time_serie(time_serie, get_time), "minutes") 
     
 #-------------------------------------------------------------------------------   
-def average_usage_by_machine(start_date, end_date):
+def average_usage_by_machine(series_range, aggregation):
     """
     Get Houdini average usage by machine. Column Chart.
     """
+    
+    start_date = series_range[0] 
+    end_date = series_range[1]
+    
+    if aggregation is None:
+        aggregation = "daily"
 
     cursor = connection.cursor()
     cursor.execute("""
-        select day, avg(total_seconds)
+        select cast(day as datetime), avg(total_seconds)
         from (
             select machine_config_id, str_to_date(date_format(date, '%%Y-%%m-%%d'), '%%Y-%%m-%%d') as day,
                 sum(number_of_seconds) as total_seconds
@@ -295,11 +303,11 @@ def average_usage_by_machine(start_date, end_date):
             end_date.strftime("%Y-%m-%d %H:%M:%S"))
         )  
     
-    #TODO: build the data by filling the empty days too.
     time_serie = [(row[0], row[1]) for row in cursor.fetchall()]
+    serie = _get_right_time(_compute_time_serie(time_serie, get_time),"minutes")
     
-    return _get_right_time(_compute_time_serie(time_serie, get_time), "minutes") 
-
+    return _fill_missing_dates_with_zeros(serie, aggregation, series_range)
+                                  
 #===============================================================================
 # Houdini Nodes Usage related reports
 
@@ -321,13 +329,12 @@ def most_popular_nodes(node_usage_count, limit):
         order by node_count desc
         limit {1}
        """.format(node_usage_count, limit)    
-       )  
+       ) 
     
     return [(row[0], row[1]) for row in cursor.fetchall()]
 
-
 #===============================================================================
-# Houdini Versions and Builed related reports
+# Houdini Versions and Builds related reports
 
 def usage_by_hou_version_or_build(all=True, build=False, is_apprentice=False):
     """
@@ -377,5 +384,49 @@ def get_users_over_time(series_range, aggregation):
     """
     Get machine configs over time.
     """
+    apprentice_activations_over_time(series_range, aggregation)
     return _time_series(MachineConfig.objects.all(), 'last_active_date', 
                                                  series_range, agg=aggregation)
+
+#===============================================================================
+# Houdini Licenses related reports
+
+def apprentice_activations_over_time(series_range, aggregation):
+    """
+    Get Apprentice Activations over time. Line Chart.
+    """
+    
+    start_date = series_range[0] 
+    end_date = series_range[1]
+    
+    if aggregation is None:
+        aggregation = "daily"
+
+    nc_custid = 2711
+    cursor = connections['licensedb'].cursor()
+    
+    cursor.execute("""
+        select cast(activation_date as datetime)
+                          as date, 
+               count(*) as num_activated
+        from (
+            select from_days(min(to_days(Keystrings.CreateDate))) as 
+                   activation_date 
+            from Servers, Keystrings
+            where Servers.CustID='{0}'
+            and Servers.ServerID=Keystrings.ServerID
+            and Keystrings.KType='LICENSE'
+            group by Servers.ServerID
+        ) as TempTable
+        where activation_date between date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                         and date_format('{2}', '%%Y-%%c-%%d %%H:%%i:%%S')
+        group by date  
+        order by date  
+        """.format(nc_custid, 
+                   start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                   end_date.strftime("%Y-%m-%d %H:%M:%S")
+                  )
+        )  
+    
+    return [(row[0], row[1]) for row in cursor.fetchall()]
+

@@ -14,8 +14,8 @@ urlpatterns = patterns('houdini_stats.views',
     url(r'^index/crashes$', 'hou_crashes_view', name='hou_crashes'),
     url(r'^index/nodes_usage$', 'hou_nodes_usage_view', name='hou_nodes_usage'),
     url(r'^index/versions_and_builds$', 'hou_versions_and_builds_view', name='hou_versions_and_builds'),
+    url(r'^index/licenses$', 'hou_licenses_view', name='hou_licenses'),
     
-
     # API for non-browser-based interaction.
     url(r'^api$', 'api_view', name='api'),
     

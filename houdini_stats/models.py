@@ -1,6 +1,5 @@
 from django.db import models
 
-
 class MachineConfig(models.Model):
     """
     Represent a particular machine configuration.
