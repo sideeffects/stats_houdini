@@ -1,7 +1,9 @@
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import ObjectDoesNotExist
 
 import json
 import datetime
-from django.core.exceptions import ObjectDoesNotExist
 import settings
 
 from utils import *
@@ -118,3 +120,13 @@ class API(object):
         print "failure info: ", failure_info
         return json_http_response(True) 
                 
+#-------------------------------------------------------------------------------
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def api_view(request):
+    """
+    Dispatch requests for API URLs.
+    """
+    return API().dispatch(request)
+

@@ -12,7 +12,6 @@ import datetime
 import settings
 import reports
 import urllib
-from api import API
 
 #===============================================================================
 
@@ -37,7 +36,7 @@ def render_response(page, vals, request):
     context_instance = RequestContext(request)
     return render_to_response(page, vals, context_instance=context_instance)
 
-#-------------------------------------------------------------------------------           
+#-------------------------------------------------------------------------------
 def make_url_absolute(url):
     """
     Make sure a URL starts with '/'.
@@ -54,6 +53,7 @@ def _add_GET_param_to_path(path, param_name):
     prefix = ("&" if "?" in path else "?")
     
     return path + prefix + param_name
+
 #-------------------------------------------------------------------------------
 def _remove_POST_param_from_path(path, param_name):
     """
@@ -63,16 +63,6 @@ def _remove_POST_param_from_path(path, param_name):
                 "&" + param_name , "")
 
 #===============================================================================
-@require_http_methods(["POST"])
-@csrf_exempt
-def api_view(request):
-    """
-    Dispatch requests for API URLs.
-    """
-    api = API()
-    return api.dispatch(request)
-
-#-------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     """
@@ -316,5 +306,4 @@ def hou_licenses_view(request):
                            'url': "/index/licenses",
                            'user':request.user},
                             request)
-      
-    
+

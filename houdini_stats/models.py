@@ -1,4 +1,9 @@
 from django.db import models
+import django.db.models.options as options
+
+# Keep django from complaining about the db_name meta attribute.
+if "db_name" not in options.DEFAULT_NAMES:
+    options.DEFAULT_NAMES = options.DEFAULT_NAMES + ("db_name",)
 
 class MachineConfig(models.Model):
     """
@@ -100,10 +105,11 @@ class MachineConfig(models.Model):
     
     def __unicode__(self):
         return "MachineConfig( %s, %s)" % (self.hardware_id, self.config_hash)
-    
+
     class Meta:
-        '''How to order results when doing queries.'''
+        # How to order results when doing queries:
         ordering = ('last_active_date', )
+        db_name = 'stats'
             
 #-------------------------------------------------------------------------------
     
@@ -138,8 +144,9 @@ class HoudiniCrash(models.Model):
             (self.stack_trace)
 
     class Meta:
-        '''How to order results when doing queries.'''
+        # How to order results when doing queries:
         ordering = ('date', )
+        db_name = 'stats'
 
 #-------------------------------------------------------------------------------
 
@@ -194,8 +201,9 @@ class NodeTypeUsage(models.Model):
             (self.node_type, self.count)
 
     class Meta:
-        '''How to order results when doing queries.'''
+        # How to order results when doing queries:
         ordering = ('date', )    
+        db_name = 'stats'
 
 #-------------------------------------------------------------------------------
 
@@ -223,8 +231,9 @@ class Uptime(models.Model):
             (self.machine_config.config_hash, self.number_of_seconds, self.date)
         
     class Meta:
-        '''How to order results when doing queries.'''
+        # How to order results when doing queries:
         ordering = ('date','number_of_seconds')    
+        db_name = 'stats'
         
     
     
