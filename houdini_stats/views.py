@@ -161,7 +161,7 @@ def index_view(request):
                            "date_format": "M j",
                            "active_index": True,
                            'is_logged_in' : request.user.is_authenticated(),
-                           'url': "/index",
+                           'url': reverse("index"),
                            'user':request.user},
                             request)
     
@@ -191,7 +191,7 @@ def hou_uptime_view(request):
                            "date_format": "M j",
                            "active_uptime": True,
                            'is_logged_in' : request.user.is_authenticated(),
-                           'url': "/index/uptime",
+                           'url': reverse("hou_uptime"),
                            'user':request.user},
                             request)
     
@@ -215,7 +215,7 @@ def hou_crashes_view(request):
                            "date_format": "M j",
                            "active_crashes": True,
                            'is_logged_in' : request.user.is_authenticated(),
-                           'url': "/index/crashes",
+                           'url': reverse("hou_crashes"),
                            'user':request.user},
                             request)
     
@@ -240,7 +240,7 @@ def hou_nodes_usage_view(request):
                            "date_format": "M j",
                            "active_nodes_usage": True,
                            'is_logged_in' : request.user.is_authenticated(),
-                           'url': "/index/node_usage",
+                           'url': reverse("hou_nodes_usage"),
                            'user':request.user},
                             request)
     
@@ -278,7 +278,7 @@ def hou_versions_and_builds_view(request):
                            "date_format": "M j",
                            "active_ver_builds": True,
                            'is_logged_in' : request.user.is_authenticated(),
-                           'url': "/index/versions_and_builds",
+                           'url': reverse("hou_versions_and_builds"),
                            'user':request.user},
                             request)
  
@@ -303,7 +303,7 @@ def hou_licenses_view(request):
                            "date_format": "M j",
                            "active_licenses": True,
                            'is_logged_in' : request.user.is_authenticated(),
-                           'url': "/index/licenses",
+                           'url': reverse("hou_licenses"),
                            'user':request.user},
                             request)
 
