@@ -3,7 +3,7 @@ from houdini_licenses.models import *
 
 from qsstats import QuerySetStats
 from django.db.models import Avg, Sum, Count
-from django.db import connections, connection 
+from django.db import connections
 from collections import defaultdict
 from dateutil.relativedelta import relativedelta
 from utils import get_time
@@ -286,7 +286,7 @@ def average_usage_by_machine(series_range, aggregation):
     if aggregation is None:
         aggregation = "daily"
 
-    cursor = connection.cursor()
+    cursor = connections['stats'].cursor()
     cursor.execute("""
         select cast(day as datetime), avg(total_seconds)
         from (
@@ -316,7 +316,7 @@ def most_popular_nodes(node_usage_count, limit):
     Most popular nodes, the ones with more than node_usage_count number of usage. 
     Column Chart.
     """
-    cursor = connection.cursor()
+    cursor = connections['stats'].cursor()
     cursor.execute("""
         select node_type, node_count 
         from (
