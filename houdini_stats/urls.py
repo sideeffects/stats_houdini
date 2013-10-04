@@ -1,5 +1,6 @@
 import settings
-from django.conf.urls.defaults import *
+#from django.conf.urls.defaults import *
+from django.conf.urls import *
 
 urlpatterns = patterns('')
 
@@ -25,4 +26,6 @@ if settings.IS_QUERY_SERVER:
         url(r'^index/nodes_usage$', 'hou_nodes_usage_view', name='hou_nodes_usage'),
         url(r'^index/versions_and_builds$', 'hou_versions_and_builds_view', name='hou_versions_and_builds'),
         url(r'^index/licenses$', 'hou_licenses_view', name='hou_licenses'),
+        url(r'^index/surveys/(?P<survey_name>.*)$', 'hou_surveys_view', name='hou_surveys'),
+        url(r'^index/forum$', 'hou_forum_view', name='hou_forum'),
     )
