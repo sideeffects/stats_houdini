@@ -1,5 +1,7 @@
 from houdini_stats.models import *
 from houdini_licenses.models import *
+from houdini_surveys.models import *
+from houdini_forum.models import *
 
 from qsstats import QuerySetStats
 from django.db.models import Avg, Sum, Count
@@ -11,6 +13,7 @@ import time
 import datetime
 import settings
 from dircache import annotate
+from operator import *
 
 #===============================================================================
 def _get_start_request(request):
@@ -86,7 +89,7 @@ def _fill_missing_dates_with_zeros(time_series, agg_by, interval):
     """
     result_time_series = []
     dates = [x[0] for x in time_series]
-
+    
     # Determine the first date that will be in the result time series.  If
     # we're aggregating, we need to step through the dates starting with the
     # first day of the week/month/year.
@@ -109,6 +112,7 @@ def _fill_missing_dates_with_zeros(time_series, agg_by, interval):
     
     while current_date <= interval[1]:
         if current_date in dates: 
+            
             result_time_series.append([current_date, time_series[index][1]])
             index += 1
         else:
@@ -140,6 +144,18 @@ def _time_series(queryset, date_field, interval, func=None, agg=None):
                              .order_by(agg_by))
         
         return _fill_missing_dates_with_zeros(result, agg_by, interval)
+
+#-------------------------------------------------------------------------------
+def _get_time_series_sequences(
+        queryset_sequences, interval, aggregation=None,
+        date_field="created", func=None):
+    """
+    This function takes a sequence of querysets and apply time_series to each 
+    of them using the arguments passed in the given order.
+    """
+    
+    return [_time_series(queryset, date_field, interval, func, aggregation)
+        for queryset in queryset_sequences]
 
 #-------------------------------------------------------------------------------
 def _merge_time_series(time_series_sequences):
@@ -430,3 +446,241 @@ def apprentice_activations_over_time(series_range, aggregation):
     
     return [(row[0], row[1]) for row in cursor.fetchall()]
 
+#===============================================================================
+# Surveys Database reports
+
+def _get_user_answers_by_qid_aid(question_id=None, answer_id=None, 
+                                 series_range=None):
+    """
+    Get user answers by the filters given as parameters.
+    """
+    queryset = UserAnswers.objects.all()
+        
+    if question_id is not None and answer_id is not None:
+        # Both filters are not None
+        queryset = queryset.filter(
+            question_id=question_id, answer_id=answer_id)
+    elif question_id is not None:
+        # Assumed then answer_id none otherwise will be case above 
+        queryset = queryset.filter(question_id=question_id)
+    elif answer_id is not None:
+        # Assumed then question_id is none otherwise will be first case 
+        queryset = queryset.filter(answer_id=answer_id)
+    
+    #TODO: filter by dates too
+#    if series_range is not None:
+#        print series_range
+#        return queryset.filter(date__range=[datetime.date(series_range[0]),
+#                                            datetime.date(series_range[1])
+#                                            ])
+    
+    return queryset
+
+#-------------------------------------------------------------------------------
+
+def _get_common_for_hou_engine_breakdown():
+    
+    question_id = 44
+    answer_id_maya=229
+    answer_id_unity=230
+    
+    users_for_maya= _get_user_answers_by_qid_aid(question_id=question_id,
+                                                 answer_id=answer_id_maya)
+    
+    users_for_unity= _get_user_answers_by_qid_aid(question_id=question_id, 
+                                                  answer_id=answer_id_unity)
+    
+    return users_for_maya, users_for_unity, (users_for_maya.count() + \
+                                             users_for_unity.count()) 
+
+#-------------------------------------------------------------------------------
+def hou_engine_maya_unity_breakdown(series_range, aggregation):
+    """
+    Get breakdown of labs users who want Maya vs Unity plugin.
+    Two graphs, a Column Chart showing the number of uses that selected
+    Maya or Unity and, a Line Chart with the two lines for the users that 
+    subscribed to Maya or Unity, over ti <div class="graph-title">Users subscribed to Houdini Analytics </div>me.
+    """
+    
+    users_for_maya, users_for_unity, count_total = _get_common_for_hou_engine_breakdown()
+    
+    #users_count = [["Maya", users_for_maya.count()],["Unity", users_for_unity.count()]]
+    users_count = [("Maya | Unity", users_for_maya.count(), users_for_unity.count())] 
+    
+    users_over_time = _merge_time_series(_get_time_series_sequences([users_for_maya, users_for_unity],
+                       interval= series_range, aggregation= aggregation,
+                       date_field ="date"))
+    
+    return {"count_total": count_total, 
+            "user_answers_count" : users_count, 
+            "user_answers_over_time": users_over_time }
+
+#===============================================================================
+# Forum Database reports
+
+def _get_active_users_over_time(series_range, aggregation):
+    """
+    Number of active users registered in SideFX website over time
+    """
+    
+    return _time_series(MosUsers.objects.filter(user_active=1).exclude(id=-1),
+                                  'registerdate', series_range, agg=aggregation)
+
+
+def _get_active_users_by_method_per_day(start_date, end_date, openid=False):
+    """
+    Get count active users that registered with forum or open id per day, 
+    given a period of time.
+    """
+    
+    to_compare = "= u.id"
+    if openid:
+        to_compare = "IS NULL"
+        
+    cursor = connections['mambo'].cursor()    
+    common_query = """
+                   SELECT cast( cast( u.registerDate AS date ) AS datetime ) 
+                          AS new_date, COUNT(u.id) AS user_count
+                   FROM mos_users u
+                   LEFT JOIN oid_user_to_mos_user a ON a.mos_user_id = u.id
+                   WHERE u.id != -1
+                   AND u.user_active =1
+                   AND u.registerDate between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                         and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                   AND u.registerDate!= "0000-00-00 00:00:00"      
+                   AND a.mos_user_id
+                   """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                              end_date.strftime("%Y-%m-%d %H:%M:%S"))
+    
+    cursor.execute("{0} {1} {2}"
+          .format(common_query, to_compare, "GROUP BY new_date ORDER BY new_date"))  
+    
+    return [(row[0], row[1]) for row in cursor.fetchall()]    
+
+def _get_cumulative_values(tuples):
+    """
+    """
+    return sum(user_count for date, user_count in tuples)
+             
+def get_active_users_forum_and_openid(series_range, aggregation):
+    """
+    Number of users active that registered with forum or open id
+    """
+    
+    start_date = series_range[0] 
+    end_date = series_range[1]
+    
+    if aggregation is None:
+        aggregation = "daily"
+
+    # To get all users registered in the given interval
+    all_users_serie = _get_active_users_over_time(series_range, aggregation)
+    
+    # Creating the time serie from the results of the cursor
+    forum_serie = _get_active_users_by_method_per_day(start_date, end_date) 
+    #Filling the empty dates
+    forum_serie = _fill_missing_dates_with_zeros(forum_serie, aggregation,
+                                                                  series_range) 
+   
+    # Creating the time serie from the results of the cursor
+    openid_serie = _get_active_users_by_method_per_day(start_date, end_date, 
+                                                        openid=True) 
+    # Filling the empty dates
+    openid_serie = _fill_missing_dates_with_zeros(openid_serie, aggregation, 
+                                                                series_range)
+    return _merge_time_series([all_users_serie, forum_serie, openid_serie])
+
+def openid_providers_breakdown(series_range, aggregation):
+    """
+    Breakdown of open id user by providers
+    """
+    
+    start_date = series_range[0] 
+    end_date = series_range[1]
+    
+    if aggregation is None:
+        aggregation = "daily"
+    
+    total_forum = _get_cumulative_values(_get_active_users_by_method_per_day(
+                                                   start_date, end_date, False))
+    total_openid= 0
+    
+    providers = {"forum":{"provider": "http://www.facebook.com/",
+                          "count": total_forum},
+                 "facebook": {"provider": "http://www.facebook.com/",
+                              "count": 0},
+                 "orbolt": {"provider": "https://www.orbolt.com/openid/",
+                            "count": 0},
+                 "gmail": {"provider": "https://www.google.com/accounts/",
+                           "count": 0},
+                 "yahoo": {"provider": "https://www.google.com/accounts/",
+                           "count": 0},
+                 "windowslive": {"provider": "https://profile.live.com/",
+                                 "count": 0},
+                 "linkedin": {"provider": "http://www.linkedin.com/pub/",
+                              "count": 0},
+                 "aol": {"provider": ".aofrom operator import *l",
+                         "count": 0} 
+                }
+    
+    cursor = connections['mambo'].cursor()
+    
+    cursor.execute("""SELECT provider_url FROM oid_user_to_mos_user a
+                      LEFT JOIN mos_users u ON u.id = a.mos_user_id 
+                      WHERE 
+                      u.registerDate between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                         and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                      AND u.registerDate!= "0000-00-00 00:00:00"      
+                      AND u.id = a.mos_user_id
+                      """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                                 end_date.strftime("%Y-%m-%d %H:%M:%S")))
+                   
+    all_providers =  [row[0] for row in cursor.fetchall()]
+    #total_openid= len(all_providers)
+    
+    
+    for provider in all_providers:
+        if providers["facebook"]["provider"] in provider:
+            providers["facebook"]["count"] +=1 
+            total_openid +=1
+        
+        if providers["gmail"]["provider"] in provider:
+            providers["gmail"]["count"] +=1
+            total_openid +=1       
+        
+        elif providers["yahoo"]["provider"] in provider:
+            providers["yahoo"]["count"] +=1
+            total_openid +=1 
+        
+        elif providers["orbolt"]["provider"] in provider:
+            providers["orbolt"]["count"] +=1
+            total_openid +=1  
+        
+        elif providers["windowslive"]["provider"] in provider:
+            providers["windowslive"]["count"] +=1
+            total_openid +=1 
+        
+        elif providers["linkedin"]["provider"] in provider:
+            providers["linkedin"]["count"] +=1
+            total_openid +=1                    
+    
+        elif providers["aol"]["provider"] in provider:
+            providers["aol"]["count"] +=1
+            total_openid +=1        
+    
+    # Sort providers by count descendent order
+    sorted_providers= sorted(providers.items(),
+                             key=lambda x:getitem(x[1],'count'), 
+                             reverse=True)
+    
+    return [(key.title(),value["count"]) for key, value in sorted_providers], \
+            total_forum, total_openid 
+
+def get_num_of_user_registered_and_asked_to_susbcribe(series_range, aggregation):
+    """
+    Number of users registered and asked to subscribe, over time
+    """
+    return _time_series(MachineConfig.objects.filter(asked_to_subscribe=1),
+                              'last_active_date',series_range, agg=aggregation)
+
+    

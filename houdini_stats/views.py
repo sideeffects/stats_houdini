@@ -62,6 +62,25 @@ def _remove_POST_param_from_path(path, param_name):
     return path.replace("?" + param_name, "").replace(
                 "&" + param_name , "")
 
+
+#-------------------------------------------------------------------------------
+def _add_common_context_params(request, start_request, end_request, params):
+    """
+    Given a dictionary of template context parameters, add entries to it that
+    are common to all the pages where the user can log in and return a new
+    dictionary.
+    """
+    
+    new_params = {
+        'is_logged_in' : request.user.is_authenticated(),
+        'user':request.user,
+        "range": [start_request,end_request] if (
+                                       start_request and end_request) else None,
+        "date_format": "M j"
+        }
+    new_params.update(params)
+    return new_params
+
 #===============================================================================
 @require_http_methods(["GET", "POST"])
 def login_view(request):
@@ -155,16 +174,15 @@ def index_view(request):
                                                      series_range, aggregation)
     
     return render_response("index.html",
-                          {"series": series,
-                           "range": [start_request,end_request] if (
-                                       start_request and end_request) else None,
-                           "date_format": "M j",
-                           "active_index": True,
-                           'is_logged_in' : request.user.is_authenticated(),
-                           'url': reverse("index"),
-                           'user':request.user},
-                            request)
-    
+                           _add_common_context_params(request, start_request, 
+                            end_request,
+                           {"series": series,
+                             "active_index": True,
+                             "active_overview": True,
+                             'url': reverse("index"),
+                           }), request
+                          )
+                          
 #-------------------------------------------------------------------------------  
 
 @require_http_methods(["GET", "POST"])
@@ -185,16 +203,15 @@ def hou_uptime_view(request):
                                                                    aggregation) 
     
     return render_response("uptime.html",
-                          {"series": series,
-                           "range": [start_request,end_request] if (
-                                       start_request and end_request) else None,
-                           "date_format": "M j",
-                           "active_uptime": True,
-                           'is_logged_in' : request.user.is_authenticated(),
-                           'url': reverse("hou_uptime"),
-                           'user':request.user},
-                            request)
-    
+                            _add_common_context_params(request, start_request, 
+                            end_request,
+                            {"series": series,
+                             "active_uptime": True,
+                             "active_index": True,
+                             "url": reverse("hou_uptime"),
+                             }), request
+                           )
+                          
 #-------------------------------------------------------------------------------    
 @require_http_methods(["GET", "POST"])
 @login_required
@@ -209,16 +226,15 @@ def hou_crashes_view(request):
     series['hou_crashes_over_time'] = reports.get_hou_crashes_over_time(
                                                                   series_range)    
     return render_response("hou_crashes_reports.html",
-                          {"series": series,
-                           "range": [start_request,end_request] if (
-                                       start_request and end_request) else None,
-                           "date_format": "M j",
-                           "active_crashes": True,
-                           'is_logged_in' : request.user.is_authenticated(),
-                           'url': reverse("hou_crashes"),
-                           'user':request.user},
-                            request)
-    
+                            _add_common_context_params(request, start_request, 
+                            end_request,
+                            {"series": series,
+                             "active_crashes": True,
+                             "active_index": True,
+                             "url": reverse("hou_crashes"),
+                             }), request
+                           )
+                          
 #-------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
@@ -232,17 +248,16 @@ def hou_nodes_usage_view(request):
     series['hou_most_popular_nodes'] = reports.most_popular_nodes(
                                                               node_usage_count,
                                                               limit)
-    
+   
     return render_response("hou_node_usage_reports.html",
-                          {"series": series,
-                           "range": [start_request,end_request] if (
-                                       start_request and end_request) else None,
-                           "date_format": "M j",
-                           "active_nodes_usage": True,
-                           'is_logged_in' : request.user.is_authenticated(),
-                           'url': reverse("hou_nodes_usage"),
-                           'user':request.user},
-                            request)
+                            _add_common_context_params(request, start_request, 
+                            end_request,
+                            {"series": series,
+                            "active_nodes_usage": True,
+                            "active_index": True,
+                            'url': reverse("hou_nodes_usage"),
+                             }), request
+                           )
     
 #-------------------------------------------------------------------------------  
 @require_http_methods(["GET", "POST"])
@@ -272,16 +287,15 @@ def hou_versions_and_builds_view(request):
                                                       build=True)
     
     return render_response("hou_versions_builds_reports.html",
-                          {"pies": pies,
-                           "range": [start_request,end_request] if (start_request and 
-                                                        end_request) else None,
-                           "date_format": "M j",
-                           "active_ver_builds": True,
-                           'is_logged_in' : request.user.is_authenticated(),
-                           'url': reverse("hou_versions_and_builds"),
-                           'user':request.user},
-                            request)
- 
+                           _add_common_context_params(request, start_request, 
+                            end_request,
+                            {"pies": pies,
+                             "active_ver_builds": True,
+                             "active_index": True,
+                             'url': reverse("hou_versions_and_builds"),
+                             }), request
+                           )
+                        
 #-------------------------------------------------------------------------------  
 @require_http_methods(["GET", "POST"])
 @login_required
@@ -297,13 +311,76 @@ def hou_licenses_view(request):
                                                           series_range, aggregation) 
     
     return render_response("licenses_reports.html",
-                          {"series": series,
-                           "range": [start_request,end_request] if (
-                                       start_request and end_request) else None,
-                           "date_format": "M j",
-                           "active_licenses": True,
-                           'is_logged_in' : request.user.is_authenticated(),
-                           'url': reverse("hou_licenses"),
-                           'user':request.user},
-                            request)
-
+                           _add_common_context_params(request, start_request, 
+                            end_request,
+                            {"series": series,
+                             "active_licenses": True,
+                            'url': reverse("hou_licenses"),
+                             }), request
+                           )
+                          
+#-------------------------------------------------------------------------------  
+@require_http_methods(["GET", "POST"])
+@login_required
+def hou_surveys_view(request, survey_name):
+    """
+    Houdini surveys reports.
+    """
+    series = {}
+    
+    start_request, end_request, series_range, aggregation = reports.get_common_vars(
+                                                                        request)
+    count_total =0 
+    
+    if survey_name == "sidefx_labs":
+        hou_engine_reports_data = reports.hou_engine_maya_unity_breakdown(
+                                                      series_range, aggregation) 
+        count_total = hou_engine_reports_data["count_total"]
+        
+        series['user_answers_maya_unity_count'] = \
+                                   hou_engine_reports_data["user_answers_count"]
+        series['user_answers_maya_unity_over_time'] = \
+                               hou_engine_reports_data["user_answers_over_time"]
+    
+    return render_response("surveys_reports.html", 
+                           _add_common_context_params(request, start_request, 
+                            end_request,
+                            {"series": series,
+                             "active_surveys": True,
+                             'url': reverse("hou_surveys", 
+                                           kwargs={"survey_name": survey_name}),
+                             'count_total': hou_engine_reports_data["count_total"],
+                             'survey_name': survey_name
+                             }), request
+                           )
+    
+ #-------------------------------------------------------------------------------  
+@require_http_methods(["GET", "POST"])
+@login_required
+def hou_forum_view(request):
+    """
+    Houdini forum reports.
+    """
+    series = {}
+    
+    start_request, end_request, series_range, aggregation = reports.get_common_vars(
+                                                                        request)
+    
+    series["users_forum_openid"] = reports.get_active_users_forum_and_openid(
+                                                      series_range, aggregation)
+    
+    breakdown, total_forum, total_openid = reports.openid_providers_breakdown(
+                                                      series_range, aggregation)   
+    series['open_id_breakdown'] = breakdown
+                                   
+    return render_response("forum_reports.html", 
+                           _add_common_context_params(request, start_request, 
+                            end_request,
+                            {"series": series,
+                             "total_forum": total_forum,
+                             "total_openid": total_openid,
+                             "active_forum": True,
+                             'url': reverse("hou_forum")
+                             }), request
+                           )   
+                           
