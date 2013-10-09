@@ -176,10 +176,11 @@ def index_view(request):
     return render_response("index.html",
                            _add_common_context_params(request, start_request, 
                             end_request,
-                           {"series": series,
-                             "active_index": True,
-                             "active_overview": True,
+                           {'series': series,
+                             'active_index': True,
+                             'active_overview': True,
                              'url': reverse("index"),
+                             'show_date_picker':True
                            }), request
                           )
                           
@@ -205,10 +206,11 @@ def hou_uptime_view(request):
     return render_response("uptime.html",
                             _add_common_context_params(request, start_request, 
                             end_request,
-                            {"series": series,
-                             "active_uptime": True,
-                             "active_index": True,
-                             "url": reverse("hou_uptime"),
+                            {'series': series,
+                             'active_uptime': True,
+                             'active_index': True,
+                             'url': reverse("hou_uptime"),
+                             'show_date_picker':True
                              }), request
                            )
                           
@@ -228,10 +230,11 @@ def hou_crashes_view(request):
     return render_response("hou_crashes_reports.html",
                             _add_common_context_params(request, start_request, 
                             end_request,
-                            {"series": series,
-                             "active_crashes": True,
-                             "active_index": True,
-                             "url": reverse("hou_crashes"),
+                            {'series': series,
+                             'active_crashes': True,
+                             'active_index': True,
+                             'url': reverse("hou_crashes"),
+                             'show_date_picker':True
                              }), request
                            )
                           
@@ -252,10 +255,11 @@ def hou_nodes_usage_view(request):
     return render_response("hou_node_usage_reports.html",
                             _add_common_context_params(request, start_request, 
                             end_request,
-                            {"series": series,
-                            "active_nodes_usage": True,
-                            "active_index": True,
+                            {'series': series,
+                            'active_nodes_usage': True,
+                            'active_index': True,
                             'url': reverse("hou_nodes_usage"),
+                            'show_date_picker': False
                              }), request
                            )
     
@@ -289,10 +293,11 @@ def hou_versions_and_builds_view(request):
     return render_response("hou_versions_builds_reports.html",
                            _add_common_context_params(request, start_request, 
                             end_request,
-                            {"pies": pies,
-                             "active_ver_builds": True,
-                             "active_index": True,
+                            {'pies': pies,
+                             'active_ver_builds': True,
+                             'active_index': True,
                              'url': reverse("hou_versions_and_builds"),
+                             'show_date_picker': False
                              }), request
                            )
                         
@@ -313,9 +318,10 @@ def hou_licenses_view(request):
     return render_response("licenses_reports.html",
                            _add_common_context_params(request, start_request, 
                             end_request,
-                            {"series": series,
-                             "active_licenses": True,
-                            'url': reverse("hou_licenses"),
+                            {'series': series,
+                             'active_licenses': True,
+                             'url': reverse("hou_licenses"),
+                             'show_date_picker': True
                              }), request
                            )
                           
@@ -328,9 +334,13 @@ def hou_surveys_view(request, survey_name):
     """
     series = {}
     
+    if not survey_name:
+        survey_name = "sidefx_labs"
+        
+    show_date_picker = True    
     start_request, end_request, series_range, aggregation = reports.get_common_vars(
                                                                         request)
-    count_total =0 
+    count_total =0
     
     if survey_name == "sidefx_labs":
         hou_engine_reports_data = reports.hou_engine_maya_unity_breakdown(
@@ -342,15 +352,30 @@ def hou_surveys_view(request, survey_name):
         series['user_answers_maya_unity_over_time'] = \
                                hou_engine_reports_data["user_answers_over_time"]
     
+    
+    if survey_name == "apprentice_followup":
+        show_date_picker = False
+        questions_and_total_counts, user_answers = reports.apprentice_followup_survey()
+                            
+        # This contains the questions text and total count
+        series["questions_and_total_counts"] = questions_and_total_counts
+        
+        # Each set of answers will be passed as a serie key from range
+        # (answer_1 to answer_5) because of the way google charts process the
+        # data passed.
+        for k,v in user_answers.items():
+            series["answer_"+str(k)] = v
+            
     return render_response("surveys_reports.html", 
                            _add_common_context_params(request, start_request, 
                             end_request,
-                            {"series": series,
-                             "active_surveys": True,
+                            {'series': series,
+                             'active_surveys': True,
                              'url': reverse("hou_surveys", 
                                            kwargs={"survey_name": survey_name}),
-                             'count_total': hou_engine_reports_data["count_total"],
-                             'survey_name': survey_name
+                             'count_total': count_total,
+                             'survey_name': survey_name,
+                             'show_date_picker': show_date_picker
                              }), request
                            )
     
@@ -376,11 +401,12 @@ def hou_forum_view(request):
     return render_response("forum_reports.html", 
                            _add_common_context_params(request, start_request, 
                             end_request,
-                            {"series": series,
-                             "total_forum": total_forum,
-                             "total_openid": total_openid,
-                             "active_forum": True,
-                             'url': reverse("hou_forum")
+                            {'series': series,
+                             'total_forum': total_forum,
+                             'total_openid': total_openid,
+                             'active_forum': True,
+                             'url': reverse("hou_forum"),
+                             'show_date_picker': True
                              }), request
                            )   
                            

@@ -15,6 +15,7 @@ import settings
 from dircache import annotate
 from operator import *
 
+
 #===============================================================================
 def _get_start_request(request):
     """
@@ -478,6 +479,26 @@ def _get_user_answers_by_qid_aid(question_id=None, answer_id=None,
 
 #-------------------------------------------------------------------------------
 
+def get_questions_from_survey(survey_id, exclude_question_id=None):
+    """
+    Get a questions from survey id.
+    """   
+    if exclude_question_id:
+        return Questions.objects.filter(survey_id=survey_id).exclude(
+                                                id=exclude_question_id)
+        
+    return Questions.objects.filter(survey_id=survey_id)
+
+#-------------------------------------------------------------------------------
+
+def get_answers_from_question(question_id):
+    """
+    Get answers from a question id.
+    """   
+    return QuestionAnswers.objects.filter(question_id=question_id)
+    
+#-------------------------------------------------------------------------------
+
 def _get_common_for_hou_engine_breakdown():
     
     question_id = 44
@@ -494,18 +515,18 @@ def _get_common_for_hou_engine_breakdown():
                                              users_for_unity.count()) 
 
 #-------------------------------------------------------------------------------
+
 def hou_engine_maya_unity_breakdown(series_range, aggregation):
     """
     Get breakdown of labs users who want Maya vs Unity plugin.
     Two graphs, a Column Chart showing the number of uses that selected
     Maya or Unity and, a Line Chart with the two lines for the users that 
-    subscribed to Maya or Unity, over ti <div class="graph-title">Users subscribed to Houdini Analytics </div>me.
+    subscribed to Maya or Unity, over time.
     """
     
     users_for_maya, users_for_unity, count_total = _get_common_for_hou_engine_breakdown()
     
-    #users_count = [["Maya", users_for_maya.count()],["Unity", users_for_unity.count()]]
-    users_count = [("Maya | Unity", users_for_maya.count(), users_for_unity.count())] 
+    users_count = [("Maya | Unity", users_for_maya.count(), users_for_unity.count())]
     
     users_over_time = _merge_time_series(_get_time_series_sequences([users_for_maya, users_for_unity],
                        interval= series_range, aggregation= aggregation,
@@ -514,6 +535,61 @@ def hou_engine_maya_unity_breakdown(series_range, aggregation):
     return {"count_total": count_total, 
             "user_answers_count" : users_count, 
             "user_answers_over_time": users_over_time }
+
+#-------------------------------------------------------------------------------
+
+def _get_common_for_apprentice_followup_survey():
+            
+    survey_id = 2
+    questions = get_questions_from_survey(survey_id, 8)
+    
+    questions_answers = {}
+    
+    for q in questions:
+        answers_for_questions= get_answers_from_question(q.id)
+        questions_answers[q.id] = {"question": q.question, 
+                                   "answers" : answers_for_questions}
+    
+    return questions_answers 
+    
+#-------------------------------------------------------------------------------
+
+def apprentice_followup_survey():
+    """
+    Get breakdown of labs users who want Maya vs Unity plugin.
+    Two graphs, a Column Chart showing the number of uses that selected
+    Maya or Unity and, a Line Chart with the two lines for the users that 
+    subscribed to Maya or Unity, over ti <div class="graph-title">Users subscribed to Houdini Analytics </div>me.
+    """
+    
+    questions_and_answers = _get_common_for_apprentice_followup_survey()
+    questions_and_total_counts = {}
+    sorted_answers = {}
+    user_answers_total_count_list = []
+    index_q = 0
+    
+    for key, value in questions_and_answers.items():
+        
+        index_q +=1
+        question_id = key
+        answers = value["answers"]
+        answers_count = {}
+        user_answers_total_count = 0
+        
+        for answer in answers:
+            
+            user_answers = _get_user_answers_by_qid_aid(
+                                                    question_id=question_id, 
+                                                    answer_id=answer.id)
+            answers_count[answer.answer] = user_answers.count()    
+            user_answers_total_count += user_answers.count()
+            
+        questions_and_total_counts[index_q] = {"text": value["question"],
+                                                "count": user_answers_total_count}         
+        sorted_answers[index_q] = sorted(answers_count.items(), 
+                                                key=lambda x:x[1], reverse=True)
+
+    return questions_and_total_counts, sorted_answers  
 
 #===============================================================================
 # Forum Database reports
@@ -526,6 +602,7 @@ def _get_active_users_over_time(series_range, aggregation):
     return _time_series(MosUsers.objects.filter(user_active=1).exclude(id=-1),
                                   'registerdate', series_range, agg=aggregation)
 
+#-------------------------------------------------------------------------------
 
 def _get_active_users_by_method_per_day(start_date, end_date, openid=False):
     """
@@ -557,11 +634,13 @@ def _get_active_users_by_method_per_day(start_date, end_date, openid=False):
     
     return [(row[0], row[1]) for row in cursor.fetchall()]    
 
+#-------------------------------------------------------------------------------
 def _get_cumulative_values(tuples):
     """
     """
     return sum(user_count for date, user_count in tuples)
-             
+
+#-------------------------------------------------------------------------------             
 def get_active_users_forum_and_openid(series_range, aggregation):
     """
     Number of users active that registered with forum or open id
@@ -590,6 +669,7 @@ def get_active_users_forum_and_openid(series_range, aggregation):
                                                                 series_range)
     return _merge_time_series([all_users_serie, forum_serie, openid_serie])
 
+#-------------------------------------------------------------------------------
 def openid_providers_breakdown(series_range, aggregation):
     """
     Breakdown of open id user by providers
@@ -676,6 +756,7 @@ def openid_providers_breakdown(series_range, aggregation):
     return [(key.title(),value["count"]) for key, value in sorted_providers], \
             total_forum, total_openid 
 
+#-------------------------------------------------------------------------------
 def get_num_of_user_registered_and_asked_to_susbcribe(series_range, aggregation):
     """
     Number of users registered and asked to subscribe, over time
