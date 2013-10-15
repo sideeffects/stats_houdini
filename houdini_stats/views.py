@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
 from django.core.urlresolvers import reverse
 from django.contrib.auth import authenticate, login, logout
+from static_data import *
 
 import datetime
 import settings
@@ -64,7 +65,8 @@ def _remove_POST_param_from_path(path, param_name):
 
 
 #-------------------------------------------------------------------------------
-def _add_common_context_params(request, start_request, end_request, params):
+def _add_common_context_params(request, start_request=None, end_request=None, 
+                               params = None):
     """
     Given a dictionary of template context parameters, add entries to it that
     are common to all the pages where the user can log in and return a new
@@ -74,6 +76,7 @@ def _add_common_context_params(request, start_request, end_request, params):
     new_params = {
         'is_logged_in' : request.user.is_authenticated(),
         'user':request.user,
+        'top_menu_options': top_menu_options_ordered,
         "range": [start_request,end_request] if (
                                        start_request and end_request) else None,
         "date_format": "M j"
@@ -166,145 +169,90 @@ def index_view(request):
     """
     Home page analytics.
     """
-    series = {}
-    
-    start_request, end_request, series_range, aggregation = reports.get_common_vars(
-                                                                        request)
-    series['users_over_time'] = reports.get_users_over_time(
-                                                     series_range, aggregation)
     
     return render_response("index.html",
-                           _add_common_context_params(request, start_request, 
-                            end_request,
-                           {'series': series,
-                             'active_index': True,
-                             'active_overview': True,
-                             'url': reverse("index"),
-                             'show_date_picker':True
+                           _add_common_context_params(request, None, None,
+                           { 'url': reverse("index"),
+                            'show_date_picker': False,
                            }), request
                           )
-                          
-#-------------------------------------------------------------------------------  
 
+
+#-------------------------------------------------------------------------------  
 @require_http_methods(["GET", "POST"])
 @login_required
-def hou_uptime_view(request):
+def hou_reports_view(request, dropdown_option_key):
     """
-    Houdini uptime reports.
+    Analytics from data we collect from inside Houdini.
     """
     series = {}
+    pies = {}
+    url_to_reverse = {}
     
+    show_date_picker = True   
+    
+    if not dropdown_option_key:
+        dropdown_option_key = "overview"
+       
     start_request, end_request, series_range, aggregation = reports.get_common_vars(
                                                                         request)
-    
-    series['hou_average_session_length'] = reports.average_session_length(
+    if dropdown_option_key == "overview":
+        series['users_over_time'] = reports.get_users_over_time(
                                                      series_range, aggregation)
-    series['hou_average_usage_by_machine'] = reports.average_usage_by_machine(
+        
+    if dropdown_option_key == "uptime":
+        series['hou_average_session_length'] = reports.average_session_length(
+                                                     series_range, aggregation)
+        series['hou_average_usage_by_machine'] = reports.average_usage_by_machine(
                                                                    series_range, 
                                                                    aggregation) 
-    
-    return render_response("uptime.html",
-                            _add_common_context_params(request, start_request, 
-                            end_request,
-                            {'series': series,
-                             'active_uptime': True,
-                             'active_index': True,
-                             'url': reverse("hou_uptime"),
-                             'show_date_picker':True
-                             }), request
-                           )
-                          
-#-------------------------------------------------------------------------------    
-@require_http_methods(["GET", "POST"])
-@login_required
-def hou_crashes_view(request):
-    """
-    Houdini crashes reports.
-    """
-    series = {}
-    start_request, end_request, series_range, aggregation = reports.get_common_vars(
-                                                                        request)
-
-    series['hou_crashes_over_time'] = reports.get_hou_crashes_over_time(
+    if dropdown_option_key == "crashes":
+        series['hou_crashes_over_time'] = reports.get_hou_crashes_over_time(
                                                                   series_range)    
-    return render_response("hou_crashes_reports.html",
-                            _add_common_context_params(request, start_request, 
-                            end_request,
-                            {'series': series,
-                             'active_crashes': True,
-                             'active_index': True,
-                             'url': reverse("hou_crashes"),
-                             'show_date_picker':True
-                             }), request
-                           )
-                          
-#-------------------------------------------------------------------------------
-@require_http_methods(["GET", "POST"])
-@login_required
-def hou_nodes_usage_view(request):
-    """
-    Houdini nodes usage reports.
-    """
-    series = {}
-    start_request, end_request, series_range, aggregation = reports.get_common_vars(
-                                                                        request)
-    series['hou_most_popular_nodes'] = reports.most_popular_nodes(
+    if dropdown_option_key == "node_usage":
+        show_date_picker = False    
+        series['hou_most_popular_nodes'] = reports.most_popular_nodes(
                                                               node_usage_count,
-                                                              limit)
-   
-    return render_response("hou_node_usage_reports.html",
-                            _add_common_context_params(request, start_request, 
-                            end_request,
-                            {'series': series,
-                            'active_nodes_usage': True,
-                            'active_index': True,
-                            'url': reverse("hou_nodes_usage"),
-                            'show_date_picker': False
-                             }), request
-                           )
-    
-#-------------------------------------------------------------------------------  
-@require_http_methods(["GET", "POST"])
-@login_required
-def hou_versions_and_builds_view(request):
-    """
-    Houdini nodes usage reports.
-    """
-    pies = {}
-    start_request, end_request, series_range, aggregation = reports.get_common_vars(
-                                                                        request)
-    # Pie Charts
-    pies['houdini_versions'] =  reports.usage_by_hou_version_or_build()
-    pies['houdini_builds'] =  reports.usage_by_hou_version_or_build(build=True)
-    
-    pies['houdini_versions_apprentice'] =  reports.usage_by_hou_version_or_build(
-                                               all=False, is_apprentice=True)
-    pies['houdini_builds_apprentice'] =  reports.usage_by_hou_version_or_build(
-                                                      all=False,
-                                                      build=True, 
-                                                      is_apprentice=True)
-    
-    pies['houdini_versions_commercial'] =  reports.usage_by_hou_version_or_build(
-                                                                      all=False)
-    pies['houdini_builds_commercial'] =  reports.usage_by_hou_version_or_build(
-                                                      all=False,
-                                                      build=True)
-    
-    return render_response("hou_versions_builds_reports.html",
+                                                              limit)   
+    if dropdown_option_key == "versions_and_builds":
+        show_date_picker = False 
+        # Pie Charts
+        pies['houdini_versions'] =  reports.usage_by_hou_version_or_build()
+        pies['houdini_builds'] =  reports.usage_by_hou_version_or_build(build=True)
+        
+        pies['houdini_versions_apprentice'] =  reports.usage_by_hou_version_or_build(
+                                                   all=False, is_apprentice=True)
+        pies['houdini_builds_apprentice'] =  reports.usage_by_hou_version_or_build(
+                                                          all=False,
+                                                          build=True, 
+                                                          is_apprentice=True)
+        
+        pies['houdini_versions_commercial'] =  reports.usage_by_hou_version_or_build(
+                                                                          all=False)
+        pies['houdini_builds_commercial'] =  reports.usage_by_hou_version_or_build(
+                                                          all=False,
+                                                          build=True)
+        
+    return render_response("hou_reports.html", 
                            _add_common_context_params(request, start_request, 
                             end_request,
-                            {'pies': pies,
-                             'active_ver_builds': True,
-                             'active_index': True,
-                             'url': reverse("hou_versions_and_builds"),
-                             'show_date_picker': False
+                            {'series': series,
+                             'pies': pies,
+                             'url': reverse("hou_reports", 
+                                           kwargs={"dropdown_option_key": dropdown_option_key}),
+                             'dropdown_option_key': dropdown_option_key,
+                             'show_date_picker': show_date_picker,
+                             'active_houdini': True,
+                             'active_menu': top_menu_options['houdini']['menu_name'],
+                             'active_menu_option_pair': (dropdown_option_key,
+                                          top_menu_options['houdini']['menu_options'][dropdown_option_key]) 
                              }), request
-                           )
-                        
+                           )                          
+
 #-------------------------------------------------------------------------------  
 @require_http_methods(["GET", "POST"])
 @login_required
-def hou_licenses_view(request):
+def hou_licenses_view(request, dropdown_option_key):
     """
     Houdini licenses reports.
     """
@@ -315,34 +263,41 @@ def hou_licenses_view(request):
     series['apprentice_lic_over_time'] = reports.apprentice_activations_over_time(
                                                           series_range, aggregation) 
     
+    if not dropdown_option_key:
+        dropdown_option_key = "apprentice_activations"
+    
     return render_response("licenses_reports.html",
                            _add_common_context_params(request, start_request, 
                             end_request,
                             {'series': series,
                              'active_licenses': True,
-                             'url': reverse("hou_licenses"),
-                             'show_date_picker': True
+                             'url': reverse("hou_licenses",
+                                    kwargs={"dropdown_option_key": dropdown_option_key}),
+                             'show_date_picker': True,
+                             'active_menu': top_menu_options['licensing']['menu_name'],
+                             'active_menu_option_pair': (dropdown_option_key,
+                                          top_menu_options['licensing']['menu_options'][dropdown_option_key]) 
                              }), request
                            )
                           
 #-------------------------------------------------------------------------------  
 @require_http_methods(["GET", "POST"])
 @login_required
-def hou_surveys_view(request, survey_name):
+def hou_surveys_view(request, dropdown_option_key):
     """
     Houdini surveys reports.
     """
     series = {}
     
-    if not survey_name:
-        survey_name = "sidefx_labs"
+    if not dropdown_option_key:
+        dropdown_option_key = "sidefx_labs"
         
     show_date_picker = True    
     start_request, end_request, series_range, aggregation = reports.get_common_vars(
                                                                         request)
     count_total =0
     
-    if survey_name == "sidefx_labs":
+    if dropdown_option_key == "sidefx_labs":
         hou_engine_reports_data = reports.hou_engine_maya_unity_breakdown(
                                                       series_range, aggregation) 
         count_total = hou_engine_reports_data["count_total"]
@@ -353,7 +308,7 @@ def hou_surveys_view(request, survey_name):
                                hou_engine_reports_data["user_answers_over_time"]
     
     
-    if survey_name == "apprentice_followup":
+    if dropdown_option_key == "apprentice_followup":
         show_date_picker = False
         questions_and_total_counts, user_answers = reports.apprentice_followup_survey()
                             
@@ -365,24 +320,27 @@ def hou_surveys_view(request, survey_name):
         # data passed.
         for k,v in user_answers.items():
             series["answer_"+str(k)] = v
-            
+    
     return render_response("surveys_reports.html", 
                            _add_common_context_params(request, start_request, 
                             end_request,
                             {'series': series,
                              'active_surveys': True,
                              'url': reverse("hou_surveys", 
-                                           kwargs={"survey_name": survey_name}),
+                                           kwargs={"dropdown_option_key": dropdown_option_key}),
                              'count_total': count_total,
-                             'survey_name': survey_name,
-                             'show_date_picker': show_date_picker
+                             'dropdown_option_key': dropdown_option_key,
+                             'show_date_picker': show_date_picker,
+                             'active_menu': top_menu_options['surveys']['menu_name'],
+                             'active_menu_option_pair': (dropdown_option_key,
+                                          top_menu_options['surveys']['menu_options'][dropdown_option_key]) 
                              }), request
                            )
     
  #-------------------------------------------------------------------------------  
 @require_http_methods(["GET", "POST"])
 @login_required
-def hou_forum_view(request):
+def hou_forum_view(request, dropdown_option_key):
     """
     Houdini forum reports.
     """
@@ -397,7 +355,10 @@ def hou_forum_view(request):
     breakdown, total_forum, total_openid = reports.openid_providers_breakdown(
                                                       series_range, aggregation)   
     series['open_id_breakdown'] = breakdown
-                                   
+    
+    if not dropdown_option_key:
+        dropdown_option_key = "login_registration"
+    
     return render_response("forum_reports.html", 
                            _add_common_context_params(request, start_request, 
                             end_request,
@@ -405,8 +366,12 @@ def hou_forum_view(request):
                              'total_forum': total_forum,
                              'total_openid': total_openid,
                              'active_forum': True,
-                             'url': reverse("hou_forum"),
-                             'show_date_picker': True
+                             'url': reverse("hou_forum",
+                                       kwargs={"dropdown_option_key": dropdown_option_key}),
+                             'show_date_picker': True,
+                             'active_menu': top_menu_options['sidefx.com']['menu_name'],
+                             'active_menu_option_pair': (dropdown_option_key,
+                                          top_menu_options['sidefx.com']['menu_options'][dropdown_option_key]) 
                              }), request
                            )   
                            

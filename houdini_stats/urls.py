@@ -21,11 +21,13 @@ if settings.IS_QUERY_SERVER:
         # Log out.
         url(r'^logout/$', 'logout_view', name='logout'),
         
-        url(r'^index/uptime$', 'hou_uptime_view', name='hou_uptime'),
-        url(r'^index/crashes$', 'hou_crashes_view', name='hou_crashes'),
-        url(r'^index/nodes_usage$', 'hou_nodes_usage_view', name='hou_nodes_usage'),
-        url(r'^index/versions_and_builds$', 'hou_versions_and_builds_view', name='hou_versions_and_builds'),
-        url(r'^index/licenses$', 'hou_licenses_view', name='hou_licenses'),
-        url(r'^index/surveys/(?P<survey_name>.*)$', 'hou_surveys_view', name='hou_surveys'),
-        url(r'^index/forum$', 'hou_forum_view', name='hou_forum'),
+        url(r'^houdini/(?P<dropdown_option_key>.*)$', 'hou_reports_view', 
+                                                            name='hou_reports'),
+        url(r'^licenses/(?P<dropdown_option_key>.*)$', 'hou_licenses_view', 
+                                                           name='hou_licenses'),
+        url(r'^surveys/(?P<dropdown_option_key>.*)$', 'hou_surveys_view', 
+                                                            name='hou_surveys'),
+        url(r'^forum/(?P<dropdown_option_key>.*)$', 'hou_forum_view', 
+                                                              name='hou_forum'),
+        
     )
