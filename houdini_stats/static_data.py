@@ -1,4 +1,7 @@
-from collections import OrderedDict
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 top_menu_options = { "houdini":{ "menu_name": "Houdini", 
                                  "menu_view": "hou_reports",
@@ -19,7 +22,7 @@ top_menu_options = { "houdini":{ "menu_name": "Houdini",
                                   "menu_options": OrderedDict([("sidefx_labs", "labs.sidefx.com survey"),
                                                   ("apprentice_followup","Apprentice survey")])
                                  },
-                     "sidefx.com": { "menu_name": "sidefx.com",
+                     "sidefx.com": { "menu_name": "Website",
                                      "menu_view": "hou_forum",
                                      "menu_options": OrderedDict([("login_registration", "Login & Registration")])
                                     }
