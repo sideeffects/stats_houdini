@@ -65,20 +65,18 @@ def _remove_POST_param_from_path(path, param_name):
 
 
 #-------------------------------------------------------------------------------
-def _add_common_context_params(request, start_request=None, end_request=None, 
-                               params = None):
+def _add_common_context_params(request, series_range, agg=None, params = None):
     """
     Given a dictionary of template context parameters, add entries to it that
     are common to all the pages where the user can log in and return a new
     dictionary.
     """
-    
     new_params = {
         'is_logged_in' : request.user.is_authenticated(),
         'user':request.user,
         'top_menu_options': top_menu_options_ordered,
-        "range": [start_request,end_request] if (
-                                       start_request and end_request) else None,
+        "range": series_range,
+        "aggregation": agg,
         "date_format": "M j"
         }
     new_params.update(params)
@@ -171,7 +169,7 @@ def index_view(request):
     """
     
     return render_response("index.html",
-                           _add_common_context_params(request, None, None,
+                           _add_common_context_params(request,[None, None], None,
                            { 'url': reverse("index"),
                             'show_date_picker': False,
                            }), request
@@ -194,8 +192,8 @@ def hou_reports_view(request, dropdown_option_key):
     if not dropdown_option_key:
         dropdown_option_key = "overview"
        
-    start_request, end_request, series_range, aggregation = reports.get_common_vars(
-                                                                        request)
+    series_range, aggregation = reports.get_common_vars_for_charts(request)
+    
     if dropdown_option_key == "overview":
         series['users_over_time'] = reports.get_users_over_time(
                                                      series_range, aggregation)
@@ -234,8 +232,8 @@ def hou_reports_view(request, dropdown_option_key):
                                                           build=True)
         
     return render_response("hou_reports.html", 
-                           _add_common_context_params(request, start_request, 
-                            end_request,
+                           _add_common_context_params(request, series_range, 
+                                                      aggregation,
                             {'series': series,
                              'pies': pies,
                              'url': reverse("hou_reports", 
@@ -258,8 +256,8 @@ def hou_licenses_view(request, dropdown_option_key):
     """
     series = {}
     
-    start_request, end_request, series_range, aggregation = reports.get_common_vars(
-                                                                        request)
+    series_range, aggregation = reports.get_common_vars_for_charts(request)
+    
     series['apprentice_lic_over_time'] = reports.apprentice_activations_over_time(
                                                           series_range, aggregation) 
     
@@ -267,8 +265,8 @@ def hou_licenses_view(request, dropdown_option_key):
         dropdown_option_key = "apprentice_activations"
     
     return render_response("licenses_reports.html",
-                           _add_common_context_params(request, start_request, 
-                            end_request,
+                           _add_common_context_params(request, series_range,
+                                                      aggregation,
                             {'series': series,
                              'active_licenses': True,
                              'url': reverse("hou_licenses",
@@ -293,8 +291,7 @@ def hou_surveys_view(request, dropdown_option_key):
         dropdown_option_key = "sidefx_labs"
         
     show_date_picker = True    
-    start_request, end_request, series_range, aggregation = reports.get_common_vars(
-                                                                        request)
+    series_range, aggregation = reports.get_common_vars_for_charts(request)
     count_total =0
     
     if dropdown_option_key == "sidefx_labs":
@@ -322,8 +319,8 @@ def hou_surveys_view(request, dropdown_option_key):
             series["answer_"+str(k)] = v
     
     return render_response("surveys_reports.html", 
-                           _add_common_context_params(request, start_request, 
-                            end_request,
+                           _add_common_context_params(request, series_range, 
+                                                      aggregation,                                                      
                             {'series': series,
                              'active_surveys': True,
                              'url': reverse("hou_surveys", 
@@ -346,8 +343,7 @@ def hou_forum_view(request, dropdown_option_key):
     """
     series = {}
     
-    start_request, end_request, series_range, aggregation = reports.get_common_vars(
-                                                                        request)
+    series_range, aggregation = reports.get_common_vars_for_charts(request)
     
     series["users_forum_openid"] = reports.get_active_users_forum_and_openid(
                                                       series_range, aggregation)
@@ -360,8 +356,8 @@ def hou_forum_view(request, dropdown_option_key):
         dropdown_option_key = "login_registration"
     
     return render_response("forum_reports.html", 
-                           _add_common_context_params(request, start_request, 
-                            end_request,
+                           _add_common_context_params(request, series_range,
+                                                      aggregation,
                             {'series': series,
                              'total_forum': total_forum,
                              'total_openid': total_openid,

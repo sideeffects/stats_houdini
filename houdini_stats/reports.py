@@ -11,7 +11,7 @@ from dateutil.relativedelta import relativedelta
 from utils import get_time
 import time
 import datetime
-import settings
+from settings import REPORTS_START_DATE
 from dircache import annotate
 from operator import *
 
@@ -21,14 +21,31 @@ def _get_start_request(request):
     """
     Get start date from the request.
     """
-    return request.GET.get("start", None)
+    start_request = request.GET.get("start", None)
+    
+    if start_request is not None:
+        t = time.strptime(start_request, "%d/%m/%Y")
+        start = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
+    else:
+        # We launched the site in August
+        start = REPORTS_START_DATE
+    
+    return start
 
 #------------------------------------------------------------------------------- 
 def _get_end_request(request):
     """
     Get end date from the request.
     """
-    return request.GET.get("end", None)
+    end_request = request.GET.get("end", None)
+    
+    if end_request is not None:
+        t = time.strptime(end_request, "%d/%m/%Y")
+        end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
+    else:
+        end = datetime.datetime.now()
+
+    return end
 
 #-------------------------------------------------------------------------------     
 def _series_range(start_request, end_request):
@@ -72,14 +89,13 @@ def _get_aggregation(get_vars):
     return aggregation 
 
 #------------------------------------------------------------------------------- 
-def get_common_vars(request):
+def get_common_vars_for_charts(request):
     """
     Get all variables that will be used for the reports.
     """
-    return _get_start_request(request), _get_end_request(request), \
-           _series_range(_get_start_request(request), 
-                         _get_end_request(request)), \
+    return [_get_start_request(request), _get_end_request(request)], \
            _get_aggregation(request.GET)
+
 
 #-------------------------------------------------------------------------------
 def _fill_missing_dates_with_zeros(time_series, agg_by, interval):

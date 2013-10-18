@@ -14,6 +14,11 @@
 	
 	var $enableComparison;
 	var $comparisonPreset;
+
+	// Custom variables
+	var $custom_start;
+	var $custom_end;
+	var $inherit;
 	
 	var default_options = {
 		
@@ -65,6 +70,28 @@
 			'custom' : {
 				title: "Custom",
 				dates: function() {return null;}
+			},
+			'Inherit' : {
+				title: "Inherit",
+				dates: function() {
+					if ($custom_start != null && $custom_end != null){
+						// Parse the given dates and convert them
+						// into Javascript objects
+
+						var start = $custom_start.split("/");
+						var date1 = new Date(start[2], start[1] - 1, start[0]);
+
+						var end =$custom_end.split("/");
+						date2 = new Date(end[2], end[1] - 1, end[0]);
+
+						var dates = [];
+						dates[0] = date1;
+						dates[1] = date2;
+
+						return dates;
+					}
+					return null;
+				}
 			},
 			'today' : {
 				title: "Today",
@@ -195,6 +222,18 @@
 	var methods = {
 		
 		init : function(options) {
+			// Get custom options from the initialization
+			// of DateRangeWidget
+
+			$custom_start = options.start;
+			$custom_end = options.end;
+
+			// Set the aggregation
+			$inherit = options.aggregation;
+			if ($inherit != null){
+				db.aggregations["-"].title += " (" + $inherit + ")";
+			}
+
 			return this.each(function() {
 				var $this = $(this);
 				var data = $this.data('DateRangesWidget');
@@ -212,8 +251,6 @@
 				}
 				internal.createElements($this);
 				internal.updateDateField($this);
-
-
 			});
 		}
 		
@@ -350,7 +387,8 @@
 					starts: 1,
 					calendars: 3,
 					inline: true,
-					//date: [new Date('2012-09-03'), new Date('2012-09-09'), new Date('2012-09-10'), new Date('2012-09-16')],
+
+					// date: [new Date('2012-09-03'), new Date('2012-09-09'), new Date('2012-09-10'), new Date('2012-09-16')],
 					onChange: function(dates, el, options) {
 						// user clicked on datepicker
 						internal.setDaterangePreset('custom');
