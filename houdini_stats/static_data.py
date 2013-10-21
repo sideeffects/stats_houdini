@@ -33,4 +33,22 @@ top_menu_options_ordered = (top_menu_options["houdini"],
                             top_menu_options["surveys"],
                             top_menu_options["sidefx.com"])
 
-
+top_menu_options_nexts_prevs = {
+                             "overview": {"next": "uptime", "prev": ""},
+                             "uptime": {"next": "crashes", "prev": "overview"},
+                             "crashes": {"next": "node_usage", "prev":"uptime"},
+                             "node_usage": {"next": "versions_and_builds",
+                                            "prev": "crashes"},
+                             "versions_and_builds": {"next": "",
+                                                     "prev": "node_usage"},   
+                            
+                            "apprentice_activations": {"next": "", "prev": ""},
+                            
+                            "sidefx_labs": {"next": "apprentice_followup",
+                                            "prev": ""},
+                            "apprentice_followup": {"next": "",
+                                                    "prev": "sidefx_labs"},
+                                
+                            "login_registration": {"next": "", "prev": ""},
+                                 
+                      }

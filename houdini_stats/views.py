@@ -82,6 +82,39 @@ def _add_common_context_params(request, series_range, agg=None, params = None):
     new_params.update(params)
     return new_params
 
+#-------------------------------------------------------------------------------
+def _get_active_menu_option_info(selected_menu, selected_option_key):
+    """Return a dict with all the information we need from an active menu option.
+    For example, for crashes:
+    
+    dict = {'key': 'uptime',
+            'name': 'Session Information',
+            'menu_view': 'houdini_reports',
+            'prev_option': {'key': 'overview', name: "Overview" },
+            'next_option': {'key': 'crashes', name: "Crashes" }
+    }
+    """
+        
+    prev_option_key = top_menu_options_nexts_prevs[selected_option_key]['prev']
+    prev_option_name =  top_menu_options[selected_menu]['menu_options']\
+                                [prev_option_key] if prev_option_key!="" else "" 
+    
+    next_option_key = top_menu_options_nexts_prevs[selected_option_key]['next']
+    next_option_name = top_menu_options[selected_menu]['menu_options']\
+                                [next_option_key] if next_option_key!="" else "" 
+    
+    return  {'key': selected_option_key,
+            'name': top_menu_options[selected_menu]['menu_options'][selected_option_key],
+            'menu_view': top_menu_options[selected_menu]['menu_view'],
+            
+            'prev_option': {'key': prev_option_key, 
+                            'name': prev_option_name},
+            
+            'next_option': {'key': next_option_key, 
+                            'name': next_option_name}
+         
+    }
+    
 #===============================================================================
 @require_http_methods(["GET", "POST"])
 def login_view(request):
@@ -230,7 +263,7 @@ def hou_reports_view(request, dropdown_option_key):
         pies['houdini_builds_commercial'] =  reports.usage_by_hou_version_or_build(
                                                           all=False,
                                                           build=True)
-        
+    
     return render_response("hou_reports.html", 
                            _add_common_context_params(request, series_range, 
                                                       aggregation,
@@ -242,8 +275,9 @@ def hou_reports_view(request, dropdown_option_key):
                              'show_date_picker': show_date_picker,
                              'active_houdini': True,
                              'active_menu': top_menu_options['houdini']['menu_name'],
-                             'active_menu_option_pair': (dropdown_option_key,
-                                          top_menu_options['houdini']['menu_options'][dropdown_option_key]) 
+                             'active_menu_option_info': _get_active_menu_option_info(
+                                                 'houdini', dropdown_option_key)
+                                                  
                              }), request
                            )                          
 
@@ -273,8 +307,8 @@ def hou_licenses_view(request, dropdown_option_key):
                                     kwargs={"dropdown_option_key": dropdown_option_key}),
                              'show_date_picker': True,
                              'active_menu': top_menu_options['licensing']['menu_name'],
-                             'active_menu_option_pair': (dropdown_option_key,
-                                          top_menu_options['licensing']['menu_options'][dropdown_option_key]) 
+                             'active_menu_option_info': _get_active_menu_option_info(
+                                                 'licensing', dropdown_option_key)
                              }), request
                            )
                           
@@ -329,8 +363,8 @@ def hou_surveys_view(request, dropdown_option_key):
                              'dropdown_option_key': dropdown_option_key,
                              'show_date_picker': show_date_picker,
                              'active_menu': top_menu_options['surveys']['menu_name'],
-                             'active_menu_option_pair': (dropdown_option_key,
-                                          top_menu_options['surveys']['menu_options'][dropdown_option_key]) 
+                             'active_menu_option_info': _get_active_menu_option_info(
+                                                 'surveys', dropdown_option_key)
                              }), request
                            )
     
@@ -366,8 +400,8 @@ def hou_forum_view(request, dropdown_option_key):
                                        kwargs={"dropdown_option_key": dropdown_option_key}),
                              'show_date_picker': True,
                              'active_menu': top_menu_options['sidefx.com']['menu_name'],
-                             'active_menu_option_pair': (dropdown_option_key,
-                                          top_menu_options['sidefx.com']['menu_options'][dropdown_option_key]) 
+                             'active_menu_option_info': _get_active_menu_option_info(
+                                                 'sidefx.com', dropdown_option_key)
                              }), request
                            )   
                            
