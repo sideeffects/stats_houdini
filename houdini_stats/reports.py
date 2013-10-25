@@ -258,6 +258,13 @@ def _get_right_time(time_serie, time_key="seconds"):
     """
     return  [tuple((pair[0], pair[1][time_key])) for pair in time_serie]
 
+#-------------------------------------------------------------------------------
+def _get_percent(part, whole):
+    """
+    Get which percentage is a from b, and round it to 2 decimal numbers.
+    """
+    return round(100 * float(part)/float(whole)  if whole !=0 else 0.0, 2)
+
 #===============================================================================
 # Houdini Crashes related reports
 
@@ -787,7 +794,7 @@ def get_num_of_user_registered_and_asked_to_susbcribe(series_range, aggregation)
 
 def get_num_software_downloads(series_range, aggregation):
     """
-    Get Num of software downloads through the website. 
+    Get num of software downloads through the website per day. 
     """
     
     start_date = series_range[0] 
@@ -798,63 +805,72 @@ def get_num_software_downloads(series_range, aggregation):
 
     cursor = connections['mambo'].cursor()
     
-    cursor.execute("""
-        select cast(cast(downloads.dls_time as date ) as datetime) as new_date, 
-               count( downloads.id ) 
-        from dls_houdini_downloads AS downloads
-        where downloads.dls_time between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                         and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-        group by new_date  
-        order by new_date  
-        """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                   end_date.strftime("%Y-%m-%d %H:%M:%S")
-                  )
-        )
+    common_query_start = """
+                   select cast(cast(downloads.dls_time as date ) as datetime) as new_date, 
+                   count( downloads.id ) 
+                   from dls_houdini_downloads AS downloads
+                   """
+    common_query_where = "where " 
+    common_query_end = """
+    downloads.dls_time between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
+    and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+    group by new_date  
+    order by new_date  
+    """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
+               end_date.strftime("%Y-%m-%d %H:%M:%S"))   
+     
+    # All downloads
+    cursor.execute("{0} {1} {2}"
+          .format(common_query_start, common_query_where, common_query_end))
     
     all_downloads = [(row[0], row[1]) for row in cursor.fetchall()] 
     
-    cursor.execute("""
-        select cast(cast(downloads.dls_time as date ) as datetime) as new_date, 
-               count( downloads.id ) 
-        from dls_houdini_downloads AS downloads
-        inner join dls_apprentice_users AS apprentice ON downloads.apprentice_user_id = apprentice.id
-        where downloads.apprentice_user_id IS NOT NULL
-        and user_id = -1 and  
-        downloads.dls_time between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                         and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-        group by new_date  
-        order by new_date  
-        """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                   end_date.strftime("%Y-%m-%d %H:%M:%S")
-                  )
-        )
-    
-    apprentice_downloads = [(row[0], row[1]) for row in cursor.fetchall()] 
-    
-    cursor.execute("""
-        select cast(cast(downloads.dls_time as date ) as datetime) as new_date, 
-               count( downloads.id ) 
-        from dls_houdini_downloads AS downloads
-        where downloads.apprentice_user_id IS NULL
-        and user_id != -1 and  
-        downloads.dls_time between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                         and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-        group by new_date  
-        order by new_date  
-        """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                   end_date.strftime("%Y-%m-%d %H:%M:%S")
-                  )
-        )
+    # Commercial downloads     
+    where = """downloads.apprentice_user_id IS NULL
+               and user_id != -1 and   
+            """             
+    cursor.execute("{0} {1} {2} {3} "
+          .format(common_query_start, common_query_where, where, common_query_end))
     
     commercial_downloads = [(row[0], row[1]) for row in cursor.fetchall()] 
     
-    return _merge_time_series([_fill_missing_dates_with_zeros(all_downloads, 
-                                                aggregation[:-2], series_range), 
-                            _fill_missing_dates_with_zeros(commercial_downloads, 
-                                                aggregation[:-2], series_range),
-                            _fill_missing_dates_with_zeros(apprentice_downloads, 
-                                                 aggregation[:-2], series_range)
-                            ])
+    # Apprentice downloads    
+    middle_join = """
+                  inner join dls_apprentice_users AS apprentice 
+                  ON downloads.apprentice_user_id = apprentice.id
+                  """ 
+    where = """
+            downloads.apprentice_user_id IS NOT NULL
+            and user_id = -1 and  
+            """             
+    cursor.execute("{0} {1} {2} {3} {4}"
+          .format(common_query_start, middle_join, common_query_where, where, 
+                  common_query_end))
     
+    apprentice_downloads = [(row[0], row[1]) for row in cursor.fetchall()] 
+    
+    
+    all_downloads = _fill_missing_dates_with_zeros(all_downloads, 
+                                                aggregation[:-2], series_range)
+    commercial_downloads = _fill_missing_dates_with_zeros(commercial_downloads, 
+                                                aggregation[:-2], series_range)
+    apprentice_downloads = _fill_missing_dates_with_zeros(apprentice_downloads, 
+                                                 aggregation[:-2], series_range)
+    
+    return all_downloads, commercial_downloads, apprentice_downloads, \
+          _merge_time_series([all_downloads, commercial_downloads,
+                              apprentice_downloads])                          
+                            
+    
+#-------------------------------------------------------------------------------    
+
+def get_percentage_of_total(total_serie, fraction_serie):
+    """
+    Get which percentage is each element of a serie from the same element (same date)
+    on another serie. Column Chart.
+    """  
+    return _compute_time_series(
+        [fraction_serie, total_serie], _get_percent)
+   
     
     
