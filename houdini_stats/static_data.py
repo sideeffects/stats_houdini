@@ -24,7 +24,13 @@ top_menu_options = { "houdini":{ "menu_name": "Houdini",
                                  },
                      "sidefx.com": { "menu_name": "Website",
                                      "menu_view": "hou_forum",
-                                     "menu_options": OrderedDict([("login_registration", "Login & Registration")])
+                                     "menu_options": OrderedDict([("login_registration", "Login & Registration"),
+                                                                  ("downloads", "Houdini Downloads")])
+                                    },
+                     
+                     "orbolt": { "menu_name": "Orbolt",
+                                  "menu_view": "hou_orbolt",
+                                  "menu_options": OrderedDict([])
                                     }
                     }
 
@@ -49,6 +55,7 @@ top_menu_options_nexts_prevs = {
                             "apprentice_followup": {"next": "",
                                                     "prev": "sidefx_labs"},
                                 
-                            "login_registration": {"next": "", "prev": ""},
+                            "login_registration": {"next": "downloads", "prev": ""},
+                            "downloads": {"next": "", "prev": "login_registration"},
                                  
                       }

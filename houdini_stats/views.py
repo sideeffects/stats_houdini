@@ -377,18 +377,24 @@ def hou_forum_view(request, dropdown_option_key):
     """
     series = {}
     
-    series_range, aggregation = reports.get_common_vars_for_charts(request)
-    
-    series["users_forum_openid"] = reports.get_active_users_forum_and_openid(
-                                                      series_range, aggregation)
-    
-    breakdown, total_forum, total_openid = reports.openid_providers_breakdown(
-                                                      series_range, aggregation)   
-    series['open_id_breakdown'] = breakdown
-    
     if not dropdown_option_key:
         dropdown_option_key = "login_registration"
+     
+    total_forum = 0
+    total_openid = 0    
     
+    series_range, aggregation = reports.get_common_vars_for_charts(request)
+    
+    if dropdown_option_key == "login_registration":   
+        series["users_forum_openid"] = reports.get_active_users_forum_and_openid(
+                                                          series_range, aggregation)
+        breakdown, total_forum, total_openid = reports.openid_providers_breakdown(
+                                                          series_range, aggregation)   
+        series['open_id_breakdown'] = breakdown
+    
+    if dropdown_option_key == "downloads":
+        series["software_downloads"] = reports.get_num_software_downloads(
+                                                      series_range, aggregation)
     return render_response("forum_reports.html", 
                            _add_common_context_params(request, series_range,
                                                       aggregation,

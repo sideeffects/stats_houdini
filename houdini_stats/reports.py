@@ -111,6 +111,7 @@ def _fill_missing_dates_with_zeros(time_series, agg_by, interval):
     # we're aggregating, we need to step through the dates starting with the
     # first day of the week/month/year.
     current_date = interval[0]
+    
     if agg_by == "week":
         # Find the Monday at the beginning of the week.
         current_date -= relativedelta(days=interval[0].weekday())
@@ -118,7 +119,7 @@ def _fill_missing_dates_with_zeros(time_series, agg_by, interval):
         current_date = current_date.replace(day=1)
     elif agg_by == "year":
         current_date = current_date.replace(day=1, month=1)
-    elif agg_by == "daily":
+    elif agg_by == "daily" or agg_by == "dai":
         agg_by = "day"
     else:
         assert False, "Unknown aggregation type"
@@ -339,7 +340,7 @@ def average_usage_by_machine(series_range, aggregation):
     time_serie = [(row[0], row[1]) for row in cursor.fetchall()]
     serie = _get_right_time(_compute_time_serie(time_serie, get_time),"minutes")
     
-    return _fill_missing_dates_with_zeros(serie, aggregation, series_range)
+    return _fill_missing_dates_with_zeros(serie, aggregation[:-2],series_range)
                                   
 #===============================================================================
 # Houdini Nodes Usage related reports
@@ -674,14 +675,14 @@ def get_active_users_forum_and_openid(series_range, aggregation):
     # Creating the time serie from the results of the cursor
     forum_serie = _get_active_users_by_method_per_day(start_date, end_date) 
     #Filling the empty dates
-    forum_serie = _fill_missing_dates_with_zeros(forum_serie, aggregation,
+    forum_serie = _fill_missing_dates_with_zeros(forum_serie, aggregation[:-2],
                                                                   series_range) 
    
     # Creating the time serie from the results of the cursor
     openid_serie = _get_active_users_by_method_per_day(start_date, end_date, 
                                                         openid=True) 
     # Filling the empty dates
-    openid_serie = _fill_missing_dates_with_zeros(openid_serie, aggregation, 
+    openid_serie = _fill_missing_dates_with_zeros(openid_serie, aggregation[:-2], 
                                                                 series_range)
     return _merge_time_series([all_users_serie, forum_serie, openid_serie])
 
@@ -696,6 +697,8 @@ def openid_providers_breakdown(series_range, aggregation):
     
     if aggregation is None:
         aggregation = "daily"
+        
+    get_num_software_downloads(series_range, aggregation)    
     
     total_forum = _get_cumulative_values(_get_active_users_by_method_per_day(
                                                    start_date, end_date, False))
@@ -780,4 +783,78 @@ def get_num_of_user_registered_and_asked_to_susbcribe(series_range, aggregation)
     return _time_series(MachineConfig.objects.filter(asked_to_subscribe=1),
                               'last_active_date',series_range, agg=aggregation)
 
+#-------------------------------------------------------------------------------
+
+def get_num_software_downloads(series_range, aggregation):
+    """
+    Get Num of software downloads through the website. 
+    """
+    
+    start_date = series_range[0] 
+    end_date = series_range[1]
+    
+    if aggregation is None:
+        aggregation = "daily"
+
+    cursor = connections['mambo'].cursor()
+    
+    cursor.execute("""
+        select cast(cast(downloads.dls_time as date ) as datetime) as new_date, 
+               count( downloads.id ) 
+        from dls_houdini_downloads AS downloads
+        where downloads.dls_time between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                         and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+        group by new_date  
+        order by new_date  
+        """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                   end_date.strftime("%Y-%m-%d %H:%M:%S")
+                  )
+        )
+    
+    all_downloads = [(row[0], row[1]) for row in cursor.fetchall()] 
+    
+    cursor.execute("""
+        select cast(cast(downloads.dls_time as date ) as datetime) as new_date, 
+               count( downloads.id ) 
+        from dls_houdini_downloads AS downloads
+        inner join dls_apprentice_users AS apprentice ON downloads.apprentice_user_id = apprentice.id
+        where downloads.apprentice_user_id IS NOT NULL
+        and user_id = -1 and  
+        downloads.dls_time between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                         and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+        group by new_date  
+        order by new_date  
+        """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                   end_date.strftime("%Y-%m-%d %H:%M:%S")
+                  )
+        )
+    
+    apprentice_downloads = [(row[0], row[1]) for row in cursor.fetchall()] 
+    
+    cursor.execute("""
+        select cast(cast(downloads.dls_time as date ) as datetime) as new_date, 
+               count( downloads.id ) 
+        from dls_houdini_downloads AS downloads
+        where downloads.apprentice_user_id IS NULL
+        and user_id != -1 and  
+        downloads.dls_time between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                         and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+        group by new_date  
+        order by new_date  
+        """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                   end_date.strftime("%Y-%m-%d %H:%M:%S")
+                  )
+        )
+    
+    commercial_downloads = [(row[0], row[1]) for row in cursor.fetchall()] 
+    
+    return _merge_time_series([_fill_missing_dates_with_zeros(all_downloads, 
+                                                aggregation[:-2], series_range), 
+                            _fill_missing_dates_with_zeros(commercial_downloads, 
+                                                aggregation[:-2], series_range),
+                            _fill_missing_dates_with_zeros(apprentice_downloads, 
+                                                 aggregation[:-2], series_range)
+                            ])
+    
+    
     
