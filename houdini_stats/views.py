@@ -393,15 +393,16 @@ def hou_forum_view(request, dropdown_option_key):
         series['open_id_breakdown'] = breakdown
     
     if dropdown_option_key == "downloads":
-        all_downloads, commercial_downloads, apprenctice_downloads, \
+        all_downloads, commercial_downloads, apprentice_downloads, \
         merge = reports.get_num_software_downloads(series_range, aggregation)
         
         series["software_downloads"] = merge 
-        series["commercial_percentage"] = reports.get_percentage_of_total(
-                                            all_downloads, commercial_downloads)
-        series["apprentice_percentage"] = reports.get_percentage_of_total(
-                                            all_downloads, apprenctice_downloads)
         
+        series["percentages"] = reports.get_percentage_downloads(
+                                                  all_downloads, 
+                                                  apprentice_downloads,
+                                                  commercial_downloads)
+    
     return render_response("forum_reports.html", 
                            _add_common_context_params(request, series_range,
                                                       aggregation,

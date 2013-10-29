@@ -593,7 +593,6 @@ def apprentice_followup_survey():
     index_q = 0
     
     for key, value in questions_and_answers.items():
-        
         index_q +=1
         question_id = key
         answers = value["answers"]
@@ -791,20 +790,8 @@ def get_num_of_user_registered_and_asked_to_susbcribe(series_range, aggregation)
                               'last_active_date',series_range, agg=aggregation)
 
 #-------------------------------------------------------------------------------
-
-def get_num_software_downloads(series_range, aggregation):
-    """
-    Get num of software downloads through the website per day. 
-    """
-    
-    start_date = series_range[0] 
-    end_date = series_range[1]
-    
-    if aggregation is None:
-        aggregation = "daily"
-
-    cursor = connections['mambo'].cursor()
-    
+def _return_common_for_download_reports(start_date, end_date):
+    # Return common query strings for Houdini download reports
     common_query_start = """
                    select cast(cast(downloads.dls_time as date ) as datetime) as new_date, 
                    count( downloads.id ) 
@@ -818,23 +805,40 @@ def get_num_software_downloads(series_range, aggregation):
     order by new_date  
     """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
                end_date.strftime("%Y-%m-%d %H:%M:%S"))   
-     
-    # All downloads
-    cursor.execute("{0} {1} {2}"
-          .format(common_query_start, common_query_where, common_query_end))
     
-    all_downloads = [(row[0], row[1]) for row in cursor.fetchall()] 
+    return common_query_start, common_query_where, common_query_end 
+
+#-------------------------------------------------------------------------------
+def _execute_cursor_query(cursor, common_query_start, join = "", 
+                          common_query_where= "", common_query_end= ""):
     
-    # Commercial downloads     
+    cursor.execute("{0} {1} {2} {3}"
+          .format(common_query_start, join, common_query_where,  
+                  common_query_end))
+    
+    return [(row[0], row[1]) for row in cursor.fetchall()] 
+
+#-------------------------------------------------------------------------------
+def _get_all_downloads(cursor, common_query_start, common_query_where, 
+                       common_query_end):
+    return _execute_cursor_query(cursor, common_query_start, "", 
+                                 common_query_where, 
+                                 common_query_end)
+
+#-------------------------------------------------------------------------------
+def _get_commercial_downloads(cursor, common_query_start, common_query_where,
+                              common_query_end):
+    
     where = """downloads.apprentice_user_id IS NULL
                and user_id != -1 and   
             """             
-    cursor.execute("{0} {1} {2} {3} "
-          .format(common_query_start, common_query_where, where, common_query_end))
+    return _execute_cursor_query(cursor, common_query_start, "", 
+                              common_query_where + where, common_query_end )
+
+#-------------------------------------------------------------------------------    
+def _get_apprentice_downloads(cursor, common_query_start, common_query_where,
+                              common_query_end):
     
-    commercial_downloads = [(row[0], row[1]) for row in cursor.fetchall()] 
-    
-    # Apprentice downloads    
     middle_join = """
                   inner join dls_apprentice_users AS apprentice 
                   ON downloads.apprentice_user_id = apprentice.id
@@ -843,12 +847,40 @@ def get_num_software_downloads(series_range, aggregation):
             downloads.apprentice_user_id IS NOT NULL
             and user_id = -1 and  
             """             
-    cursor.execute("{0} {1} {2} {3} {4}"
-          .format(common_query_start, middle_join, common_query_where, where, 
-                  common_query_end))
+    return _execute_cursor_query(cursor, common_query_start, middle_join, 
+                                 common_query_where + where, common_query_end ) 
+           
+#-------------------------------------------------------------------------------    
+def get_num_software_downloads(series_range, aggregation):
+    """
+    Get num of software downloads through the website per day. 
+    """
     
-    apprentice_downloads = [(row[0], row[1]) for row in cursor.fetchall()] 
+    start_date = series_range[0] 
+    end_date = series_range[1]
     
+    if aggregation is None:
+        aggregation = "daily"
+
+    cursor = connections['mambo'].cursor()
+    
+    common_query_start, common_query_where, common_query_end = \
+                       _return_common_for_download_reports(start_date, end_date) 
+     
+    # All downloads
+    all_downloads = _get_all_downloads(cursor, common_query_start,
+                                       common_query_where,
+                                       common_query_end)
+    
+    # Commercial downloads     
+    commercial_downloads = _get_commercial_downloads(cursor, common_query_start, 
+                                                     common_query_where,
+                                                     common_query_end)
+    
+    # Apprentice downloads    
+    apprentice_downloads = _get_apprentice_downloads(cursor, common_query_start, 
+                                                     common_query_where,
+                                                     common_query_end)
     
     all_downloads = _fill_missing_dates_with_zeros(all_downloads, 
                                                 aggregation[:-2], series_range)
@@ -861,16 +893,27 @@ def get_num_software_downloads(series_range, aggregation):
           _merge_time_series([all_downloads, commercial_downloads,
                               apprentice_downloads])                          
                             
-    
-#-------------------------------------------------------------------------------    
-
+#-------------------------------------------------------------------------------
 def get_percentage_of_total(total_serie, fraction_serie):
     """
     Get which percentage is each element of a serie from the same element (same date)
     on another serie. Column Chart.
     """  
     return _compute_time_series(
-        [fraction_serie, total_serie], _get_percent)
+        [fraction_serie, total_serie], _get_percent)  
+    
+#-------------------------------------------------------------------------------    
+def get_percentage_downloads(all_downloads, apprentice_downloads,
+                              commercial_downloads):
+    
+    apprentice_percentages = get_percentage_of_total(all_downloads, 
+                                                      apprentice_downloads)
+    commercial_percentages = get_percentage_of_total(all_downloads, 
+                                                      commercial_downloads)
+    
+    return _merge_time_series([commercial_percentages, apprentice_percentages])
+
+
    
     
     
