@@ -13,9 +13,10 @@ top_menu_options = { "houdini":{ "menu_name": "Houdini",
                                                     ("versions_and_builds", "Versions and builds"),
                                                 ])  
                                 }, 
-                     "licensing": { "menu_name": "Licensing",
+                     "licensing": { "menu_name": "Downloads & Licensing",
                                     "menu_view": "hou_licenses",
-                                    "menu_options": OrderedDict([("apprentice_activations", "Apprentice Activations")])
+                                    "menu_options": OrderedDict([("downloads", "Houdini Downloads"),
+                                                                ("apprentice_activations", "Apprentice Activations")])
                                    },
                      "surveys": { "menu_name": "Surveys",
                                   "menu_view": "hou_surveys",
@@ -25,7 +26,7 @@ top_menu_options = { "houdini":{ "menu_name": "Houdini",
                      "sidefx.com": { "menu_name": "Website",
                                      "menu_view": "hou_forum",
                                      "menu_options": OrderedDict([("login_registration", "Login & Registration"),
-                                                                  ("downloads", "Houdini Downloads")])
+                                                                  ])
                                     },
                      
                      "orbolt": { "menu_name": "Orbolt",
@@ -48,14 +49,15 @@ top_menu_options_nexts_prevs = {
                              "versions_and_builds": {"next": "",
                                                      "prev": "node_usage"},   
                             
-                            "apprentice_activations": {"next": "", "prev": ""},
+                            "downloads": {"next": "apprentice_activations", "prev": ""},
+                            "apprentice_activations": {"next": "", "prev": "downloads"},
                             
                             "sidefx_labs": {"next": "apprentice_followup",
                                             "prev": ""},
                             "apprentice_followup": {"next": "",
                                                     "prev": "sidefx_labs"},
                                 
-                            "login_registration": {"next": "downloads", "prev": ""},
-                            "downloads": {"next": "", "prev": "login_registration"},
+                            "login_registration": {"next": "", "prev": ""},
+                            
                                  
                       }

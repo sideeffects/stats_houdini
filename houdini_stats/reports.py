@@ -425,7 +425,6 @@ def get_users_over_time(series_range, aggregation):
     """
     Get machine configs over time.
     """
-    apprentice_activations_over_time(series_range, aggregation)
     return _time_series(MachineConfig.objects.all(), 'last_active_date', 
                                                  series_range, agg=aggregation)
 
@@ -469,8 +468,11 @@ def apprentice_activations_over_time(series_range, aggregation):
                   )
         )  
     
-    return [(row[0], row[1]) for row in cursor.fetchall()]
-
+    apprentice_activations = [(row[0], row[1]) for row in cursor.fetchall()]  
+    
+    return _fill_missing_dates_with_zeros(apprentice_activations, 
+                                          aggregation[:-2], series_range)
+    
 #===============================================================================
 # Surveys Database reports
 
@@ -849,13 +851,34 @@ def _get_apprentice_downloads(cursor, common_query_start, common_query_where,
             """             
     return _execute_cursor_query(cursor, common_query_start, middle_join, 
                                  common_query_where + where, common_query_end ) 
-           
+ 
+#-------------------------------------------------------------------------------  
+def get_apprentice_downloads(series_range, aggregation):
+    """
+    External function to be reused for getting apprentice downloads
+    """
+    
+    if aggregation is None:
+        aggregation = "daily"
+    
+    cursor = connections['mambo'].cursor()
+    
+    common_query_start, common_query_where, common_query_end = \
+                           _return_common_for_download_reports(series_range[0], 
+                                                                series_range[1]) 
+    
+    # Apprentice downloads    
+    apprentice_downloads = _get_apprentice_downloads(cursor, common_query_start, 
+                                                     common_query_where,
+                                                     common_query_end)
+    
+    return _fill_missing_dates_with_zeros(apprentice_downloads, 
+                                                 aggregation[:-2], series_range)        
 #-------------------------------------------------------------------------------    
 def get_num_software_downloads(series_range, aggregation):
     """
     Get num of software downloads through the website per day. 
     """
-    
     start_date = series_range[0] 
     end_date = series_range[1]
     
@@ -899,6 +922,7 @@ def get_percentage_of_total(total_serie, fraction_serie):
     Get which percentage is each element of a serie from the same element (same date)
     on another serie. Column Chart.
     """  
+    
     return _compute_time_series(
         [fraction_serie, total_serie], _get_percent)  
     
@@ -912,7 +936,6 @@ def get_percentage_downloads(all_downloads, apprentice_downloads,
                                                       commercial_downloads)
     
     return _merge_time_series([commercial_percentages, apprentice_percentages])
-
 
    
     

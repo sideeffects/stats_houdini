@@ -292,11 +292,34 @@ def hou_licenses_view(request, dropdown_option_key):
     
     series_range, aggregation = reports.get_common_vars_for_charts(request)
     
-    series['apprentice_lic_over_time'] = reports.apprentice_activations_over_time(
-                                                          series_range, aggregation) 
-    
     if not dropdown_option_key:
         dropdown_option_key = "apprentice_activations"
+    
+    
+    if dropdown_option_key == "downloads":
+        
+        all_downloads, commercial_downloads, apprentice_downloads, \
+        merge = reports.get_num_software_downloads(series_range, aggregation)
+        
+        series["software_downloads"] = merge 
+        
+        series["percentages"] = reports.get_percentage_downloads(
+                                                  all_downloads, 
+                                                  apprentice_downloads,
+                                                  commercial_downloads)
+    
+    if dropdown_option_key == "apprentice_activations":
+        
+        apprentice_activations = reports.apprentice_activations_over_time(
+                                                      series_range, aggregation) 
+        apprentice_downloads = reports.get_apprentice_downloads(series_range, 
+                                                                    aggregation)
+        series['apprentice_lic_over_time'] = reports._merge_time_series([
+                                                        apprentice_activations,
+                                                        apprentice_downloads])
+        series['apprentice_act_percentages'] = reports.get_percentage_of_total(
+                                                    apprentice_downloads, 
+                                                    apprentice_activations)
     
     return render_response("licenses_reports.html",
                            _add_common_context_params(request, series_range,
@@ -391,17 +414,6 @@ def hou_forum_view(request, dropdown_option_key):
         breakdown, total_forum, total_openid = reports.openid_providers_breakdown(
                                                           series_range, aggregation)   
         series['open_id_breakdown'] = breakdown
-    
-    if dropdown_option_key == "downloads":
-        all_downloads, commercial_downloads, apprentice_downloads, \
-        merge = reports.get_num_software_downloads(series_range, aggregation)
-        
-        series["software_downloads"] = merge 
-        
-        series["percentages"] = reports.get_percentage_downloads(
-                                                  all_downloads, 
-                                                  apprentice_downloads,
-                                                  commercial_downloads)
     
     return render_response("forum_reports.html", 
                            _add_common_context_params(request, series_range,
