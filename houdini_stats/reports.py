@@ -265,6 +265,31 @@ def _get_percent(part, whole):
     """
     return round(100 * float(part)/float(whole)  if whole !=0 else 0.0, 2)
 
+#-------------------------------------------------------------------------------
+def _get_list_of_tuples_from_list(list):
+    """
+    Get a list of tuples from a list.
+    
+    For example given:    
+    
+    [1,2,3,4,5,6]
+    
+    Return [(1,2),(3,4)(5,6)]
+    
+    """
+    output = []
+    item = []
+    
+    for i in list:
+        item.append(i)
+        if len(item) == 2:
+            output.append(item)
+            item = []
+    if item:
+        output.append(item) 
+    
+    return output
+
 #===============================================================================
 # Houdini Crashes related reports
 
@@ -494,12 +519,10 @@ def _get_user_answers_by_qid_aid(question_id=None, answer_id=None,
         # Assumed then question_id is none otherwise will be first case 
         queryset = queryset.filter(answer_id=answer_id)
     
-    #TODO: filter by dates too
-#    if series_range is not None:
-#        print series_range
-#        return queryset.filter(date__range=[datetime.date(series_range[0]),
-#                                            datetime.date(series_range[1])
-#                                            ])
+    if series_range is not None:
+        return queryset.filter(date__range=[series_range[0],
+                                            series_range[1]
+                                            ])
     
     return queryset
 
@@ -580,12 +603,12 @@ def _get_common_for_apprentice_followup_survey():
     
 #-------------------------------------------------------------------------------
 
-def apprentice_followup_survey():
+def apprentice_followup_survey(series_range, aggregation):
     """
     Get breakdown of labs users who want Maya vs Unity plugin.
     Two graphs, a Column Chart showing the number of uses that selected
     Maya or Unity and, a Line Chart with the two lines for the users that 
-    subscribed to Maya or Unity, over ti <div class="graph-title">Users subscribed to Houdini Analytics </div>me.
+    subscribed to Maya or Unity, over time.
     """
     
     questions_and_answers = _get_common_for_apprentice_followup_survey()
@@ -605,7 +628,8 @@ def apprentice_followup_survey():
             
             user_answers = _get_user_answers_by_qid_aid(
                                                     question_id=question_id, 
-                                                    answer_id=answer.id)
+                                                    answer_id=answer.id,
+                                                    series_range = series_range)
             answers_count[answer.answer] = user_answers.count()    
             user_answers_total_count += user_answers.count()
             
@@ -614,8 +638,54 @@ def apprentice_followup_survey():
         sorted_answers[index_q] = sorted(answers_count.items(), 
                                                 key=lambda x:x[1], reverse=True)
 
-    return questions_and_total_counts, sorted_answers  
+    # Form pairs with questions numbers Ex. [[1, 2], [3, 4], [5]]
+    questions_tuples = _get_list_of_tuples_from_list(questions_and_total_counts)
+    
+    return questions_tuples, questions_and_total_counts, sorted_answers  
 
+#-------------------------------------------------------------------------------
+def apprentice_replied_survey_counts(series_range, aggregation):
+    """
+    Get the count of user who replied the apprentice survey give a time range 
+    and an aggregation form.
+    """
+    
+    start_date = series_range[0] 
+    end_date = series_range[1]
+    
+    if aggregation is None:
+        aggregation = "daily"
+    
+    survey_id = 2
+    questions = get_questions_from_survey(survey_id)
+    
+    questions_ids = []
+    
+    for q in questions:
+        questions_ids.append(int(q.id))
+    
+    cursor = connections['surveys'].cursor()
+    
+    cursor.execute("""
+        select cast( cast( date AS date ) AS datetime ) 
+                          AS mydate,
+               count(distinct(user_id))
+        from user_answers
+        where question_id in {0} and date between date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                         and date_format('{2}', '%%Y-%%c-%%d %%H:%%i:%%S')
+        group by mydate  
+        order by mydate  
+        """.format(tuple(questions_ids), 
+                   start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                   end_date.strftime("%Y-%m-%d %H:%M:%S")
+                  )
+        )  
+    
+    user_counts = [(row[0], row[1]) for row in cursor.fetchall()]  
+       
+    return _fill_missing_dates_with_zeros(user_counts, 
+                                          aggregation[:-2], series_range)
+     
 #===============================================================================
 # Forum Database reports
 
@@ -639,7 +709,8 @@ def _get_active_users_by_method_per_day(start_date, end_date, openid=False):
     if openid:
         to_compare = "IS NULL"
         
-    cursor = connections['mambo'].cursor()    
+    cursor = connections['mambo'].cursor()  
+    
     common_query = """
                    SELECT cast( cast( u.registerDate AS date ) AS datetime ) 
                           AS new_date, COUNT(u.id) AS user_count
@@ -796,7 +867,7 @@ def _return_common_for_download_reports(start_date, end_date):
     # Return common query strings for Houdini download reports
     common_query_start = """
                    select cast(cast(downloads.dls_time as date ) as datetime) as new_date, 
-                   count( downloads.id ) 
+                   count(downloads.id) 
                    from dls_houdini_downloads AS downloads
                    """
     common_query_where = "where " 

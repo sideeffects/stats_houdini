@@ -315,8 +315,8 @@ def hou_licenses_view(request, dropdown_option_key):
         apprentice_downloads = reports.get_apprentice_downloads(series_range, 
                                                                     aggregation)
         series['apprentice_lic_over_time'] = reports._merge_time_series([
-                                                        apprentice_activations,
-                                                        apprentice_downloads])
+                                                        apprentice_downloads,
+                                                        apprentice_activations])
         series['apprentice_act_percentages'] = reports.get_percentage_of_total(
                                                     apprentice_downloads, 
                                                     apprentice_activations)
@@ -363,18 +363,34 @@ def hou_surveys_view(request, dropdown_option_key):
     
     
     if dropdown_option_key == "apprentice_followup":
-        show_date_picker = False
-        questions_and_total_counts, user_answers = reports.apprentice_followup_survey()
+        
+        # For apprentice activations and vs count of users who replied survey
+        user_counts = reports.apprentice_replied_survey_counts(series_range, 
+                                                                    aggregation)
+        
+        apprentice_activations = reports.apprentice_activations_over_time(
+                                                      series_range, aggregation) 
+        series['survey_counts_vs_app_activations'] = reports._merge_time_series([
+                                                        user_counts,
+                                                        apprentice_activations])
+        # For apprentice survey pie charts
+        questions_tuples, questions_and_total_counts, user_answers = \
+                                            reports.apprentice_followup_survey(
+                                                      series_range, aggregation)
                             
         # This contains the questions text and total count
         series["questions_and_total_counts"] = questions_and_total_counts
+        # Passing the questions tuples in the series dictionary too
+        series["questions_tuples"] = questions_tuples
         
         # Each set of answers will be passed as a serie key from range
         # (answer_1 to answer_5) because of the way google charts process the
         # data passed.
         for k,v in user_answers.items():
             series["answer_"+str(k)] = v
-    
+       
+
+        
     return render_response("surveys_reports.html", 
                            _add_common_context_params(request, series_range, 
                                                       aggregation,                                                      
