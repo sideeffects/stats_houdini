@@ -331,7 +331,8 @@ def hou_licenses_view(request, dropdown_option_key):
                              'show_date_picker': True,
                              'active_menu': top_menu_options['licensing']['menu_name'],
                              'active_menu_option_info': _get_active_menu_option_info(
-                                                 'licensing', dropdown_option_key)
+                                                 'licensing', dropdown_option_key),
+                             'plot_three': True
                              }), request
                            )
                           
@@ -403,7 +404,8 @@ def hou_surveys_view(request, dropdown_option_key):
                              'show_date_picker': show_date_picker,
                              'active_menu': top_menu_options['surveys']['menu_name'],
                              'active_menu_option_info': _get_active_menu_option_info(
-                                                 'surveys', dropdown_option_key)
+                                                 'surveys', dropdown_option_key),
+                             'plot_three': False
                              }), request
                            )
     
@@ -443,7 +445,8 @@ def hou_forum_view(request, dropdown_option_key):
                              'show_date_picker': True,
                              'active_menu': top_menu_options['sidefx.com']['menu_name'],
                              'active_menu_option_info': _get_active_menu_option_info(
-                                                 'sidefx.com', dropdown_option_key)
+                                                 'sidefx.com', dropdown_option_key),
+                             'plot_three': True
                              }), request
                            )   
                            
