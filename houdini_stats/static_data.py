@@ -16,7 +16,8 @@ top_menu_options = { "houdini":{ "menu_name": "Houdini",
                      "licensing": { "menu_name": "Downloads & Licensing",
                                     "menu_view": "hou_licenses",
                                     "menu_options": OrderedDict([("downloads", "Houdini Downloads"),
-                                                                ("apprentice_activations", "Apprentice Activations")])
+                                                                ("apprentice_activations", "Apprentice Activations"),
+                                                                ("apprentice_hd", "Apprentice HD")])
                                    },
                      "surveys": { "menu_name": "Surveys",
                                   "menu_view": "hou_surveys",
@@ -50,7 +51,9 @@ top_menu_options_nexts_prevs = {
                                                      "prev": "node_usage"},   
                             
                             "downloads": {"next": "apprentice_activations", "prev": ""},
-                            "apprentice_activations": {"next": "", "prev": "downloads"},
+                            "apprentice_activations": {"next": "apprentice_hd", 
+                                                       "prev": "downloads"},
+                            "apprentice_hd" : {"next": "", "prev":  "apprentice_activations"},
                             
                             "sidefx_labs": {"next": "apprentice_followup",
                                             "prev": ""},

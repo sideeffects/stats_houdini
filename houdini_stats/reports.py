@@ -454,51 +454,6 @@ def get_users_over_time(series_range, aggregation):
                                                  series_range, agg=aggregation)
 
 #===============================================================================
-# Houdini Licenses related reports
-
-def apprentice_activations_over_time(series_range, aggregation):
-    """
-    Get Apprentice Activations over time. Line Chart.
-    """
-    
-    start_date = series_range[0] 
-    end_date = series_range[1]
-    
-    if aggregation is None:
-        aggregation = "daily"
-
-    nc_custid = 2711
-    cursor = connections['licensedb'].cursor()
-    
-    cursor.execute("""
-        select cast(activation_date as datetime)
-                          as date, 
-               count(*) as num_activated
-        from (
-            select from_days(min(to_days(Keystrings.CreateDate))) as 
-                   activation_date 
-            from Servers, Keystrings
-            where Servers.CustID='{0}'
-            and Servers.ServerID=Keystrings.ServerID
-            and Keystrings.KType='LICENSE'
-            group by Servers.ServerID
-        ) as TempTable
-        where activation_date between date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                         and date_format('{2}', '%%Y-%%c-%%d %%H:%%i:%%S')
-        group by date  
-        order by date  
-        """.format(nc_custid, 
-                   start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                   end_date.strftime("%Y-%m-%d %H:%M:%S")
-                  )
-        )  
-    
-    apprentice_activations = [(row[0], row[1]) for row in cursor.fetchall()]  
-    
-    return _fill_missing_dates_with_zeros(apprentice_activations, 
-                                          aggregation[:-2], series_range)
-    
-#===============================================================================
 # Surveys Database reports
 
 def _get_user_answers_by_qid_aid(question_id=None, answer_id=None, 
@@ -731,10 +686,28 @@ def _get_active_users_by_method_per_day(start_date, end_date, openid=False):
     return [(row[0], row[1]) for row in cursor.fetchall()]    
 
 #-------------------------------------------------------------------------------
-def _get_cumulative_values(tuples):
+def _get_cumulative_values(initial_total, tuples):
     """
+    Get cumulative values. 
     """
-    return sum(user_count for date, user_count in tuples)
+    
+    if len(tuples) == 0:
+        return tuples
+
+    result = []
+    total = initial_total
+    for date, value in tuples:
+        total += value
+        result.append([date, total])
+
+    return result
+
+#-------------------------------------------------------------------------------
+def _get_sum_values(tuples):
+    """
+    Get summarised values.  
+    """
+    return sum(counts for date, counts in tuples)
 
 #-------------------------------------------------------------------------------             
 def get_active_users_forum_and_openid(series_range, aggregation):
@@ -779,7 +752,7 @@ def openid_providers_breakdown(series_range, aggregation):
         
     get_num_software_downloads(series_range, aggregation)    
     
-    total_forum = _get_cumulative_values(_get_active_users_by_method_per_day(
+    total_forum = _get_sum_values(_get_active_users_by_method_per_day(
                                                    start_date, end_date, False))
     total_openid= 0
     
@@ -862,7 +835,117 @@ def get_num_of_user_registered_and_asked_to_susbcribe(series_range, aggregation)
     return _time_series(MachineConfig.objects.filter(asked_to_subscribe=1),
                               'last_active_date',series_range, agg=aggregation)
 
+#===============================================================================
+# Houdini Licenses and downloads related reports
+
+def apprentice_activations_over_time(series_range, aggregation):
+    """
+    Get Apprentice Activations over time. Line Chart.
+    """
+    
+    start_date = series_range[0] 
+    end_date = series_range[1]
+    
+    if aggregation is None:
+        aggregation = "daily"
+
+    nc_custid = 2711
+    cursor = connections['licensedb'].cursor()
+    
+    cursor.execute("""
+        select cast(activation_date as datetime)
+                          as date, 
+               count(*) as num_activated
+        from (
+            select from_days(min(to_days(Keystrings.CreateDate))) as 
+                   activation_date 
+            from Servers, Keystrings
+            where Servers.CustID='{0}'
+            and Servers.ServerID=Keystrings.ServerID
+            and Keystrings.KType='LICENSE'
+            group by Servers.ServerID
+        ) as TempTable
+        where activation_date between date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                         and date_format('{2}', '%%Y-%%c-%%d %%H:%%i:%%S')
+        group by date  
+        order by date  
+        """.format(nc_custid, 
+                   start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                   end_date.strftime("%Y-%m-%d %H:%M:%S")
+                  )
+        )  
+    
+    apprentice_activations = [(row[0], row[1]) for row in cursor.fetchall()]  
+    
+    return _fill_missing_dates_with_zeros(apprentice_activations, 
+                                          aggregation[:-2], series_range)
+
 #-------------------------------------------------------------------------------
+
+def get_apprentice_hd_licenses_over_time(series_range, aggregation):
+    """
+    Get Apprentice HD Licenses generated over time. Line Chart.
+    """
+    
+    start_date = series_range[0] 
+    end_date = series_range[1]
+    
+    if aggregation is None:
+        aggregation = "daily"
+
+    cursor = connections['licensedb'].cursor()
+    
+    # Not queriying entitlements
+    cursor.execute("""
+        select cast(CreateDate as datetime)
+                          as date, 
+               sum(KTokens) as num_licenses
+        from Keystrings
+        where Product = 'HOUDINI-APPRENTICE-HD' and Disabled = 'N'
+            and KType = 'LICENSE'
+            and (LicType = 'PURCHASED' or LicType = 'SUBSCRIPTION')
+            and CreateDate between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
+            and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+        group by date  
+        order by date  
+        """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                   end_date.strftime("%Y-%m-%d %H:%M:%S")
+                  )
+        )  
+    
+    apprentice_hd_sales = [(row[0], row[1]) for row in cursor.fetchall()] 
+    
+    return _fill_missing_dates_with_zeros(apprentice_hd_sales, 
+                                          aggregation[:-2], series_range)
+    
+#-------------------------------------------------------------------------------
+
+def get_apprentice_hd_licenses_cumulative(hd_licenses_series, range_start_date):
+    """
+    Get Apprentice HD Licenses cumulative over time.
+    """
+    
+    cursor = connections['licensedb'].cursor()
+    
+    cursor.execute("""
+        select sum(KTokens) as num_licenses
+        from Keystrings
+        where Product = 'HOUDINI-APPRENTICE-HD' and Disabled = 'N'
+            and KType = 'LICENSE'
+            and (LicType = 'PURCHASED' or LicType = 'SUBSCRIPTION')
+            and CreateDate <= date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
+        """.format(range_start_date.strftime("%Y-%m-%d %H:%M:%S"))
+                                     
+        )  
+    
+    cumulative_val = cursor.fetchall()[0][0]
+    if cumulative_val is None:
+        cumulative_val = 0
+    
+    return _get_cumulative_values(cumulative_val, hd_licenses_series)
+
+#-------------------------------------------------------------------------------
+
 def _return_common_for_download_reports(start_date, end_date):
     # Return common query strings for Houdini download reports
     common_query_start = """

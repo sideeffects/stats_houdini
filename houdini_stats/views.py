@@ -77,7 +77,7 @@ def _add_common_context_params(request, series_range, agg=None, params = None):
         'top_menu_options': top_menu_options_ordered,
         "range": series_range,
         "aggregation": agg,
-        "date_format": "M j"
+        "date_format": "M j, Y"
         }
     new_params.update(params)
     return new_params
@@ -320,6 +320,16 @@ def hou_licenses_view(request, dropdown_option_key):
         series['apprentice_act_percentages'] = reports.get_percentage_of_total(
                                                     apprentice_downloads, 
                                                     apprentice_activations)
+    
+    if dropdown_option_key == "apprentice_hd":
+                
+        apprentice_hd_licenses = reports.get_apprentice_hd_licenses_over_time(
+                                                      series_range, aggregation)
+        series['apprentice_hd_lic'] = apprentice_hd_licenses
+        
+        series['apprentice_hd_lic_cumu'] = reports.get_apprentice_hd_licenses_cumulative(
+                                            apprentice_hd_licenses, 
+                                            series_range[0])
     
     return render_response("licenses_reports.html",
                            _add_common_context_params(request, series_range,
