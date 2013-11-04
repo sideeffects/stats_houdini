@@ -381,7 +381,11 @@ def hou_surveys_view(request, dropdown_option_key):
         
         apprentice_activations = reports.apprentice_activations_over_time(
                                                       series_range, aggregation) 
-        series['survey_counts_vs_app_activations'] = reports._merge_time_series([
+        series['survey_counts_percentages'] = reports.get_percentage_of_total(
+                                                         apprentice_activations, 
+                                                                    user_counts) 
+        
+        reports._merge_time_series([
                                                         user_counts,
                                                         apprentice_activations])
         # For apprentice survey pie charts
