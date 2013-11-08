@@ -98,12 +98,20 @@ def get_common_vars_for_charts(request):
 
 
 #-------------------------------------------------------------------------------
-def _fill_missing_dates_with_zeros(time_series, agg_by, interval):
+def _fill_missing_dates_with_zeros(time_series, agg_by, interval, 
+                                   fill_with_empty_string = False):
     """
     When aggregating licenses, we don't get back any months that
     have no activity. Using dateutil, we will find such months
     months, and add them with to the report, with a count of 0.
     """
+    
+    # By default with always fill with zeros, unless the param 
+    # fill_with_empty_string is set to true.
+    filler = 0
+    if fill_with_empty_string:
+        filler = ""
+        
     result_time_series = []
     dates = [x[0] for x in time_series]
     
@@ -129,12 +137,11 @@ def _fill_missing_dates_with_zeros(time_series, agg_by, interval):
     index = 0
     
     while current_date <= interval[1]:
-        if current_date in dates: 
-            
+        if current_date in dates:
             result_time_series.append([current_date, time_series[index][1]])
             index += 1
         else:
-            result_time_series.append([current_date, 0])
+            result_time_series.append([current_date, filler])
 
         current_date += relativedelta(**{agg_by + "s": 1})
 
@@ -198,8 +205,8 @@ def _merge_time_series(time_series_sequences):
     #        ((1, 20), (1, 4)),
     #        ((2, 15), (3, 22)),
     #    ]
-    assert _time_series_x_axes_line_up(time_series_sequences), \
-        "Time series x axes do not line up"
+    #assert _time_series_x_axes_line_up(time_series_sequences), \
+    #    "Time series x axes do not line up"
     return [(pairs[0][0],) + tuple(pair[1] for pair in pairs)
         for pairs in zip(*time_series_sequences)]
 
@@ -246,7 +253,6 @@ def _compute_time_serie(time_serie, operation):
 #-------------------------------------------------------------------------------
 def _get_right_time(time_serie, time_key="seconds"):
     """Given a time series in the form
-        
         [(x,  {'hours': 0, 'seconds': 0, 'minutes': 0, 'days': 0}),
          (y,  {'hours': 0, 'seconds': 0, 'minutes': 0, 'days': 0})),
          (z,  {'hours': 0, 'seconds': 0, 'minutes': 0, 'days': 0}))
@@ -290,6 +296,20 @@ def _get_list_of_tuples_from_list(list):
     
     return output
 
+#-------------------------------------------------------------------------------
+def get_events_in_range(series_range):
+    """
+    Get all the events in the give time period. Return the results as a time
+    serie [date, event_name]
+    """
+    
+    events = Event.objects.filter(date__range=[series_range[0], 
+                                              series_range[1]])
+    
+    return  [[datetime.datetime.combine(event.date, datetime.time.min), 
+                                              event.title] for event in events]
+    
+   
 #===============================================================================
 # Houdini Crashes related reports
 
@@ -750,8 +770,6 @@ def openid_providers_breakdown(series_range, aggregation):
     if aggregation is None:
         aggregation = "daily"
         
-    get_num_software_downloads(series_range, aggregation)    
-    
     total_forum = _get_sum_values(_get_active_users_by_method_per_day(
                                                    start_date, end_date, False))
     total_openid= 0
@@ -1029,7 +1047,8 @@ def get_apprentice_downloads(series_range, aggregation):
     return _fill_missing_dates_with_zeros(apprentice_downloads, 
                                                  aggregation[:-2], series_range)        
 #-------------------------------------------------------------------------------    
-def get_num_software_downloads(series_range, aggregation):
+def get_num_software_downloads(series_range, aggregation, 
+                               events_to_annotate):
     """
     Get num of software downloads through the website per day. 
     """
@@ -1066,10 +1085,13 @@ def get_num_software_downloads(series_range, aggregation):
     apprentice_downloads = _fill_missing_dates_with_zeros(apprentice_downloads, 
                                                  aggregation[:-2], series_range)
     
+    events_to_annotate = _fill_missing_dates_with_zeros(events_to_annotate, 
+                                                 aggregation[:-2], series_range,
+                                                 True) 
     return all_downloads, commercial_downloads, apprentice_downloads, \
-          _merge_time_series([all_downloads, commercial_downloads,
-                              apprentice_downloads])                          
-                            
+          _merge_time_series([all_downloads, events_to_annotate, 
+                              commercial_downloads, apprentice_downloads])
+                                                                                    
 #-------------------------------------------------------------------------------
 def get_percentage_of_total(total_serie, fraction_serie):
     """

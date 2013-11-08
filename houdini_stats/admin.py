@@ -73,5 +73,18 @@ class UptimeAdmin(admin.ModelAdmin):
     ordering = ["date"]
 
   
+#-------------------------------------------------------------------------------
+
+@admin_site_register(Event)
+class EventAdmin(admin.ModelAdmin):
+    """
+    Control how the admin site displays events.
+    """
+    list_filter = ("title", "date")
     
+    list_display = list_filter 
+    
+    list_display_links = list_filter
+    list_per_page = 20
+    ordering = ["date"]    
     

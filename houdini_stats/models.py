@@ -236,6 +236,38 @@ class Uptime(models.Model):
         db_name = 'stats'
         
     
+#-------------------------------------------------------------------------------
+
+class Event(models.Model):
+    """
+    Represent an Event that will be used to annotate specific dates in the
+    reports.
+    """
+    
+    title = models.CharField(
+        help_text='''The title of the event.''',
+        max_length=40
+    )   
+    
+    date = models.DateTimeField(
+        help_text='''Date when the event took place.'''
+    )
+    
+    description = models.TextField(
+        help_text='''Brief Description of the event.''',
+        blank=True,
+        default=''
+    ) 
+        
+    def __unicode__(self):
+        return "Event(%s, %s)" % \
+            (self.title, self.date)
+        
+    class Meta:
+        # How to order results when doing queries:
+        ordering = ('date',)    
+        db_name = 'stats'
+        
     
     
 

@@ -317,13 +317,15 @@ def hou_licenses_view(request, dropdown_option_key):
     """Houdini licenses reports."""
     series = {}
     series_range, aggregation = reports.get_common_vars_for_charts(request)
-
+    events_to_annotate = reports.get_events_in_range(series_range)
+    
     if not dropdown_option_key:
         dropdown_option_key = "apprentice_activations"
 
     if dropdown_option_key == "downloads":
-        all_downloads, commercial_downloads, apprentice_downloads, \
-        merge = reports.get_num_software_downloads(series_range, aggregation)
+        all_downloads, commercial_downloads, apprentice_downloads, merge = \
+            reports.get_num_software_downloads(
+                series_range, aggregation, events_to_annotate)
 
         series["software_downloads"] = merge
 
@@ -358,6 +360,7 @@ def hou_licenses_view(request, dropdown_option_key):
             aggregation,
             {
                 'series': series,
+                'events': events_to_annotate,
                 'active_licenses': True,
                 'url': reverse(
                     "hou_licenses",
@@ -490,4 +493,3 @@ def hou_forum_view(request, dropdown_option_key):
                 'plot_three': True
             }),
             request)
-
