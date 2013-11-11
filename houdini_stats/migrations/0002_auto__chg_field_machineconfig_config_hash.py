@@ -1,5 +1,6 @@
 # encoding: utf-8
 import datetime
+import south.db
 from south.db import dbs
 from south.v2 import SchemaMigration
 from django.db import models
