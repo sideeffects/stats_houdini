@@ -7,9 +7,10 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
         
         # Deleting field 'MachineConfig.graphics_card_version'
-        db = dbs['stats']
         db.delete_column('houdini_stats_machineconfig', 'graphics_card_version')
 
         # Adding field 'MachineConfig.graphics_card_vendor'
@@ -17,9 +18,10 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
         
         # Adding field 'MachineConfig.graphics_card_version'
-        db = dbs['stats']
         db.add_column('houdini_stats_machineconfig', 'graphics_card_version', self.gf('django.db.models.fields.CharField')(default='', max_length=20, blank=True), keep_default=False)
 
         # Deleting field 'MachineConfig.graphics_card_vendor'

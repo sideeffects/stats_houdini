@@ -7,9 +7,10 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
         
         # Adding model 'Event'
-        db = dbs['stats']
         db.create_table(u'houdini_stats_event', (
             (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('title', self.gf('django.db.models.fields.CharField')(max_length=40)),
@@ -20,9 +21,10 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
         
         # Deleting model 'Event'
-        db = dbs['stats']
         db.delete_table(u'houdini_stats_event')
 
 

@@ -1,5 +1,6 @@
 # encoding: utf-8
 import datetime
+import south.db
 from south.db import dbs
 from south.v2 import SchemaMigration
 from django.db import models
@@ -7,9 +8,10 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        
         # Adding model 'MachineConfig'
         db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
+
         db.create_table('houdini_stats_machineconfig', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('hardware_id', self.gf('django.db.models.fields.IntegerField')()),
@@ -62,9 +64,10 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
-        
-        # Deleting model 'MachineConfig'
         db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
+
+        # Deleting model 'MachineConfig'
         db.delete_table('houdini_stats_machineconfig')
 
         # Deleting model 'HoudiniCrash'

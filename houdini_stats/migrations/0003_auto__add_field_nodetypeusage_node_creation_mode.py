@@ -7,16 +7,18 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
         
         # Adding field 'NodeTypeUsage.node_creation_mode'
-        db = dbs['stats']
         db.add_column('houdini_stats_nodetypeusage', 'node_creation_mode', self.gf('django.db.models.fields.IntegerField')(default=1), keep_default=False)
 
 
     def backwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
         
         # Deleting field 'NodeTypeUsage.node_creation_mode'
-        db = dbs['stats']
         db.delete_column('houdini_stats_nodetypeusage', 'node_creation_mode')
 
 

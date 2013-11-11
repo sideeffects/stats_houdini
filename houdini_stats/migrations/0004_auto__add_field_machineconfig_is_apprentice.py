@@ -7,16 +7,18 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
         
         # Adding field 'MachineConfig.is_apprentice'
-        db = dbs['stats']
         db.add_column('houdini_stats_machineconfig', 'is_apprentice', self.gf('django.db.models.fields.BooleanField')(default=False), keep_default=False)
 
 
     def backwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
         
         # Deleting field 'MachineConfig.is_apprentice'
-        db = dbs['stats']
         db.delete_column('houdini_stats_machineconfig', 'is_apprentice')
 
 

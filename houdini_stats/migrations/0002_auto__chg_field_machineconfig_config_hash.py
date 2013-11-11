@@ -7,16 +7,18 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
         
         # Changing field 'MachineConfig.config_hash'
-        db = dbs['stats']
         db.alter_column('houdini_stats_machineconfig', 'config_hash', self.gf('django.db.models.fields.CharField')(max_length=40))
 
 
     def backwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
         
         # Changing field 'MachineConfig.config_hash'
-        db = dbs['stats']
         db.alter_column('houdini_stats_machineconfig', 'config_hash', self.gf('django.db.models.fields.CharField')(max_length=5))
 
 
