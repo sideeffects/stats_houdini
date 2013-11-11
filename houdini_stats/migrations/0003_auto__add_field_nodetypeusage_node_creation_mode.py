@@ -1,6 +1,6 @@
 # encoding: utf-8
 import datetime
-from south.db import db
+from south.db import dbs
 from south.v2 import SchemaMigration
 from django.db import models
 
@@ -9,6 +9,7 @@ class Migration(SchemaMigration):
     def forwards(self, orm):
         
         # Adding field 'NodeTypeUsage.node_creation_mode'
+        db = dbs['stats']
         db.add_column('houdini_stats_nodetypeusage', 'node_creation_mode', self.gf('django.db.models.fields.IntegerField')(default=1), keep_default=False)
 
 

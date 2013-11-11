@@ -1,6 +1,6 @@
 # encoding: utf-8
 import datetime
-from south.db import db
+from south.db import dbs
 from south.v2 import SchemaMigration
 from django.db import models
 
@@ -9,6 +9,7 @@ class Migration(SchemaMigration):
     def forwards(self, orm):
         
         # Deleting field 'MachineConfig.graphics_card_version'
+        db = dbs['stats']
         db.delete_column('houdini_stats_machineconfig', 'graphics_card_version')
 
         # Adding field 'MachineConfig.graphics_card_vendor'

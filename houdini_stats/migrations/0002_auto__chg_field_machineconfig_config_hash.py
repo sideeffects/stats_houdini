@@ -1,6 +1,6 @@
 # encoding: utf-8
 import datetime
-from south.db import db
+from south.db import dbs
 from south.v2 import SchemaMigration
 from django.db import models
 
@@ -9,6 +9,7 @@ class Migration(SchemaMigration):
     def forwards(self, orm):
         
         # Changing field 'MachineConfig.config_hash'
+        db = dbs['stats']
         db.alter_column('houdini_stats_machineconfig', 'config_hash', self.gf('django.db.models.fields.CharField')(max_length=40))
 
 

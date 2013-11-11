@@ -1,6 +1,6 @@
 # encoding: utf-8
 import datetime
-from south.db import db
+from south.db import dbs
 from south.v2 import SchemaMigration
 from django.db import models
 
@@ -9,6 +9,7 @@ class Migration(SchemaMigration):
     def forwards(self, orm):
         
         # Adding field 'HoudiniCrash.type'
+        db = dbs['stats']
         db.add_column('houdini_stats_houdinicrash', 'type', self.gf('django.db.models.fields.CharField')(default='', max_length=10), keep_default=False)
 
 

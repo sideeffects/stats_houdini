@@ -1,6 +1,6 @@
 # encoding: utf-8
 import datetime
-from south.db import db
+from south.db import dbs
 from south.v2 import SchemaMigration
 from django.db import models
 
@@ -9,6 +9,7 @@ class Migration(SchemaMigration):
     def forwards(self, orm):
         
         # Adding model 'MachineConfig'
+        db = dbs['stats']
         db.create_table('houdini_stats_machineconfig', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('hardware_id', self.gf('django.db.models.fields.IntegerField')()),
