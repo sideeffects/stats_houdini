@@ -16,6 +16,7 @@ class Migration(SchemaMigration):
     def backwards(self, orm):
         
         # Deleting field 'NodeTypeUsage.node_creation_mode'
+        db = dbs['stats']
         db.delete_column('houdini_stats_nodetypeusage', 'node_creation_mode')
 
 

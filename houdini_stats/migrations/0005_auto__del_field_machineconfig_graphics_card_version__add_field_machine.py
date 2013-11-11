@@ -19,6 +19,7 @@ class Migration(SchemaMigration):
     def backwards(self, orm):
         
         # Adding field 'MachineConfig.graphics_card_version'
+        db = dbs['stats']
         db.add_column('houdini_stats_machineconfig', 'graphics_card_version', self.gf('django.db.models.fields.CharField')(default='', max_length=20, blank=True), keep_default=False)
 
         # Deleting field 'MachineConfig.graphics_card_vendor'

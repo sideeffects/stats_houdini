@@ -16,6 +16,7 @@ class Migration(SchemaMigration):
     def backwards(self, orm):
         
         # Deleting field 'HoudiniCrash.type'
+        db = dbs['stats']
         db.delete_column('houdini_stats_houdinicrash', 'type')
 
 

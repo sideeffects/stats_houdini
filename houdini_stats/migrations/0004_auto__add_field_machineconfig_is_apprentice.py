@@ -16,6 +16,7 @@ class Migration(SchemaMigration):
     def backwards(self, orm):
         
         # Deleting field 'MachineConfig.is_apprentice'
+        db = dbs['stats']
         db.delete_column('houdini_stats_machineconfig', 'is_apprentice')
 
 

@@ -16,6 +16,7 @@ class Migration(SchemaMigration):
     def backwards(self, orm):
         
         # Changing field 'MachineConfig.config_hash'
+        db = dbs['stats']
         db.alter_column('houdini_stats_machineconfig', 'config_hash', self.gf('django.db.models.fields.CharField')(max_length=5))
 
 

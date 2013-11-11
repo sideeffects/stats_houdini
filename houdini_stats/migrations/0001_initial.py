@@ -64,6 +64,7 @@ class Migration(SchemaMigration):
     def backwards(self, orm):
         
         # Deleting model 'MachineConfig'
+        db = dbs['stats']
         db.delete_table('houdini_stats_machineconfig')
 
         # Deleting model 'HoudiniCrash'
