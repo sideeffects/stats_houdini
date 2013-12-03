@@ -80,7 +80,7 @@ class EventAdmin(admin.ModelAdmin):
     """
     Control how the admin site displays events.
     """
-    list_filter = ("title", "date")
+    list_filter = ("title", "date", "show")
     
     list_display = list_filter 
     

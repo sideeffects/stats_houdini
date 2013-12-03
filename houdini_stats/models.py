@@ -258,6 +258,11 @@ class Event(models.Model):
         blank=True,
         default=''
     ) 
+    
+    show = models.BooleanField(
+        help_text='''To hide or show an event from the graphs''',
+        default=False
+    )
         
     def __unicode__(self):
         return "Event(%s, %s)" % \

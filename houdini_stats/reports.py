@@ -303,13 +303,12 @@ def get_events_in_range(series_range):
     serie [date, event_name]
     """
     
-    events = Event.objects.filter(date__range=[series_range[0], 
-                                              series_range[1]])
+    events = Event.objects.filter(date__range=[series_range[0],
+                                  series_range[1]]).exclude(show=False)
     
     return  [[datetime.datetime.combine(event.date, datetime.time.min), 
                                               event.title] for event in events]
     
-   
 #===============================================================================
 # Houdini Crashes related reports
 
@@ -1038,14 +1037,14 @@ def get_apprentice_downloads(series_range, aggregation):
     common_query_start, common_query_where, common_query_end = \
                            _return_common_for_download_reports(series_range[0], 
                                                                 series_range[1]) 
-    
     # Apprentice downloads    
     apprentice_downloads = _get_apprentice_downloads(cursor, common_query_start, 
                                                      common_query_where,
                                                      common_query_end)
     
     return _fill_missing_dates_with_zeros(apprentice_downloads, 
-                                                 aggregation[:-2], series_range)        
+                                                 aggregation[:-2], series_range)
+        
 #-------------------------------------------------------------------------------    
 def get_num_software_downloads(series_range, aggregation, 
                                events_to_annotate):
@@ -1088,6 +1087,7 @@ def get_num_software_downloads(series_range, aggregation,
     events_to_annotate = _fill_missing_dates_with_zeros(events_to_annotate, 
                                                  aggregation[:-2], series_range,
                                                  True) 
+    
     return all_downloads, commercial_downloads, apprentice_downloads, \
           _merge_time_series([all_downloads, events_to_annotate, 
                               commercial_downloads, apprentice_downloads])

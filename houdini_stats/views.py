@@ -317,6 +317,9 @@ def hou_licenses_view(request, dropdown_option_key):
     """Houdini licenses reports."""
     series = {}
     series_range, aggregation = reports.get_common_vars_for_charts(request)
+    if aggregation is None:
+        aggregation = "daily"
+    
     events_to_annotate = reports.get_events_in_range(series_range)
     
     if not dropdown_option_key:
@@ -336,11 +339,18 @@ def hou_licenses_view(request, dropdown_option_key):
 
     if dropdown_option_key == "apprentice_activations":
         apprentice_activations = reports.apprentice_activations_over_time(
-            series_range, aggregation)
-        apprentice_downloads = reports.get_apprentice_downloads(
-            series_range, aggregation)
+                                                      series_range, aggregation)
+        
+        apprentice_downloads = reports.get_apprentice_downloads(series_range, 
+                                                                   aggregation)
+        
+        events_to_annotate = reports._fill_missing_dates_with_zeros(events_to_annotate, 
+                                                 aggregation[:-2], series_range,
+                                                 True) 
+        
         series['apprentice_lic_over_time'] = reports._merge_time_series(
-            [apprentice_downloads, apprentice_activations])
+            [apprentice_downloads, events_to_annotate, apprentice_activations])
+        
         series['apprentice_act_percentages'] = reports.get_percentage_of_total(
             apprentice_downloads, apprentice_activations)
 
