@@ -344,12 +344,13 @@ def hou_licenses_view(request, dropdown_option_key):
         apprentice_downloads = reports.get_apprentice_downloads(series_range, 
                                                                    aggregation)
         
-        events_to_annotate = reports._fill_missing_dates_with_zeros(events_to_annotate, 
-                                                 aggregation[:-2], series_range,
-                                                 True) 
+        events_to_annotate_filled = reports._fill_missing_dates_with_zeros(
+                                           events_to_annotate, aggregation[:-2],
+                                                             series_range, True) 
         
         series['apprentice_lic_over_time'] = reports._merge_time_series(
-            [apprentice_downloads, events_to_annotate, apprentice_activations])
+                               [apprentice_downloads, events_to_annotate_filled, 
+                                                        apprentice_activations])
         
         series['apprentice_act_percentages'] = reports.get_percentage_of_total(
             apprentice_downloads, apprentice_activations)
