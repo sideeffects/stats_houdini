@@ -729,7 +729,8 @@ def _get_sum_values(tuples):
     return sum(counts for date, counts in tuples)
 
 #-------------------------------------------------------------------------------             
-def get_active_users_forum_and_openid(series_range, aggregation):
+def get_active_users_forum_and_openid(series_range, aggregation,
+                                      events_to_annotate ):
     """
     Number of users active that registered with forum or open id
     """
@@ -743,6 +744,11 @@ def get_active_users_forum_and_openid(series_range, aggregation):
     # To get all users registered in the given interval
     all_users_serie = _get_active_users_over_time(series_range, aggregation)
     
+    # Filling with zeros the empty dates in the events
+    events_to_annotate = _fill_missing_dates_with_zeros(events_to_annotate, 
+                                                 aggregation[:-2], series_range,
+                                                 True) 
+    
     # Creating the time serie from the results of the cursor
     forum_serie = _get_active_users_by_method_per_day(start_date, end_date) 
     #Filling the empty dates
@@ -755,7 +761,9 @@ def get_active_users_forum_and_openid(series_range, aggregation):
     # Filling the empty dates
     openid_serie = _fill_missing_dates_with_zeros(openid_serie, aggregation[:-2], 
                                                                 series_range)
-    return _merge_time_series([all_users_serie, forum_serie, openid_serie])
+    
+    return _merge_time_series([all_users_serie, events_to_annotate, forum_serie,
+                                                                  openid_serie])
 
 #-------------------------------------------------------------------------------
 def openid_providers_breakdown(series_range, aggregation):

@@ -467,6 +467,8 @@ def hou_forum_view(request, dropdown_option_key):
     Houdini forum reports.
     """
     series = {}
+    series_range, aggregation = reports.get_common_vars_for_charts(request)
+    events_to_annotate = reports.get_events_in_range(series_range)
 
     if not dropdown_option_key:
         dropdown_option_key = "login_registration"
@@ -474,11 +476,10 @@ def hou_forum_view(request, dropdown_option_key):
     total_forum = 0
     total_openid = 0
 
-    series_range, aggregation = reports.get_common_vars_for_charts(request)
     if dropdown_option_key == "login_registration":
         series["users_forum_openid"] = (
             reports.get_active_users_forum_and_openid(
-                series_range, aggregation))
+                series_range, aggregation, events_to_annotate))
 
         breakdown, total_forum, total_openid = (
             reports.openid_providers_breakdown(
@@ -491,6 +492,7 @@ def hou_forum_view(request, dropdown_option_key):
             request, series_range, aggregation,
             {
                 'series': series,
+                'events': events_to_annotate,
                 'total_forum': total_forum,
                 'total_openid': total_openid,
                 'active_forum': True,
