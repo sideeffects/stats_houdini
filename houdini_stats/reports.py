@@ -1092,10 +1092,6 @@ def get_num_software_downloads(series_range, aggregation,
     apprentice_downloads = _fill_missing_dates_with_zeros(apprentice_downloads, 
                                                  aggregation[:-2], series_range)
     
-    events_to_annotate = _fill_missing_dates_with_zeros(events_to_annotate, 
-                                                 aggregation[:-2], series_range,
-                                                 True) 
-    
     return all_downloads, commercial_downloads, apprentice_downloads, \
           _merge_time_series([all_downloads, events_to_annotate, 
                               commercial_downloads, apprentice_downloads])

@@ -317,18 +317,22 @@ def hou_licenses_view(request, dropdown_option_key):
     """Houdini licenses reports."""
     series = {}
     series_range, aggregation = reports.get_common_vars_for_charts(request)
+    
     if aggregation is None:
         aggregation = "daily"
     
+    # Events serie 
     events_to_annotate = reports.get_events_in_range(series_range)
-    
+    events_to_annotate_filled = reports._fill_missing_dates_with_zeros(
+                                           events_to_annotate, aggregation[:-2],
+                                                             series_range, True) 
     if not dropdown_option_key:
-        dropdown_option_key = "apprentice_activations"
+        dropdown_option_key = "downloads"
 
     if dropdown_option_key == "downloads":
         all_downloads, commercial_downloads, apprentice_downloads, merge = \
             reports.get_num_software_downloads(
-                series_range, aggregation, events_to_annotate)
+                series_range, aggregation, events_to_annotate_filled)
 
         series["software_downloads"] = merge
 
@@ -344,13 +348,9 @@ def hou_licenses_view(request, dropdown_option_key):
         apprentice_downloads = reports.get_apprentice_downloads(series_range, 
                                                                    aggregation)
         
-        events_to_annotate_filled = reports._fill_missing_dates_with_zeros(
-                                           events_to_annotate, aggregation[:-2],
-                                                             series_range, True) 
-        
         series['apprentice_lic_over_time'] = reports._merge_time_series(
-                               [apprentice_downloads, events_to_annotate_filled, 
-                                                        apprentice_activations])
+            [apprentice_downloads, events_to_annotate_filled,
+             apprentice_activations])
         
         series['apprentice_act_percentages'] = reports.get_percentage_of_total(
             apprentice_downloads, apprentice_activations)
@@ -358,7 +358,9 @@ def hou_licenses_view(request, dropdown_option_key):
     if dropdown_option_key == "apprentice_hd":
         apprentice_hd_licenses = reports.get_apprentice_hd_licenses_over_time(
             series_range, aggregation)
-        series['apprentice_hd_lic'] = apprentice_hd_licenses
+        
+        series['apprentice_hd_lic'] = reports._merge_time_series(
+            [apprentice_hd_licenses, events_to_annotate_filled]) 
         series['apprentice_hd_lic_cumu'] = (
             reports.get_apprentice_hd_licenses_cumulative(
                 apprentice_hd_licenses, series_range[0]))
