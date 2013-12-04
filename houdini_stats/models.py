@@ -50,7 +50,7 @@ class MachineConfig(models.Model):
     product = models.CharField(                                              
         help_text='''Name of the product used (houdini hexper, hescape, hbatch
                      mantra, mplay.''',
-        max_length=20,
+        max_length=40,
         blank=True,
     )
     
@@ -61,19 +61,19 @@ class MachineConfig(models.Model):
     
     graphics_card = models.CharField(
         help_text='''Graphic card used in the current machine.''',
-        max_length=20,
+        max_length=40,
         blank=True,                               
     )
     
     graphics_card_vendor = models.CharField(
         help_text='''Graphic card vendor.''',
-        max_length=20,
+        max_length=40,
         blank=True,                               
     )
     
     operating_system = models.CharField(
         help_text='''Operating System installed in the machine.''',
-        max_length=20 ,
+        max_length=40,
         blank=True,                              
     )
 
@@ -85,7 +85,7 @@ class MachineConfig(models.Model):
     
     system_resolution = models.CharField(
         help_text='''System resolution.''',
-        max_length=10,
+        max_length=20,
         blank=True,
     )
     
@@ -98,7 +98,7 @@ class MachineConfig(models.Model):
                         
     cpu_info = models.CharField(
         help_text='''CPU information.''',
-        max_length=10,
+        max_length=20,
         blank=True,
                                        
     )
@@ -136,7 +136,7 @@ class HoudiniCrash(models.Model):
     type = models.CharField(
         help_text='''Type logged.''',
         default='',
-        max_length=10
+        max_length=20
     )
     
     def __unicode__(self):
@@ -166,7 +166,7 @@ class NodeTypeUsage(models.Model):
     
     node_type = models.CharField(
         help_text='''The type of the node (Vops, Sops).''',
-        max_length=20
+        max_length=60
     )
     
     SHELF = 1
