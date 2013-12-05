@@ -60,7 +60,6 @@ def _remove_POST_param_from_path(path, param_name):
     return path.replace("?" + param_name, "").replace(
         "&" + param_name , "")
 
-
 #-------------------------------------------------------------------------------
 def _add_common_context_params(request, series_range, agg=None, params = None):
     """
@@ -68,7 +67,11 @@ def _add_common_context_params(request, series_range, agg=None, params = None):
     are common to all the pages where the user can log in and return a new
     dictionary.
     """
+    
     new_params = {
+            'get_request_string': (
+                     "?" + urllib.urlencode(request.GET, False) if len(request.GET) 
+                     else ""),     
             'is_logged_in' : request.user.is_authenticated(),
             'user':request.user,
             'top_menu_options': top_menu_options.values(),
@@ -79,6 +82,7 @@ def _add_common_context_params(request, series_range, agg=None, params = None):
     new_params.update(params)
     return new_params
 
+#-------------------------------------------------------------------------------
 def _get_top_menu_options_next_prevs():
     top_menu_options_nexts_prevs = {}
     for top_menu_name, top_menu_info in top_menu_options.items():
@@ -264,6 +268,7 @@ def hou_reports_view(request, dropdown_option_key):
         series['hou_crashes_over_time'] = (
             reports.get_hou_crashes_over_time(series_range))
 
+    
     if dropdown_option_key == "node_usage":
         show_date_picker = False
         series['hou_most_popular_nodes'] = (
@@ -315,6 +320,7 @@ def hou_reports_view(request, dropdown_option_key):
 @login_required
 def hou_licenses_view(request, dropdown_option_key):
     """Houdini licenses reports."""
+    
     series = {}
     series_range, aggregation = reports.get_common_vars_for_charts(request)
     
