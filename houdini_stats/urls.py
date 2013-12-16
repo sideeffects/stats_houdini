@@ -25,11 +25,16 @@ if settings.IS_QUERY_SERVER:
         
         url(r'^houdini/(?P<dropdown_option_key>.*)$', 'hou_reports_view', 
                                                             name='hou_reports'),
-        url(r'^licenses/(?P<dropdown_option_key>.*)$', 'hou_licenses_view', 
-                                                           name='hou_licenses'),
+#        url(r'^licenses/(?P<dropdown_option_key>.*)$', 'hou_licenses_view', 
+#                                                           name='hou_licenses'),
+        url(r'^apprentice/(?P<dropdown_option_key>.*)$', 'hou_apprentice_view', 
+                                                         name='hou_apprentice'),                    
         url(r'^surveys/(?P<dropdown_option_key>.*)$', 'hou_surveys_view', 
                                                             name='hou_surveys'),
         url(r'^forum/(?P<dropdown_option_key>.*)$', 'hou_forum_view', 
                                                               name='hou_forum'),
+        
+       url(r'^heatmap/(?P<option>.*)$', 'hou_heatmap_view', 
+                                                       name='heatmap'),                    
         
     )

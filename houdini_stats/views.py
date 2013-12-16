@@ -244,17 +244,35 @@ def hou_reports_view(request, dropdown_option_key):
     limit = 20
 
     series = {}
+    series_range, aggregation = reports.get_common_vars_for_charts(request)
     pies = {}
     url_to_reverse = {}
-
     show_date_picker = True
 
+    if aggregation is None:
+        aggregation = "daily"
+    
+    # Events serie 
+    events_to_annotate = reports.get_events_in_range(series_range)
+    events_to_annotate_filled = reports._fill_missing_dates_with_zeros(
+                                           events_to_annotate, aggregation[:-2],
+                                                             series_range, True) 
     if not dropdown_option_key:
-        dropdown_option_key = "overview"
+        dropdown_option_key = "downloads"
 
-    series_range, aggregation = reports.get_common_vars_for_charts(request)
+    if dropdown_option_key == "downloads":
+        all_downloads, commercial_downloads, apprentice_downloads, merge = \
+            reports.get_num_software_downloads(
+                series_range, aggregation, events_to_annotate_filled)
 
-    if dropdown_option_key == "overview":
+        series["software_downloads"] = merge
+
+        series["percentages"] = reports.get_percentage_downloads(
+            all_downloads,
+            apprentice_downloads,
+            commercial_downloads)
+
+    if dropdown_option_key == "usage":
         series['users_over_time'] = reports.get_users_over_time(
             series_range, aggregation)
 
@@ -318,8 +336,8 @@ def hou_reports_view(request, dropdown_option_key):
 #------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
-def hou_licenses_view(request, dropdown_option_key):
-    """Houdini licenses reports."""
+def hou_apprentice_view(request, dropdown_option_key):
+    """Houdini Apprentice."""
     
     series = {}
     series_range, aggregation = reports.get_common_vars_for_charts(request)
@@ -333,19 +351,7 @@ def hou_licenses_view(request, dropdown_option_key):
                                            events_to_annotate, aggregation[:-2],
                                                              series_range, True) 
     if not dropdown_option_key:
-        dropdown_option_key = "downloads"
-
-    if dropdown_option_key == "downloads":
-        all_downloads, commercial_downloads, apprentice_downloads, merge = \
-            reports.get_num_software_downloads(
-                series_range, aggregation, events_to_annotate_filled)
-
-        series["software_downloads"] = merge
-
-        series["percentages"] = reports.get_percentage_downloads(
-            all_downloads,
-            apprentice_downloads,
-            commercial_downloads)
+        dropdown_option_key = "apprentice_activations"
 
     if dropdown_option_key == "apprentice_activations":
         apprentice_activations = reports.apprentice_activations_over_time(
@@ -370,9 +376,9 @@ def hou_licenses_view(request, dropdown_option_key):
         series['apprentice_hd_lic_cumu'] = (
             reports.get_apprentice_hd_licenses_cumulative(
                 apprentice_hd_licenses, series_range[0]))
-
+    
     return render_response(
-        "licenses_reports.html",
+        "apprentice_reports.html",
         _add_common_context_params(
             request,
             series_range,
@@ -382,15 +388,15 @@ def hou_licenses_view(request, dropdown_option_key):
                 'events': events_to_annotate,
                 'active_licenses': True,
                 'url': reverse(
-                    "hou_licenses",
+                    "hou_apprentice",
                     kwargs={"dropdown_option_key": dropdown_option_key}),
                 'show_date_picker': True,
-                'active_menu': top_menu_options['licensing']['menu_name'],
+                'active_menu': top_menu_options['apprentice']['menu_name'],
                 'active_menu_option_info': _get_active_menu_option_info(
-                'licensing', dropdown_option_key),
+                'apprentice', dropdown_option_key),
                 'plot_three': True
             }),
-            request)
+            request)    
 
 #------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
@@ -467,7 +473,7 @@ def hou_surveys_view(request, dropdown_option_key):
             }),
             request)
 
- #-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
 def hou_forum_view(request, dropdown_option_key):
@@ -514,3 +520,23 @@ def hou_forum_view(request, dropdown_option_key):
                 'plot_three': True
             }),
             request)
+
+#-----------------------------------------------------------------------------
+@require_http_methods(["GET", "POST"])
+@login_required
+def hou_heatmap_view(request, option):
+    """
+    View to visualize Heatmaps.
+    """
+    series = {}
+    series_range, aggregation = reports.get_common_vars_for_charts(request)
+    
+    lat_longs = []
+    
+    if option == "apprentice_heatmap":
+        lat_longs = reports.get_apprentice_activations_by_geo(series_range)
+    return render_response(
+        "heatmap.html", {
+            "lat_longs": lat_longs,
+        },
+        request)    

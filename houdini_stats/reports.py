@@ -14,7 +14,7 @@ import datetime
 from settings import REPORTS_START_DATE
 from dircache import annotate
 from operator import *
-
+from django.contrib.gis.geoip import GeoIP
 
 #===============================================================================
 def _get_start_request(request):
@@ -87,6 +87,16 @@ def _get_aggregation(get_vars):
         return None  
     
     return aggregation 
+
+#-------------------------------------------------------------------------------  
+ 
+def _get_lat_and_long(ip):
+    """
+    Get the values of the latitude and long by ip address
+    """
+    g = GeoIP(cache=GeoIP.GEOIP_MEMORY_CACHE)
+    
+    return  g.lat_lon(ip)#lat, long 
 
 #------------------------------------------------------------------------------- 
 def get_common_vars_for_charts(request):
@@ -900,7 +910,7 @@ def apprentice_activations_over_time(series_range, aggregation):
                   )
         )  
     
-    apprentice_activations = [(row[0], row[1]) for row in cursor.fetchall()]  
+    apprentice_activations = [(row[0], row[1]) for row in cursor.fetchall()] 
     
     return _fill_missing_dates_with_zeros(apprentice_activations, 
                                           aggregation[:-2], series_range)
@@ -966,8 +976,43 @@ def get_apprentice_hd_licenses_cumulative(hd_licenses_series, range_start_date):
     cumulative_val = cursor.fetchall()[0][0]
     if cumulative_val is None:
         cumulative_val = 0
-    
+        
     return _get_cumulative_values(cumulative_val, hd_licenses_series)
+
+#-------------------------------------------------------------------------------
+
+def get_apprentice_activations_by_geo(series_range):
+    """
+    Get Apprentice HD Licenses by Geography. Ip address.
+    """
+    
+    start_date = series_range[0] 
+    end_date = series_range[1]
+    
+    cursor = connections['licensedb'].cursor()
+    
+    cursor.execute("""
+        select cast(LogDate as datetime) as date, IPAddress
+        from NCHistory
+        where LogDate between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
+            and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S') and
+            IPAddress IS NOT NULL
+        group by date  
+        order by date  
+        """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                   end_date.strftime("%Y-%m-%d %H:%M:%S")
+                  )
+        )  
+    
+    dates_ips = [(row[0], row[1]) for row in cursor.fetchall()] 
+    
+    lat_longs =  []
+    for dates_ip in dates_ips:
+        lat_long = _get_lat_and_long(dates_ip[1])
+        if lat_long is not None:
+            lat_longs.append(lat_long)
+    
+    return lat_longs
 
 #-------------------------------------------------------------------------------
 

@@ -8,22 +8,24 @@ top_menu_options = OrderedDict([
         "menu_name": "Houdini",
         "menu_view": "hou_reports",
         "menu_options": OrderedDict([
-            ("overview", "Overview"),
+            ("downloads", "Houdini Downloads"),                         
+            ("usage", "Usage"),
             ("uptime", "Session Information"),
             ("crashes", "Crashes"),
             ("node_usage", "Node Usage"),
             ("versions_and_builds", "Versions and builds"),
         ]),
     }),
-    ("licensing", {
-        "menu_name": "Downloads & Licensing",
-        "menu_view": "hou_licenses",
+                                
+    ("apprentice", {
+        "menu_name": "Apprentice",
+        "menu_view": "hou_apprentice",
         "menu_options": OrderedDict([
-            ("downloads", "Houdini Downloads"),
             ("apprentice_activations", "Apprentice Activations"),
             ("apprentice_hd", "Apprentice HD"),
+            ("apprentice_heatmap", "Apprentice Activations Heatmap"),
         ]),
-    }),
+    }),                            
     ("surveys", {
         "menu_name": "Surveys",
         "menu_view": "hou_surveys",
@@ -39,12 +41,6 @@ top_menu_options = OrderedDict([
             ("login_registration", "Login & Registration"),
         ]),
     }),
-#                                
-#    ("orbolt", {
-#        "menu_name": "Orbolt",
-#        "menu_view": "hou_orbolt",
-#        "menu_options": OrderedDict([
-#        ]),
-#    }),
+
 ])
 

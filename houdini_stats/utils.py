@@ -215,3 +215,4 @@ def save_crash(machine_config, crash_log):
                   )                    
     crash.save()     
     
+  
