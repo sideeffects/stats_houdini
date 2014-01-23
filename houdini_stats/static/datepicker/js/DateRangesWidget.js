@@ -69,7 +69,9 @@
 		date_presets : {
 			'custom' : {
 				title: "Custom",
-				dates: function() {return null;}
+				dates: function() { 
+					return null;
+				}
 			},
 			'Inherit' : {
 				title: "Inherit",
@@ -77,12 +79,23 @@
 					if ($custom_start != null && $custom_end != null){
 						// Parse the given dates and convert them
 						// into Javascript objects
+						var start, end, date1, date2;
 
-						var start = $custom_start.split("/");
-						var date1 = new Date(start[2], start[1] - 1, start[0]);
+						start = $custom_start.split(',')
+											 .splice(0,2)
+											 .join()
+											 .replace('.','') // We remove the dot
+														      // because Firefox cannot
+														      // process it
 
-						var end =$custom_end.split("/");
-						date2 = new Date(end[2], end[1] - 1, end[0]);
+						date1 = new Date(Date.parse(start));
+
+						end = $custom_end.split(',')
+										 .splice(0,2)
+										 .join()
+										 .replace('.','')
+
+						date2 = new Date(Date.parse(end));
 
 						var dates = [];
 						dates[0] = date1;
@@ -108,6 +121,35 @@
 					var dates = [];
 					dates[0] = ((new Date()).setHours(0,0,0,0)).valueOf() - 24*3600*1000;
 					dates[1] = new Date(dates[0]).setHours(23,59,59,0).valueOf();
+					return dates;
+				}
+			},
+			'YTD' : {
+				title: "YTD",
+				dates: function(){
+					var dates = [];
+					var date = new Date();
+					dates[0] = new Date(date.getFullYear(), 0, 1);
+					dates[1] = date;
+					return dates;
+				}
+			},
+			'1 Year' : {
+				title: "1 Year",
+				dates: function(){
+					var dates = [];
+					var date = new Date();
+					dates[0] = date.setFullYear(date.getFullYear()-1);
+					dates[1] = new Date();
+					return dates;
+				}
+			},
+			'All Time' : {
+				title: "All Time",
+				dates: function(){
+					var dates = [];
+					dates[0] = new Date(Date.parse("Aug 7, 2012"));
+					dates[1] = new Date();
 					return dates;
 				}
 			},
@@ -226,7 +268,7 @@
 			// of DateRangeWidget
 
 			$custom_start = options.start;
-			$custom_end = options.end;
+			$custom_end = options.end; 
 
 			// Set the aggregation
 			$inherit = options.aggregation;
@@ -418,8 +460,18 @@
 					} else {
 						$parameters.hide();
 					}
-					$('.dr1', $dropdown).prop('disabled', ($daterangePreset.val() == 'custom' ? false : true));
-					
+					// $('.dr1', $dropdown).prop('disabled', ($daterangePreset.val() == 'custom' ? false : true));
+					$('.dr1', $dropdown).bind("change", function(){
+						
+						var from = $('.dr1.from', $dropdown).val();
+						var to = $('.dr1.to', $dropdown).val();
+
+						var new_from = custom_internal.convertDate(from);
+						var new_to = custom_internal.convertDate(to);
+						
+						var dates = [new_from, new_to];
+						$datepicker.DatePickerSetDate(dates);
+					})
 					internal.recalculateDaterange();
 				});
 				
@@ -807,6 +859,20 @@
 		}
 		
 	};
+
+	var custom_internal = {
+
+		convertDate : function(dmy){
+			// Convert a date from dd/mm/yy to mm/dd/yy
+
+			var parts = dmy.split("/");
+			var new_parts = [parts[1], parts[0], parts[2]];
+			var mdy = new_parts.join("/");
+			var new_date = new Date(Date.parse(mdy));
+
+			return new_date;
+		}
+	}
 	
 	$.fn.DateRangesWidget = function(method) {
 
