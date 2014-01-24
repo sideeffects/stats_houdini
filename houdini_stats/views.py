@@ -4,13 +4,15 @@ from django.template import RequestContext
 from django.views.decorators.http import (
     require_GET, require_POST, require_http_methods)
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.views import redirect_to_login
 from django.core.urlresolvers import reverse
 from django.contrib.auth import authenticate, login, logout
+from django.core.exceptions import PermissionDenied
 
 import datetime
 import urllib
+import functools
 
 import settings
 from static_data import top_menu_options
@@ -135,6 +137,31 @@ def _get_active_menu_option_info(selected_menu, selected_option_key):
             }
         }
 
+#-------------------------------------------------------------------------------
+def _user_in_groups(user, group_names):
+    """
+    Function to verify if a user belongs to any of the groups given.
+    """
+    
+    return set(group.name for group in user.groups.all()).intersection(group_names)                                                     
+    
+#-------------------------------------------------------------------------------
+def user_access(group_names=['staff', 'r&d']):
+    """
+    Decorator for views that checks if the user has access to the reports
+    in Stats, depending on which groups they belong too.
+    """
+    def wrapper(view_function):
+        
+        @functools.wraps(view_function)
+        def _checklogin(request, *args, **kwargs):
+            if request.user.is_active and _user_in_groups(request.user,
+                                                         group_names):
+                return view_function(request, *args, **kwargs)
+            raise PermissionDenied()
+        return _checklogin
+    return wrapper
+
 #===============================================================================
 @require_http_methods(["GET", "POST"])
 def login_view(request):
@@ -233,6 +260,7 @@ def index_view(request):
 #-------------------------------------------------------------------------------  
 @require_http_methods(["GET", "POST"])
 @login_required
+@user_access(['staff','r&d'])
 def hou_reports_view(request, dropdown_option_key):
     """
     Analytics from data we collect from inside Houdini.
@@ -336,6 +364,7 @@ def hou_reports_view(request, dropdown_option_key):
 #------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
+@user_access(['staff','r&d'])
 def hou_apprentice_view(request, dropdown_option_key):
     """Houdini Apprentice."""
     
@@ -401,6 +430,7 @@ def hou_apprentice_view(request, dropdown_option_key):
 #------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
+@user_access(['staff','r&d'])
 def hou_surveys_view(request, dropdown_option_key):
     """
     Houdini surveys reports.
@@ -476,6 +506,7 @@ def hou_surveys_view(request, dropdown_option_key):
 #-----------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
+@user_access(['staff','r&d'])
 def hou_forum_view(request, dropdown_option_key):
     """
     Houdini forum reports.
@@ -524,6 +555,7 @@ def hou_forum_view(request, dropdown_option_key):
 #-----------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
+@user_access(['staff','r&d'])
 def hou_heatmap_view(request, option):
     """
     View to visualize Heatmaps.
