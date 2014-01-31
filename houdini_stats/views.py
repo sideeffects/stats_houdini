@@ -76,16 +76,37 @@ def _add_common_context_params(request, series_range, agg=None, params = None):
                      else ""),     
             'is_logged_in' : request.user.is_authenticated(),
             'user':request.user,
-            'top_menu_options': top_menu_options.values(),
+            'top_menu_options': _build_top_menu_options(request.user, 
+                                                    top_menu_options.values()),
             "range": series_range,
             "aggregation": agg,
             "date_format": "M j, Y"
         }
     new_params.update(params)
+    
+    print new_params 
+    
     return new_params
 
 #-------------------------------------------------------------------------------
+def _build_top_menu_options(user, top_menu_options_values):
+    """
+    Build the top menu options depending on the groups the user belongs too.
+    The groups will determine which permission accesses the user has. 
+    """
+    top_menu_options_final = []
+    
+    for top_menu_info in top_menu_options_values:
+        if top_menu_info.has_key('groups'):
+            group_names = top_menu_info['groups']
+            if _user_in_groups(user, group_names):
+                top_menu_options_final.append(top_menu_info)
+    return top_menu_options_final         
+            
+#-------------------------------------------------------------------------------
 def _get_top_menu_options_next_prevs():
+    "Get a dictionary with all the menu options nexts and previous."
+    
     top_menu_options_nexts_prevs = {}
     for top_menu_name, top_menu_info in top_menu_options.items():
         options = top_menu_info["menu_options"].keys()
