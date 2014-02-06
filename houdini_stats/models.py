@@ -187,12 +187,12 @@ class NodeTypeUsage(models.Model):
     )
         
     is_builtin = models.BooleanField(
-        help_text='''Is the node a built-in Houdini node??''',
+        help_text='''Is Houdini built-in node?''',
         default=True
     )
     
     is_asset = models.BooleanField(
-        help_text='''Is the node a 3D Asset??''',
+        help_text='''Is Houdini Asset?''',
         default=False
     )
         
