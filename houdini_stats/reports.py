@@ -406,26 +406,37 @@ def average_usage_by_machine(series_range, aggregation):
 #===============================================================================
 # Houdini Nodes Usage related reports
 
-def most_popular_nodes(node_usage_count, limit):
+def _most_popular_nodes_base_query():
+    """
+    Creates the base query for most popular nodes.
+    """
+    return """
+           select node_type, node_count 
+           from (
+              select sum(count) as node_count, node_type, node_creation_mode
+                from houdini_stats_nodetypeusage
+                group by node_type 
+                order by node_count
+           ) as TempTable
+           """
+
+#-------------------------------------------------------------------------------  
+def most_popular_nodes(node_usage_count, limit, creation_mode=0):
     """
     Most popular nodes, the ones with more than node_usage_count number of usage. 
     Column Chart.
     """
     cursor = connections['stats'].cursor()
-    cursor.execute("""
-        select node_type, node_count 
-        from (
-            select sum(count) as node_count, node_type
-                from houdini_stats_nodetypeusage
-                group by node_type 
-                order by node_count
-        ) as TempTable
-        where node_count >={0}
-        order by node_count desc
-        limit {1}
-       """.format(node_usage_count, limit)    
-       ) 
+    base_query = _most_popular_nodes_base_query()
     
+    where_query = "where"
+    if creation_mode !=0:
+        where_query = where_query + " node_creation_mode={0} and".format(
+                                                                  creation_mode) 
+    where_query = where_query + """ node_count >={0} order by node_count desc
+                                    limit {1}""".format(node_usage_count, limit)
+    
+    cursor.execute("{0} {1}".format(base_query, where_query)) 
     return [(row[0], row[1]) for row in cursor.fetchall()]
 
 #===============================================================================

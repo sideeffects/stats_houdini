@@ -84,8 +84,6 @@ def _add_common_context_params(request, series_range, agg=None, params = None):
         }
     new_params.update(params)
     
-    print new_params 
-    
     return new_params
 
 #-------------------------------------------------------------------------------
@@ -287,7 +285,7 @@ def hou_reports_view(request, dropdown_option_key):
     Analytics from data we collect from inside Houdini.
     """
     # Min mumber of node usage we will show in graph
-    node_usage_count = 100
+    node_usage_count = 1
 
     # Max number of rows we are going to get by query
     limit = 20
@@ -340,7 +338,13 @@ def hou_reports_view(request, dropdown_option_key):
         show_date_picker = False
         series['hou_most_popular_nodes'] = (
             reports.most_popular_nodes(node_usage_count, limit))
-
+        series['hou_most_popular_nodes_shelf'] = (
+            reports.most_popular_nodes(node_usage_count, limit, 1))
+        series['hou_most_popular_nodes_viewer'] = (
+            reports.most_popular_nodes(node_usage_count, limit, 2))
+        series['hou_most_popular_nodes_network'] = (
+            reports.most_popular_nodes(node_usage_count, limit, 3))
+    
     if dropdown_option_key == "versions_and_builds":
         show_date_picker = False
 
