@@ -27,7 +27,7 @@ class MachineConfigAdmin(admin.ModelAdmin):
     list_display = list_filter 
     list_display_links =("config_hash", "last_active_date", "product")
     list_per_page = 20
-    ordering = ["last_active_date"]
+    ordering = ["-last_active_date"]
 
 #-------------------------------------------------------------------------------   
 
@@ -40,7 +40,7 @@ class HoudiniCrashAdmin(admin.ModelAdmin):
     list_display = list_filter 
     list_display_links = list_filter
     list_per_page = 20
-    ordering = ["date"]
+    ordering = ["-date"]
                         
 #-------------------------------------------------------------------------------
 
@@ -55,7 +55,7 @@ class NodeTypeUsageAdmin(admin.ModelAdmin):
     list_display = list_filter    
     list_display_links = list_filter
     list_per_page = 20
-    ordering = ["date"]
+    ordering = ["-date"]
 
 #-------------------------------------------------------------------------------
 
@@ -70,7 +70,7 @@ class UptimeAdmin(admin.ModelAdmin):
     
     list_display_links = list_filter
     list_per_page = 20
-    ordering = ["date"]
+    ordering = ["-date"]
 
   
 #-------------------------------------------------------------------------------
@@ -86,5 +86,5 @@ class EventAdmin(admin.ModelAdmin):
     
     list_display_links = list_filter
     list_per_page = 20
-    ordering = ["date"]    
+    ordering = ["-date"]    
     
