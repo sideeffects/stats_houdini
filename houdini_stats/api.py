@@ -83,8 +83,10 @@ class API(object):
         """
         Save user stats
         """
+        
         # Get or save machine config
-        machine_config = get_or_save_machine_config(user_info)
+        machine_config = get_or_save_machine_config(user_info,
+                                                    get_ip_address(request))
         
         # Get json content. Contains start_time and end_time and counts for the 
         # node usage
@@ -107,7 +109,8 @@ class API(object):
         Save houdini crashes
         """
         # Get or save machine config
-        machine_config = get_or_save_machine_config(user_info)
+        machine_config = get_or_save_machine_config(user_info,
+                                                    get_ip_address(request))
         
         # Save the crash
         save_crash(machine_config, crashlog)

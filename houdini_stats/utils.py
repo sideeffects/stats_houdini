@@ -2,6 +2,7 @@ import json
 from django.http import HttpResponse
 from houdini_stats.models import *
 from datetime import datetime, timedelta
+from django.contrib.gis.geoip import GeoIP
 
 #-------------------------------------------------------------------------------
 
@@ -118,7 +119,7 @@ def get_percent(part, whole):
 
 #-------------------------------------------------------------------------------
 
-def get_or_save_machine_config(user_info):
+def get_or_save_machine_config(user_info, ip_address):
     """
     Get or save if not already in db the machine config
         
@@ -131,6 +132,9 @@ def get_or_save_machine_config(user_info):
                 'application_name': 'houdini',
                 'license_category': 'Commercial',
                 'number_of_processors': '12',
+                'graphics_card': 'Quadro 600/PCIe/SSE2',
+                'graphics_card_version': '4.2.0 NVIDIA 304.88'
+                ""
               }
     """
     # Get config_hash
@@ -146,6 +150,7 @@ def get_or_save_machine_config(user_info):
         
         # Create new machine config 
         machine_config = MachineConfig(config_hash = config_hash, 
+             ip_address = ip_address,                          
              last_active_date = datetime.now(),
              houdini_major_version = user_info.get('houdini_major_version',0),
              houdini_minor_version = user_info.get('houdini_minor_version',0),
@@ -217,4 +222,11 @@ def save_crash(machine_config, crash_log):
                   )                    
     crash.save()     
     
-  
+#-------------------------------------------------------------------------------   
+
+def get_ip_address(request):
+    """
+    Get the ip address from the machine doing the request.
+    """
+    return request.META.get("REMOTE_ADDR", "0.0.0.0")
+    
