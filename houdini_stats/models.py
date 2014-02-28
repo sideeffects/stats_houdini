@@ -65,8 +65,8 @@ class MachineConfig(models.Model):
         blank=True,                               
     )
     
-    graphics_card_vendor = models.CharField(
-        help_text='''Graphic card vendor.''',
+    graphics_card_version = models.CharField(
+        help_text='''Graphic card version.''',
         max_length=40,
         blank=True,                               
     )

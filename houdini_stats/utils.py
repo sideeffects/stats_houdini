@@ -146,15 +146,17 @@ def get_or_save_machine_config(user_info):
         
         # Create new machine config 
         machine_config = MachineConfig(config_hash = config_hash, 
-             operating_system = user_info.get('operating_system', ""),
+             last_active_date = datetime.now(),
              houdini_major_version = user_info.get('houdini_major_version',0),
              houdini_minor_version = user_info.get('houdini_minor_version',0),
              houdini_build_number = user_info.get('houdini_build_number',0),
-             number_of_processors = user_info.get('number_of_processors',0),
-             last_active_date = datetime.now(),
-             system_memory = parse_byte_size_string(sys_memory),
              product = user_info.get('application_name',"").title(),
              is_apprentice = user_info.get('license_category',"") == 'Apprentice',
+             graphics_card = user_info.get('graphics_card',''),
+             graphics_card_version = user_info.get('graphics_card_version',''),
+             operating_system = user_info.get('operating_system', ""),             
+             system_memory = parse_byte_size_string(sys_memory),
+             number_of_processors = user_info.get('number_of_processors',0),
         )
         # Save the asset version status
         machine_config.save()
