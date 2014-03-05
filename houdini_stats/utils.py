@@ -127,13 +127,14 @@ def get_or_save_machine_config(user_info, ip_address):
                 'houdini_build_version': '146',
                 'houdini_major_version': '13',
                 'houdini_minor_version': '0',
-                'operating_system': 'linux-x86_64-gcc4.7',
-                'system_memory': '23.55 GB', 
                 'application_name': 'houdini',
+                'operating_system': 'linux-x86_64-gcc4.7',
+                'system_memory': '23.55 GB',                 
                 'license_category': 'Commercial',
                 'number_of_processors': '12',
                 'graphics_card': 'Quadro 600/PCIe/SSE2',
                 'graphics_card_version': '4.2.0 NVIDIA 304.88'
+                'mac_address_hash'      : '05e8458a3e60776298ece4af002dcef7',
                 ""
               }
     """
@@ -150,7 +151,8 @@ def get_or_save_machine_config(user_info, ip_address):
         
         # Create new machine config 
         machine_config = MachineConfig(config_hash = config_hash, 
-             ip_address = ip_address,                          
+             ip_address = ip_address,  
+             hardware_id = user_info.get('mac_address_hash',''),                       
              last_active_date = datetime.now(),
              houdini_major_version = user_info.get('houdini_major_version',0),
              houdini_minor_version = user_info.get('houdini_minor_version',0),

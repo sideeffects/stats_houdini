@@ -10,9 +10,9 @@ class MachineConfig(models.Model):
     Represent a particular machine configuration.
     """
     
-    hardware_id = models.IntegerField(
-        help_text='''Hardware id.''',
-        default=0
+    hardware_id = models.CharField(
+        help_text='''Mac address.''',
+        max_length=40
     )
     
     ip_address = models.CharField(
