@@ -29,13 +29,19 @@ class Command(BaseCommand):
             default=False,
             help="Redirect the output to a file",
         ),
+        optparse.make_option(
+            "-d", "--database",
+            dest="database",
+            default="default",
+            help="Database name from settings.py",
+        ),
     )
 
     def handle(self, *args, **options):
         from django.db import connection
         from django.conf import settings
 
-        database_settings = settings.DATABASES["default"]
+        database_settings = settings.DATABASES[options["database"]]
 
         self.engine = database_settings["ENGINE"].split(".")[-1]
         self.db = database_settings["NAME"]
