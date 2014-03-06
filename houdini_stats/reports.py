@@ -490,7 +490,7 @@ def get_users_over_time(series_range, aggregation):
     """
     Get machine configs over time.
     """
-    return _time_series(MachineConfig.objects.all(), 'last_active_date', 
+    return _time_series(MachineConfig.objects.all(), 'creation_date', 
                                                  series_range, agg=aggregation)
 
 #===============================================================================
@@ -879,7 +879,7 @@ def get_num_of_user_registered_and_asked_to_susbcribe(series_range, aggregation)
     Number of users registered and asked to subscribe, over time
     """
     return _time_series(MachineConfig.objects.filter(asked_to_subscribe=1),
-                              'last_active_date',series_range, agg=aggregation)
+                              'creation_date',series_range, agg=aggregation)
 
 #===============================================================================
 # Houdini Licenses and downloads related reports

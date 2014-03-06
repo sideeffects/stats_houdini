@@ -14,24 +14,36 @@ def admin_site_register(managed_class):
         admin.site.register(managed_class, admin_class)
     return func
 
-##===============================================================================
+##==============================================================================
+
+@admin_site_register(Machine)
+class MachineAdmin(admin.ModelAdmin):
+    """
+    Control how the admin site displays hardware ids.
+    """
+    list_filter = ("hardware_id",)
+    list_display = list_filter 
+    list_display_links =("hardware_id",)
+    list_per_page = 20
+
+#-------------------------------------------------------------------------------
 
 @admin_site_register(MachineConfig)
 class MachineConfigAdmin(admin.ModelAdmin):
     """
     Control how the admin site displays machine configurations.
     """
-    list_filter = ("config_hash", "hardware_id", "last_active_date", 
+    list_filter = ("config_hash", "machine", "creation_date", 
                    "houdini_major_version", "houdini_minor_version", 
                    "product", "is_apprentice", "operating_system", 
                    "graphics_card")
     list_display = list_filter 
-    list_display_links =("config_hash", "hardware_id", "last_active_date", 
+    list_display_links =("config_hash", "machine", "creation_date", 
                          "product")
     list_per_page = 20
-    ordering = ["-last_active_date"]
+    ordering = ["-creation_date"]
 
-#-------------------------------------------------------------------------------   
+#-------------------------------------------------------------------------------
 
 @admin_site_register(HoudiniCrash)
 class HoudiniCrashAdmin(admin.ModelAdmin):
@@ -89,4 +101,4 @@ class EventAdmin(admin.ModelAdmin):
     list_display_links = list_filter
     list_per_page = 20
     ordering = ["-date"]    
-    
+

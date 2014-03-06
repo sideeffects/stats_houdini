@@ -4,16 +4,45 @@ import django.db.models.options as options
 # Keep django from complaining about the db_name meta attribute.
 if "db_name" not in options.DEFAULT_NAMES:
     options.DEFAULT_NAMES = options.DEFAULT_NAMES + ("db_name",)
+    
+
+class Machine(models.Model):
+    """
+    Represent a unique machine.
+    """    
+    
+    hardware_id = models.CharField(
+        help_text='''Mac address hash.''',
+        max_length=40,
+        default=''
+    )
+        
+    def __unicode__(self):
+        return "Machine(%s)" % (self.hardware_id)
+
+    class Meta:
+        # How to order results when doing queries:
+        db_name = 'stats'
 
 class MachineConfig(models.Model):
     """
-    Represent a particular machine configuration.
+    Represent a particular configuration for a machine.
     """
-    
-    hardware_id = models.CharField(
-        help_text='''Mac address.''',
-        max_length=40
+
+    machine = models.ForeignKey(
+        'Machine',
+        help_text='''The machine associated with this machine config.''',
     )
+
+    creation_date = models.DateTimeField(
+        help_text='''When this machine config was created.''',
+        auto_now_add=True,
+    )
+
+    config_hash = models.CharField(
+        help_text='''Hash of the information from the user machine.''',
+        max_length=40
+    )    
     
     ip_address = models.CharField(
         help_text='''IP address.''',
@@ -21,16 +50,6 @@ class MachineConfig(models.Model):
         blank=True,
     )
 
-    last_active_date = models.DateTimeField(
-        help_text='''When this machine config was last updated.'''
-    )
-    
-    config_hash = models.CharField(
-        help_text='''Hash of the field below.''',
-        max_length=40
-    )    
-    # From this point on the information related to the fields will be in the 
-    # hash
     houdini_major_version = models.IntegerField(  
         help_text='''Houdini major version.''',
         default=0
@@ -104,11 +123,12 @@ class MachineConfig(models.Model):
     )
     
     def __unicode__(self):
-        return "MachineConfig( %s, %s)" % (self.hardware_id, self.config_hash)
+        return "MachineConfig(%s, %s)" % (
+            self.machine.hardware_id, self.config_hash)
 
     class Meta:
         # How to order results when doing queries:
-        ordering = ('last_active_date', )
+        ordering = ('creation_date', )
         db_name = 'stats'
             
 #-------------------------------------------------------------------------------
@@ -117,10 +137,10 @@ class HoudiniCrash(models.Model):
     """
     Represent a Houdini Crash.
     """
-                        
+    
     machine_config = models.ForeignKey(
         'MachineConfig',
-        help_text='''The machine associated with the crash.''',
+        help_text='''The machine config associated with the crash.''',
     )
 
     date = models.DateTimeField(
@@ -140,8 +160,7 @@ class HoudiniCrash(models.Model):
     )
     
     def __unicode__(self):
-        return "HoudiniCrash(%s)" % \
-            (self.stack_trace)
+        return "HoudiniCrash(%s)" % self.stack_trace
 
     class Meta:
         # How to order results when doing queries:
@@ -157,7 +176,7 @@ class NodeTypeUsage(models.Model):
                         
     machine_config = models.ForeignKey(
         'MachineConfig',
-        help_text='''The machine associated with the node type used.''',
+        help_text='''The machine config associated with the node type used.''',
     )
 
     date = models.DateTimeField(
@@ -211,10 +230,10 @@ class Uptime(models.Model):
     """
     Represent the uptime of a machine using houdini.
     """
-                        
+
     machine_config = models.ForeignKey(
         'MachineConfig',
-        help_text='''The machine associated with the uptime.''',
+        help_text='''The machine config associated with the uptime.''',
     )
 
     date = models.DateTimeField(
@@ -229,7 +248,7 @@ class Uptime(models.Model):
     def __unicode__(self):
         return "Uptime(%s, %d, %s)" % \
             (self.machine_config.config_hash, self.number_of_seconds, self.date)
-        
+
     class Meta:
         # How to order results when doing queries:
         ordering = ('date','number_of_seconds')    
@@ -272,8 +291,4 @@ class Event(models.Model):
         # How to order results when doing queries:
         ordering = ('date',)    
         db_name = 'stats'
-        
-    
-    
 
-    

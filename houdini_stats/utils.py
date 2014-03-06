@@ -138,11 +138,24 @@ def get_or_save_machine_config(user_info, ip_address):
                 ""
               }
     """
-    # Get config_hash
-    config_hash = user_info['config_hash']
+    
+    # 1. Get or save Machine by hardware_id
+    hardware_id = user_info.get('mac_address_hash','')    
     
     try:
-        machine_config = MachineConfig.objects.get(
+        machine = Machine.objects.get(hardware_id=hardware_id)
+    
+    except Machine.DoesNotExist:
+        machine = Machine(hardware_id=hardware_id)
+        machine.save()
+    
+    
+    print "Machine: ", machine
+    # 2. Get or save Machine Config 
+    config_hash = user_info['config_hash']
+        
+    try:
+        machine_config = MachineConfig.objects.get(machine = machine, 
                                                 config_hash__exact=config_hash)
     except MachineConfig.DoesNotExist:
         
@@ -152,8 +165,8 @@ def get_or_save_machine_config(user_info, ip_address):
         # Create new machine config 
         machine_config = MachineConfig(config_hash = config_hash, 
              ip_address = ip_address,  
-             hardware_id = user_info.get('mac_address_hash',''),                       
-             last_active_date = datetime.now(),
+             machine = machine,                       
+             creation_date = datetime.now(),
              houdini_major_version = user_info.get('houdini_major_version',0),
              houdini_minor_version = user_info.get('houdini_minor_version',0),
              houdini_build_number = user_info.get('houdini_build_number',0),
@@ -168,6 +181,7 @@ def get_or_save_machine_config(user_info, ip_address):
         # Save the asset version status
         machine_config.save()
         
+    print "Machine Config: ", machine_config    
     return machine_config
 
 #-------------------------------------------------------------------------------

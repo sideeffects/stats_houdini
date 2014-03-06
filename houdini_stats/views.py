@@ -161,6 +161,9 @@ def _user_in_groups(user, group_names):
     """
     Function to verify if a user belongs to any of the groups given.
     """
+    # If the use is staff (admin, root) we dont need to verify the groups
+    if user.is_staff:
+        return True
     
     return set(group.name for group in user.groups.all()).intersection(group_names)                                                     
     
@@ -170,12 +173,14 @@ def user_access(group_names=['staff', 'r&d']):
     Decorator for views that checks if the user has access to the reports
     in Stats, depending on which groups they belong too.
     """
+    
     def wrapper(view_function):
         
         @functools.wraps(view_function)
         def _checklogin(request, *args, **kwargs):
-            if request.user.is_active and _user_in_groups(request.user,
-                                                         group_names):
+            
+            if request.user.is_active and _user_in_groups(request.user, 
+                                                          group_names):
                 return view_function(request, *args, **kwargs)
             raise PermissionDenied()
         return _checklogin

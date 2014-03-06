@@ -1,24 +1,75 @@
 # -*- coding: utf-8 -*-
 from south.utils import datetime_utils as datetime
-import south.db
 from south.db import dbs
+import south.db
 from south.v2 import SchemaMigration
 from django.db import models
+
 
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
+        # Adding model 'Machine'
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
+
+        db.create_table(u'houdini_stats_machine', (
+            (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('hardware_id', self.gf('django.db.models.fields.CharField')(default='', max_length=40)),
+        ))
+        db.send_create_signal(u'houdini_stats', ['Machine'])
+
+        # Deleting field 'MachineConfig.last_active_date'
+        db.rename_column(
+            u'houdini_stats_machineconfig', 'last_active_date', 'creation_date')
+
+        # Deleting field 'MachineConfig.hardware_id'
+        db.delete_column(u'houdini_stats_machineconfig', 'hardware_id')
+
+        # Adding field 'MachineConfig.machine'
+        db.add_column(u'houdini_stats_machineconfig', 'machine',
+                      self.gf('django.db.models.fields.related.ForeignKey')(
+                        to=orm['houdini_stats.Machine']),
+                      keep_default=False)
+
+        #if not db.dry_run:
+        #    next_id = 1
+        #    for machine_config in orm.MachineConfig.objects.all():
+        #        machine = orm.Machine(hardware_id=str(next_id))
+        #        machine.save()
+        #        next_id += 1
+
+    def backwards(self, orm):
+        # Deleting model 'Machine'
         db = dbs['stats']
         db.dry_run = south.db.db.dry_run
         
-	# Changing field 'MachineConfig.hardware_id'
-        db.alter_column(u'houdini_stats_machineconfig', 'hardware_id', self.gf('django.db.models.fields.CharField')(max_length=40))
+        db.delete_table(u'houdini_stats_machine')
 
-    def backwards(self, orm):
 
-        # Changing field 'MachineConfig.hardware_id'
-        db = dbs['stats']
-        db.alter_column(u'houdini_stats_machineconfig', 'hardware_id', self.gf('django.db.models.fields.IntegerField')())
+        # User chose to not deal with backwards NULL issues for 'MachineConfig.last_active_date'
+        raise RuntimeError("Cannot reverse this migration. 'MachineConfig.last_active_date' and its values cannot be restored.")
+        
+        # The following code is provided here to aid in writing a correct migration        # Adding field 'MachineConfig.last_active_date'
+        db.add_column(u'houdini_stats_machineconfig', 'last_active_date',
+                      self.gf('django.db.models.fields.DateTimeField')(),
+                      keep_default=False)
+
+
+        # User chose to not deal with backwards NULL issues for 'MachineConfig.hardware_id'
+        raise RuntimeError("Cannot reverse this migration. 'MachineConfig.hardware_id' and its values cannot be restored.")
+        
+        # The following code is provided here to aid in writing a correct migration        # Adding field 'MachineConfig.hardware_id'
+        db.add_column(u'houdini_stats_machineconfig', 'hardware_id',
+                      self.gf('django.db.models.fields.CharField')(max_length=40),
+                      keep_default=False)
+
+        # Deleting field 'MachineConfig.machine'
+        db.delete_column(u'houdini_stats_machineconfig', 'machine_id')
+
+        # Deleting field 'MachineConfig.creation_date'
+        db.delete_column(u'houdini_stats_machineconfig', 'creation_date')
+
 
     models = {
         u'houdini_stats.event': {
@@ -33,24 +84,29 @@ class Migration(SchemaMigration):
             'Meta': {'ordering': "('date',)", 'object_name': 'HoudiniCrash'},
             'date': ('django.db.models.fields.DateTimeField', [], {}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'machine_config': ('django.db.models.fields.related.ForeignKey', [], {'to': u"orm['houdini_stats.MachineConfig']"}),
+            'machine_config': ('django.db.models.fields.related.ForeignKey', [], {'default': "''", 'to': u"orm['houdini_stats.MachineConfig']"}),
             'stack_trace': ('django.db.models.fields.TextField', [], {'default': "''", 'blank': 'True'}),
             'type': ('django.db.models.fields.CharField', [], {'default': "''", 'max_length': '20'})
         },
+        u'houdini_stats.machine': {
+            'Meta': {'object_name': 'Machine'},
+            'hardware_id': ('django.db.models.fields.CharField', [], {'default': "''", 'max_length': '40'}),
+            u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'})
+        },
         u'houdini_stats.machineconfig': {
-            'Meta': {'ordering': "('last_active_date',)", 'object_name': 'MachineConfig'},
+            'Meta': {'ordering': "('creation_date',)", 'object_name': 'MachineConfig'},
             'config_hash': ('django.db.models.fields.CharField', [], {'max_length': '40'}),
             'cpu_info': ('django.db.models.fields.CharField', [], {'max_length': '20', 'blank': 'True'}),
+            'creation_date': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
             'graphics_card': ('django.db.models.fields.CharField', [], {'max_length': '40', 'blank': 'True'}),
             'graphics_card_version': ('django.db.models.fields.CharField', [], {'max_length': '40', 'blank': 'True'}),
-            'hardware_id': ('django.db.models.fields.CharField', [], {'max_length': '40'}),
             'houdini_build_number': ('django.db.models.fields.CharField', [], {'default': '0', 'max_length': '10'}),
             'houdini_major_version': ('django.db.models.fields.IntegerField', [], {'default': '0'}),
             'houdini_minor_version': ('django.db.models.fields.IntegerField', [], {'default': '0'}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'ip_address': ('django.db.models.fields.CharField', [], {'max_length': '25', 'blank': 'True'}),
             'is_apprentice': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
-            'last_active_date': ('django.db.models.fields.DateTimeField', [], {}),
+            'machine': ('django.db.models.fields.related.ForeignKey', [], {'default': "''", 'to': u"orm['houdini_stats.Machine']"}),
             'number_of_processors': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0', 'blank': 'True'}),
             'operating_system': ('django.db.models.fields.CharField', [], {'max_length': '40', 'blank': 'True'}),
             'product': ('django.db.models.fields.CharField', [], {'max_length': '40', 'blank': 'True'}),
@@ -64,7 +120,7 @@ class Migration(SchemaMigration):
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'is_asset': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
             'is_builtin': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
-            'machine_config': ('django.db.models.fields.related.ForeignKey', [], {'to': u"orm['houdini_stats.MachineConfig']"}),
+            'machine_config': ('django.db.models.fields.related.ForeignKey', [], {'default': "''", 'to': u"orm['houdini_stats.MachineConfig']"}),
             'node_creation_mode': ('django.db.models.fields.IntegerField', [], {}),
             'node_type': ('django.db.models.fields.CharField', [], {'max_length': '60'})
         },
@@ -72,7 +128,7 @@ class Migration(SchemaMigration):
             'Meta': {'ordering': "('date', 'number_of_seconds')", 'object_name': 'Uptime'},
             'date': ('django.db.models.fields.DateTimeField', [], {}),
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'machine_config': ('django.db.models.fields.related.ForeignKey', [], {'to': u"orm['houdini_stats.MachineConfig']"}),
+            'machine_config': ('django.db.models.fields.related.ForeignKey', [], {'default': "''", 'to': u"orm['houdini_stats.MachineConfig']"}),
             'number_of_seconds': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'})
         }
     }
