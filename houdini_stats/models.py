@@ -122,6 +122,12 @@ class MachineConfig(models.Model):
                                        
     )
     
+    raw_user_info = models.TextField(
+        help_text='''All the machine info data that was sent from Houdini.''',
+        blank=True,
+        default=''
+    )
+    
     def __unicode__(self):
         return "MachineConfig(%s, %s)" % (
             self.machine.hardware_id, self.config_hash)
@@ -169,22 +175,23 @@ class HoudiniCrash(models.Model):
 
 #-------------------------------------------------------------------------------
 
-class NodeTypeUsage(models.Model):
+class HoudiniToolUsage(models.Model):
     """
-    Represent the usage of Houdini Node Types.
+    Represent the usage of Houdini Houdini Tools. Specifically the ones
+    on the Shelf and the Tab Menu.
     """
                         
     machine_config = models.ForeignKey(
         'MachineConfig',
-        help_text='''The machine config associated with the node type used.''',
+        help_text='''The machine config associated with the tool type used.''',
     )
 
     date = models.DateTimeField(
-        help_text='''When this node type was used.'''
+        help_text='''When was this tool used.'''
     )
     
-    node_type = models.CharField(
-        help_text='''The type of the node (Vops, Sops).''',
+    tool_type = models.CharField(
+        help_text='''The type of the tool (Vops, Sops).''',
         max_length=60
     )
     
@@ -192,21 +199,21 @@ class NodeTypeUsage(models.Model):
     VIEWER = 2           
     NETWORK = 3
     
-    NODE_CREATION_MODES = (
+    TOOL_CREATION_MODES = (
         (SHELF, "shelf"),
         (VIEWER, "viewer"),           
         (NETWORK, "network"),
     )
     
-    node_creation_mode = models.IntegerField(choices=NODE_CREATION_MODES)
+    tool_creation_mode = models.IntegerField(choices=TOOL_CREATION_MODES)
         
     count = models.PositiveIntegerField(
         default=0,
-        help_text='''Number of times the node was used.'''
+        help_text='''Number of times the tool was used.'''
     )
         
     is_builtin = models.BooleanField(
-        help_text='''Is Houdini built-in node?''',
+        help_text='''Is Houdini built-in tool?''',
         default=True
     )
     
@@ -216,8 +223,8 @@ class NodeTypeUsage(models.Model):
     )
         
     def __unicode__(self):
-        return "NodeTypeUsage(%s , %d)" % \
-            (self.node_type, self.count)
+        return "HoudiniToolUsage(%s , %d)" % \
+            (self.tool_type, self.count)
 
     class Meta:
         # How to order results when doing queries:

@@ -289,8 +289,8 @@ def hou_reports_view(request, dropdown_option_key):
     """
     Analytics from data we collect from inside Houdini.
     """
-    # Min mumber of node usage we will show in graph
-    node_usage_count = 1
+    # Min mumber of tool usage we will show in graph
+    tool_usage_count = 1
 
     # Max number of rows we are going to get by query
     limit = 20
@@ -339,16 +339,19 @@ def hou_reports_view(request, dropdown_option_key):
             reports.get_hou_crashes_over_time(series_range))
 
     
-    if dropdown_option_key == "node_usage":
+    if dropdown_option_key == "tools_usage":
+        
         show_date_picker = False
-        series['hou_most_popular_nodes'] = (
-            reports.most_popular_nodes(node_usage_count, limit))
-        series['hou_most_popular_nodes_shelf'] = (
-            reports.most_popular_nodes(node_usage_count, limit, 1))
-        series['hou_most_popular_nodes_viewer'] = (
-            reports.most_popular_nodes(node_usage_count, limit, 2))
-        series['hou_most_popular_nodes_network'] = (
-            reports.most_popular_nodes(node_usage_count, limit, 3))
+        series['hou_most_popular_tools'] = (
+            reports.most_popular_tools(tool_usage_count, limit))
+        series['hou_most_popular_tools_shelf'] = (
+            reports.most_popular_tools(tool_usage_count, limit, 1))
+        series['hou_most_popular_tools_viewer'] = (
+            reports.most_popular_tools(tool_usage_count, limit, 2))
+        series['hou_most_popular_tools_network'] = (
+            reports.most_popular_tools(tool_usage_count, limit, 3))
+        
+        print series
     
     if dropdown_option_key == "versions_and_builds":
         show_date_picker = False

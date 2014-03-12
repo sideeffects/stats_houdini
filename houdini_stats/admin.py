@@ -58,12 +58,12 @@ class HoudiniCrashAdmin(admin.ModelAdmin):
                         
 #-------------------------------------------------------------------------------
 
-@admin_site_register(NodeTypeUsage)
-class NodeTypeUsageAdmin(admin.ModelAdmin):
+@admin_site_register(HoudiniToolUsage)
+class HoudiniToolUsageAdmin(admin.ModelAdmin):
     """
-    Control how the admin site displays node types usages in Houdini.
+    Control how the admin site displays tool usages in Houdini.
     """
-    list_filter = ("machine_config", "date", "node_type", "is_builtin",
+    list_filter = ("machine_config", "date", "tool_type", "is_builtin",
                    "is_asset", "count")
     
     list_display = list_filter    

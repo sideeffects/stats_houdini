@@ -90,7 +90,7 @@ class API(object):
                                                     get_ip_address(request))
         
         # Get json content. Contains start_time and end_time and counts for the 
-        # node usage
+        # Houdini tools usage
         json_data = json.loads(stats['json_content'])
         
         # Get total seconds
@@ -99,8 +99,8 @@ class API(object):
         # Save uptime
         save_uptime(machine_config, total_sec)
         
-        # Save nodes
-        save_nodetypes(machine_config, json_data["counts"])
+        # Save tools usage
+        save_tools_usage(machine_config, json_data["counts"])
         
         return json_http_response(True)
 

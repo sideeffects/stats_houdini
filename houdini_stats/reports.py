@@ -404,37 +404,37 @@ def average_usage_by_machine(series_range, aggregation):
     return _fill_missing_dates_with_zeros(serie, aggregation[:-2],series_range)
                                   
 #===============================================================================
-# Houdini Nodes Usage related reports
+# Houdini Tools Usage related reports
 
-def _most_popular_nodes_base_query():
+def _most_popular_tools_base_query():
     """
-    Creates the base query for most popular nodes.
+    Creates the base query for most popular tools.
     """
     return """
-           select node_type, node_count 
+           select tool_type, tool_count 
            from (
-              select sum(count) as node_count, node_type, node_creation_mode
-                from houdini_stats_nodetypeusage
-                group by node_type 
-                order by node_count
+              select sum(count) as tool_count, tool_type, tool_creation_mode
+                from houdini_stats_houdinitoolusage
+                group by tool_type 
+                order by tool_count
            ) as TempTable
            """
 
 #-------------------------------------------------------------------------------  
-def most_popular_nodes(node_usage_count, limit, creation_mode=0):
+def most_popular_tools(tool_usage_count, limit, creation_mode=0):
     """
-    Most popular nodes, the ones with more than node_usage_count number of usage. 
+    Most popular houdini tools, the ones with more than tool_usage_count number of usage. 
     Column Chart.
     """
     cursor = connections['stats'].cursor()
-    base_query = _most_popular_nodes_base_query()
+    base_query = _most_popular_tools_base_query()
     
     where_query = "where"
     if creation_mode !=0:
-        where_query = where_query + " node_creation_mode={0} and".format(
+        where_query = where_query + " tool_creation_mode={0} and".format(
                                                                   creation_mode) 
-    where_query = where_query + """ node_count >={0} order by node_count desc
-                                    limit {1}""".format(node_usage_count, limit)
+    where_query = where_query + """ tool_count >={0} order by tool_count desc
+                                    limit {1}""".format(tool_usage_count, limit)
     
     cursor.execute("{0} {1}".format(base_query, where_query)) 
     return [(row[0], row[1]) for row in cursor.fetchall()]

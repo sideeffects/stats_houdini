@@ -140,7 +140,7 @@ def get_or_save_machine_config(user_info, ip_address):
     """
     
     # 1. Get or save Machine by hardware_id
-    hardware_id = user_info.get('mac_address_hash','')    
+    hardware_id = user_info.get('mac_address_hash','')   
     
     try:
         machine = Machine.objects.get(hardware_id=hardware_id)
@@ -149,8 +149,6 @@ def get_or_save_machine_config(user_info, ip_address):
         machine = Machine(hardware_id=hardware_id)
         machine.save()
     
-    
-    print "Machine: ", machine
     # 2. Get or save Machine Config 
     config_hash = user_info['config_hash']
         
@@ -177,11 +175,11 @@ def get_or_save_machine_config(user_info, ip_address):
              operating_system = user_info.get('operating_system', ""),             
              system_memory = parse_byte_size_string(sys_memory),
              number_of_processors = user_info.get('number_of_processors',0),
+             raw_user_info = str(user_info)
         )
         # Save the asset version status
         machine_config.save()
         
-    print "Machine Config: ", machine_config    
     return machine_config
 
 #-------------------------------------------------------------------------------
@@ -197,24 +195,24 @@ def save_uptime(machine_config, num_seconds):
     
 #-------------------------------------------------------------------------------
     
-def save_nodetypes(machine_config, counts_dict):
+def save_tools_usage(machine_config, counts_dict):
     """
-    Create NodeTypeUsage object and save it in DB.
+    Create HoudiniToolUsage object and save it in DB.
     """
     for key, count in counts_dict.iteritems():
-        for mode, name in NodeTypeUsage.NODE_CREATION_MODES:
+        for mode, name in HoudiniToolUsage.TOOL_CREATION_MODES:
             prefix = "tools/"+ name + '/'
             if key.startswith(prefix):
-                node_type_usage = NodeTypeUsage(machine_config = machine_config,
+                tools_usage = HoudiniToolUsage(machine_config = machine_config,
                                                 date = datetime.now(),
-                                                node_type = key[len(prefix):],
-                                                node_creation_mode= mode,
+                                                tool_type = key[len(prefix):],
+                                                tool_creation_mode= mode,
                                                 count = count
                                                 #TODO: pass is_built_in (true by
                                                 #default) and 
                                                 #is asset
                                               )
-                node_type_usage.save()
+                tools_usage.save()
                 break          
 
 #-------------------------------------------------------------------------------    

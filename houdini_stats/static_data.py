@@ -12,7 +12,7 @@ top_menu_options = OrderedDict([
             ("usage", "Usage"),
             ("uptime", "Session Information"),
             ("crashes", "Crashes"),
-            ("node_usage", "Node Usage"),
+            ("tools_usage", "Shelf & Tab menu Tools"),
             ("versions_and_builds", "Versions and builds"),
         ]),
         "groups":['staff', 'r&d'],         
