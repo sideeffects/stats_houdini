@@ -311,7 +311,7 @@ def hou_reports_view(request, dropdown_option_key):
                                                              series_range, True) 
     if not dropdown_option_key:
         dropdown_option_key = "downloads"
-
+        
     if dropdown_option_key == "downloads":
         all_downloads, commercial_downloads, apprentice_downloads, merge = \
             reports.get_num_software_downloads(
@@ -324,6 +324,13 @@ def hou_reports_view(request, dropdown_option_key):
             apprentice_downloads,
             commercial_downloads)
 
+       
+    if not dropdown_option_key == "downloads":
+        # We started collecting meaningful data from Houdini at a different date
+        # thats why we pass an additional param to the function
+        # the param name is for_hou_rep, and the value will be True 
+        series_range, aggregation = reports.get_common_vars_for_charts(request,
+                                                                           True)
     if dropdown_option_key == "usage":
         series['users_over_time'] = reports.get_users_over_time(
             series_range, aggregation)

@@ -11,13 +11,13 @@ from dateutil.relativedelta import relativedelta
 from utils import get_time
 import time
 import datetime
-from settings import REPORTS_START_DATE
+from settings import REPORTS_START_DATE, HOUDINI_REPORTS_START_DATE
 from dircache import annotate
 from operator import *
 from django.contrib.gis.geoip import GeoIP
 
 #===============================================================================
-def _get_start_request(request):
+def _get_start_request(request, for_hou_rep = False):
     """
     Get start date from the request.
     """
@@ -26,10 +26,13 @@ def _get_start_request(request):
     if start_request is not None:
         t = time.strptime(start_request, "%d/%m/%Y")
         start = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
+    elif for_hou_rep:
+        # Date when we started collecting good data for houdini reports
+        start = HOUDINI_REPORTS_START_DATE
     else:
-        # We launched the site in August
+        # Date when we launched the Stats website
         start = REPORTS_START_DATE
-    
+            
     return start
 
 #------------------------------------------------------------------------------- 
@@ -99,11 +102,11 @@ def _get_lat_and_long(ip):
     return  g.lat_lon(ip)#lat, long 
 
 #------------------------------------------------------------------------------- 
-def get_common_vars_for_charts(request):
+def get_common_vars_for_charts(request, for_hou_rep=False):
     """
     Get all variables that will be used for the reports.
     """
-    return [_get_start_request(request), _get_end_request(request)], \
+    return [_get_start_request(request, for_hou_rep), _get_end_request(request)], \
            _get_aggregation(request.GET)
 
 
