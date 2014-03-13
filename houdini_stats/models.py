@@ -190,9 +190,17 @@ class HoudiniToolUsage(models.Model):
         help_text='''When was this tool used.'''
     )
     
-    tool_type = models.CharField(
-        help_text='''The type of the tool (Vops, Sops).''',
+    tool_name = models.CharField(
+        help_text='''The name of the tool (Ex. torus, box).''',
         max_length=60
+    )
+    
+    tool_creation_location = models.CharField(
+        help_text='''The location where the tool was created 
+                    (Ex. Object, Sop, Vop).''',
+        max_length=20,
+        blank=True,
+        default=''
     )
     
     SHELF = 1
@@ -224,7 +232,7 @@ class HoudiniToolUsage(models.Model):
         
     def __unicode__(self):
         return "HoudiniToolUsage(%s , %d)" % \
-            (self.tool_type, self.count)
+            (self.tool_name, self.count)
 
     class Meta:
         # How to order results when doing queries:

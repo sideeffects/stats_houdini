@@ -351,8 +351,6 @@ def hou_reports_view(request, dropdown_option_key):
         series['hou_most_popular_tools_network'] = (
             reports.most_popular_tools(tool_usage_count, limit, 3))
         
-        print series
-    
     if dropdown_option_key == "versions_and_builds":
         show_date_picker = False
 

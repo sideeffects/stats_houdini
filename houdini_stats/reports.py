@@ -411,11 +411,11 @@ def _most_popular_tools_base_query():
     Creates the base query for most popular tools.
     """
     return """
-           select tool_type, tool_count 
+           select tool_name, tool_count 
            from (
-              select sum(count) as tool_count, tool_type, tool_creation_mode
+              select sum(count) as tool_count, tool_name, tool_creation_mode
                 from houdini_stats_houdinitoolusage
-                group by tool_type 
+                group by tool_name 
                 order by tool_count
            ) as TempTable
            """

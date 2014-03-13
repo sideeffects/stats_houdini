@@ -3,6 +3,7 @@ from django.http import HttpResponse
 from houdini_stats.models import *
 from datetime import datetime, timedelta
 from django.contrib.gis.geoip import GeoIP
+import re
 
 #-------------------------------------------------------------------------------
 
@@ -198,20 +199,46 @@ def save_uptime(machine_config, num_seconds):
 def save_tools_usage(machine_config, counts_dict):
     """
     Create HoudiniToolUsage object and save it in DB.
+    
+    Schema: tools|location|tool_name
+    - location can be "shelf", "viewer/Object", "viewer/Sop", 
+      "network/Object", "network/Sop", etc.
+    - tool_name can be "sop_box", or "SideFX::spaceship" or 
+      blank if it's a custom tool
+    - the tool name can be followed by "(orbolt)" (if it's an orbolt tool) or 
+      "(custom_tool)" if it's a nameless custom tool.
     """
+    
+    is_asset = False
+    is_custom = False
+                     
     for key, count in counts_dict.iteritems():
+        
         for mode, name in HoudiniToolUsage.TOOL_CREATION_MODES:
-            prefix = "tools/"+ name + '/'
+            prefix = "tools/"+ name
             if key.startswith(prefix):
+                
+                # Find "|" to get tool creation mode
+                pipe_pos = key.index("|")
+                tool_creation_location = key[len(prefix)+1: pipe_pos]
+                tool_name = key[pipe_pos +1:]
+                
+                # Verify if tool type is a custom_tool
+                if "(custom_tool)" in tool_name:
+                    tool_name = re.sub('[\(\)]', "", tool_name)
+                    is_custom = True
+                                    
+                # Verify if tool type is an Orbolt asset
+                elif "(orbolt)" in tool_name:
+                    tool_name = tool_name.replace("(orbolt)","")
+                    is_asset = True
+                                
                 tools_usage = HoudiniToolUsage(machine_config = machine_config,
-                                                date = datetime.now(),
-                                                tool_type = key[len(prefix):],
-                                                tool_creation_mode= mode,
-                                                count = count
-                                                #TODO: pass is_built_in (true by
-                                                #default) and 
-                                                #is asset
-                                              )
+                                date = datetime.now(), tool_name = tool_name,
+                                tool_creation_location = tool_creation_location,
+                                tool_creation_mode= mode, count = count,
+                                is_builtin = (not is_asset and not is_custom), 
+                                is_asset = is_asset)
                 tools_usage.save()
                 break          
 

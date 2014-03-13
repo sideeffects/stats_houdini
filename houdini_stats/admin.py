@@ -63,8 +63,8 @@ class HoudiniToolUsageAdmin(admin.ModelAdmin):
     """
     Control how the admin site displays tool usages in Houdini.
     """
-    list_filter = ("machine_config", "date", "tool_type", "is_builtin",
-                   "is_asset", "count")
+    list_filter = ("machine_config", "date", "tool_name", "tool_creation_location",
+                   "tool_creation_mode", "is_builtin", "is_asset", "count")
     
     list_display = list_filter    
     list_display_links = list_filter
