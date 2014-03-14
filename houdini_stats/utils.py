@@ -249,20 +249,18 @@ def save_crash(machine_config, crash_log):
     Create a HoudiniCrash object and save it in DB..
     
     crash_log: { 
-                 u'log_data': u'Caught signal 11\\n\\nAP_Interface::
+                 u'traceback': u'Caught signal 11\\n\\nAP_Interface::
                               createCrashLog(UTsignalHandlerArg....' 
-                 u'log_type': u'crash',
-                 u'logged_date_and_time': u'2013-08-20 16:25:43'
     }
     """
-    crash = HoudiniCrash(machine_config = machine_config,
-                  date = crash_log.get('logged_date_and_time',
-                                       datetime.now()),
-                  stack_trace = crash_log.get('log_data',""),
-                  type = crash_log.get('log_type',"")
-                  )                    
-    crash.save()     
-    
+    crash = HoudiniCrash(
+        machine_config=machine_config,
+        date=datetime.now(),
+        stack_trace=crash_log['traceback'],
+        type="crash",
+    )
+    crash.save()
+
 #-------------------------------------------------------------------------------   
 
 def get_ip_address(request):
