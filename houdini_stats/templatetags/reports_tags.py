@@ -3,6 +3,7 @@ from django import template
 
 register = template.Library()
 
+#-------------------------------------------------------------------------------
 @register.inclusion_tag('events_annotate.html')
 def show_annotation_title(events, date):
     """
@@ -17,3 +18,49 @@ def show_annotation_title(events, date):
             break
     
     return {'value': text}
+
+#-------------------------------------------------------------------------------
+@register.simple_tag
+def aggregated_date(field_name, aggregation="daily"):
+    """
+    Return the bit of query for the datetime aggregation.
+    """
+    aggregation = aggregation.lower()    
+    
+    # Validation 
+    valid_agg = ["monthly", "weekly", "yearly", "daily"]
+    assert (aggregation in valid_agg)
+    
+    #  By default we assume it is a daily aggregation
+    agg_date = "cast(cast(%s AS date) AS datetime)" % field_name 
+    
+    if aggregation== "monthly":
+        agg_date = """cast(concat(date_format(%s, '%%Y-%%c'), '-01') AS 
+                      datetime)""" % field_name 
+        
+    elif aggregation== "weekly":
+        # The aggregation query will return the first day of each week
+        agg_date = """
+                   cast( DATE_SUB( DATE_ADD( MAKEDATE( year({0}),1),
+                   INTERVAL week({0}) WEEK) ,
+                   INTERVAL WEEKDAY( DATE_ADD(MAKEDATE(year({0}),1),
+                   INTERVAL week({0}) WEEK ) )
+                   DAY ) AS datetime ) """ . format(field_name)
+    
+    return agg_date
+
+#-------------------------------------------------------------------------------
+@register.simple_tag
+def where_between(field_name, start_date, end_date):
+    """
+    Return the bit of query for the dates interval.
+    """
+    
+    str = """ {0} between date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                and date_format('{2}', '%%Y-%%c-%%d %%H:%%i:%%S')
+           """ .format( field_name,
+                        start_date.strftime("%Y-%m-%d %H:%M:%S"),
+                        end_date.strftime("%Y-%m-%d %H:%M:%S"))
+    
+    return str 
+    

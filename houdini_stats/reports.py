@@ -3,288 +3,22 @@ from houdini_licenses.models import *
 from houdini_surveys.models import *
 from houdini_forum.models import *
 
-from qsstats import QuerySetStats
 from django.db.models import Avg, Sum, Count
 from django.db import connections
 from collections import defaultdict
-from dateutil.relativedelta import relativedelta
-from utils import get_time
+
+from utils import get_percent, get_lat_and_long, seconds_to_multiple_time_units
+                   
+import time_series 
 import time
 import datetime
-from settings import REPORTS_START_DATE, HOUDINI_REPORTS_START_DATE
 from dircache import annotate
 from operator import *
-from django.contrib.gis.geoip import GeoIP
 
+from django.template import Context, Template
+    
 #===============================================================================
-def _get_start_request(request, for_hou_rep = False):
-    """
-    Get start date from the request.
-    """
-    start_request = request.GET.get("start", None)
-    
-    if start_request is not None:
-        t = time.strptime(start_request, "%d/%m/%Y")
-        start = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
-    elif for_hou_rep:
-        # Date when we started collecting good data for houdini reports
-        start = HOUDINI_REPORTS_START_DATE
-    else:
-        # Date when we launched the Stats website
-        start = REPORTS_START_DATE
-            
-    return start
 
-#------------------------------------------------------------------------------- 
-def _get_end_request(request):
-    """
-    Get end date from the request.
-    """
-    end_request = request.GET.get("end", None)
-    
-    if end_request is not None:
-        t = time.strptime(end_request, "%d/%m/%Y")
-        end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
-    else:
-        end = datetime.datetime.now()
-
-    return end
-
-#-------------------------------------------------------------------------------     
-def _series_range(start_request, end_request):
-    """
-    Series range parameter to pass for the reports
-    """
-    # Get the time interval for the graphs
-    if start_request is not None:
-        t = time.strptime(start_request, "%d/%m/%Y")
-        start = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
-    else:
-        # We launched the site in August
-        start = settings.STARTING_DATE
-
-    if end_request is not None:
-        t = time.strptime(end_request, "%d/%m/%Y")
-        end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
-    else:
-        end = datetime.datetime.now()
-
-    # By default, time_series will get the count
-    return [start, end]
-
-#------------------------------------------------------------------------------- 
-def _get_aggregation(get_vars):
-    """
-    Get aggregation from the request.GET.
-    """
-    # For aggregation 
-    valid_agg = ["monthly", "weekly", "yearly", "daily"]
-    if "ag" not in get_vars:
-        return None
-    
-    aggregation = get_vars["ag"].lower()
-    
-    if aggregation not in valid_agg and aggregation !="inherit":
-        raise NotFoundError("Not valid aggregation")
-    elif aggregation=="inherit":
-        return None  
-    
-    return aggregation 
-
-#-------------------------------------------------------------------------------  
- 
-def _get_lat_and_long(ip):
-    """
-    Get the values of the latitude and long by ip address
-    """
-    g = GeoIP(cache=GeoIP.GEOIP_MEMORY_CACHE)
-    
-    return  g.lat_lon(ip)#lat, long 
-
-#------------------------------------------------------------------------------- 
-def get_common_vars_for_charts(request, for_hou_rep=False):
-    """
-    Get all variables that will be used for the reports.
-    """
-    return [_get_start_request(request, for_hou_rep), _get_end_request(request)], \
-           _get_aggregation(request.GET)
-
-
-#-------------------------------------------------------------------------------
-def _fill_missing_dates_with_zeros(time_series, agg_by, interval, 
-                                   fill_with_empty_string = False):
-    """
-    When aggregating licenses, we don't get back any months that
-    have no activity. Using dateutil, we will find such months
-    months, and add them with to the report, with a count of 0.
-    """
-    
-    # By default with always fill with zeros, unless the param 
-    # fill_with_empty_string is set to true.
-    filler = 0
-    if fill_with_empty_string:
-        filler = ""
-        
-    result_time_series = []
-    dates = [x[0] for x in time_series]
-    
-    # Determine the first date that will be in the result time series.  If
-    # we're aggregating, we need to step through the dates starting with the
-    # first day of the week/month/year.
-    current_date = interval[0]
-    
-    if agg_by == "week":
-        # Find the Monday at the beginning of the week.
-        current_date -= relativedelta(days=interval[0].weekday())
-    elif agg_by == "month":
-        current_date = current_date.replace(day=1)
-    elif agg_by == "year":
-        current_date = current_date.replace(day=1, month=1)
-    elif agg_by == "daily" or agg_by == "dai":
-        agg_by = "day"
-    else:
-        assert False, "Unknown aggregation type"
-
-    # Loop through all the dates from the start up to and including the end,
-    # filling any missing data points with zeros.
-    index = 0
-    
-    while current_date <= interval[1]:
-        if current_date in dates:
-            result_time_series.append([current_date, time_series[index][1]])
-            index += 1
-        else:
-            result_time_series.append([current_date, filler])
-
-        current_date += relativedelta(**{agg_by + "s": 1})
-
-    return result_time_series
-
-#-------------------------------------------------------------------------------
-def _time_series(queryset, date_field, interval, func=None, agg=None):
-    if agg in (None, "daily"): 
-        qsstats = QuerySetStats(queryset, date_field, func)
-        return qsstats.time_series(*interval)
-    else:
-        # Custom aggregation was set (weekly/monthly/yearly)
-        agg_by = agg[:-2]
-
-        # We need to set the range dynamically
-        interval_filter = {date_field + "__gte" : interval[0],
-                           date_field + "__lte" : interval[1]}
-
-        # Slightly raw-ish SQL query
-        result = (queryset.extra(select={agg_by: connections[queryset.db]
-                             .ops.date_trunc_sql(agg_by, date_field)})
-                             .values_list(agg_by)
-                             .annotate(dcount=Count(date_field))
-                             .filter(**interval_filter)
-                             .order_by(agg_by))
-        
-        return _fill_missing_dates_with_zeros(result, agg_by, interval)
-
-#-------------------------------------------------------------------------------
-def _get_time_series_sequences(
-        queryset_sequences, interval, aggregation=None,
-        date_field="created", func=None):
-    """
-    This function takes a sequence of querysets and apply time_series to each 
-    of them using the arguments passed in the given order.
-    """
-    
-    return [_time_series(queryset, date_field, interval, func, aggregation)
-        for queryset in queryset_sequences]
-
-#-------------------------------------------------------------------------------
-def _merge_time_series(time_series_sequences):
-    """Given a sequence in the form
-        [
-            [(0, 10), (1, 20), (2, 15),],
-            [(0, 5), (1, 4), (2, 22),]
-        ]
-    return a sequence of the form
-        [
-            (0, 10, 5),
-            (1, 20, 
-            4),
-            (2, 15, 22),
-        ]
-    Note that the first elements (the 0's, 1's and 2's in the example above)
-    must be the same.
-    """
-    # zip will put the data into the form
-    #    [
-    #        ((0, 10), (0, 5)),
-    #        ((1, 20), (1, 4)),
-    #        ((2, 15), (3, 22)),
-    #    ]
-    #assert _time_series_x_axes_line_up(time_series_sequences), \
-    #    "Time series x axes do not line up"
-    return [(pairs[0][0],) + tuple(pair[1] for pair in pairs)
-        for pairs in zip(*time_series_sequences)]
-
-#-------------------------------------------------------------------------------
-def _time_series_x_axes_line_up(time_series_sequences):
-    """Return whether or not a sequence of time series all contain the same
-    x values.
-    """
-    for pairs in zip(*time_series_sequences):
-        if [pair[0] for pair in pairs] != [pairs[0][0]] * len(pairs):
-            return False
-    return True
-
-#-------------------------------------------------------------------------------
-def _compute_time_series(time_series_sequences, operation):
-    """Given a sequence in the form
-        [
-            [(0, 10), (1, 20), (2, 15),],
-            [(0, 5), (1, 4), (2, 22),]
-        ]
-    and an operation of the form
-        lambda v0, v1: v0 * v1
-    return
-        [(0, 50), (1, 80), (2, 330)]
-    """
-    assert _time_series_x_axes_line_up(time_series_sequences), \
-        "Time series x axes do not line up"
-    return [(pairs[0][0], operation(*tuple(pair[1] for pair in pairs)))
-        for pairs in zip(*time_series_sequences)]
-
-#-------------------------------------------------------------------------------
-def _compute_time_serie(time_serie, operation):
-    """Given a time series in the form
-        
-        [(x, 10), (y, 20), (z, 15)]
-    
-    and an operation of the form
-        lambda v1: v1 * 2
-    return
-        [(x, 20), (y, 40), (z, 30)]
-    """
-    return [tuple((pair[0], operation(pair[1]))) for pair in time_serie]
-
-#-------------------------------------------------------------------------------
-def _get_right_time(time_serie, time_key="seconds"):
-    """Given a time series in the form
-        [(x,  {'hours': 0, 'seconds': 0, 'minutes': 0, 'days': 0}),
-         (y,  {'hours': 0, 'seconds': 0, 'minutes': 0, 'days': 0})),
-         (z,  {'hours': 0, 'seconds': 0, 'minutes': 0, 'days': 0}))
-        ]
-    
-    and an a time key like: minutes, hours, days, seconds
-    return
-        [(x, num), (y, num), (z, num)]
-    """
-    return  [tuple((pair[0], pair[1][time_key])) for pair in time_serie]
-
-#-------------------------------------------------------------------------------
-def _get_percent(part, whole):
-    """
-    Get which percentage is a from b, and round it to 2 decimal numbers.
-    """
-    return round(100 * float(part)/float(whole)  if whole !=0 else 0.0, 2)
-
-#-------------------------------------------------------------------------------
 def _get_list_of_tuples_from_list(list):
     """
     Get a list of tuples from a list.
@@ -309,18 +43,45 @@ def _get_list_of_tuples_from_list(list):
     
     return output
 
+#-------------------------------------------------------------------------------   
+
+def _get_cursor(db_name):
+    """
+    Given a db name returns a cursor.
+    """
+    return connections[db_name].cursor()
 #-------------------------------------------------------------------------------
-def get_events_in_range(series_range):
+
+def _get_sql_report_data(string_query, db_name, context_vars):
     """
-    Get all the events in the give time period. Return the results as a time
-    serie [date, event_name]
+    Generic function to get data for reports which use cursors.
+    
+    This func will receive the query, the database name to create a cursor.
+    The the period range, the aggregation. And will also receive as parameter
+    the time unit we want the data to be presented.    
     """
     
-    events = Event.objects.filter(date__range=[series_range[0],
-                                  series_range[1]]).exclude(show=False)
+    context_vars = context_vars.copy()
     
-    return  [[datetime.datetime.combine(event.date, datetime.time.min), 
-                                              event.title] for event in events]
+    context_vars["start_date"] = context_vars['series_range'][0] 
+    context_vars["end_date"] = context_vars['series_range'][1]
+    
+    if context_vars['aggregation'] is None:
+        context_vars['aggregation'] = "daily"
+    
+    cursor = _get_cursor(db_name)
+    tpl_header =  "{% load reports_tags %} "
+         
+    tpl = Template(tpl_header + string_query)
+    
+    cursor.execute(tpl.render(Context(context_vars)))
+    
+    # Build time serie from the data in the cursor and fill with zeros the 
+    # empty dates
+    return time_series.fill_missing_dates_with_zeros(
+                               [(row[0], row[1]) for row in cursor.fetchall()],
+                               context_vars['aggregation'][:-2], 
+                               context_vars['series_range'])  
     
 #===============================================================================
 # Houdini Crashes related reports
@@ -332,7 +93,7 @@ def get_hou_crashes_over_time(series_range):
     # Get Crashes
     houdini_crashes = HoudiniCrash.objects.all()
     
-    return _time_series(houdini_crashes, 'date', series_range)
+    return time_series.time_series(houdini_crashes, 'date', series_range)
 
 #-------------------------------------------------------------------------------
 def get_hou_crashes_group_by_os(series_range):
@@ -343,7 +104,7 @@ def get_hou_crashes_group_by_os(series_range):
     # Get Crashes
     houdini_crashes_query = HoudiniCrash.objects.all()
     
-    return _time_series(houdini_crashes_query,'date', series_range)
+    return times_series.time_series(houdini_crashes_query,'date', series_range)
 
 #-------------------------------------------------------------------------------
 def get_hou_crashes_group_by_product(series_range):
@@ -354,7 +115,7 @@ def get_hou_crashes_group_by_product(series_range):
     # Get Crashes
     houdini_crashes_query = HoudiniCrash.objects.all()
     
-    return _time_series(houdini_crashes_query,'date', series_range)
+    return times_series.time_series(houdini_crashes_query,'date', series_range)
 
 #===============================================================================
 # Houdini Uptime related reports
@@ -366,46 +127,39 @@ def average_session_length(series_range, aggregation):
     
     uptimes = Uptime.objects.all()
     
-    time_serie = _time_series(uptimes, 'date', series_range, 
+    serie = time_series.time_series(uptimes, 'date', series_range, 
                                           func=Avg("number_of_seconds"), 
                                           agg=aggregation)
 
-    return _get_right_time(_compute_time_serie(time_serie, get_time), "minutes") 
+    return time_series.choose_unit_from_multiple_time_units_series(
+           time_series.compute_time_serie(serie, seconds_to_multiple_time_units),
+                                                                     "hours") 
     
-#-------------------------------------------------------------------------------   
+
+    
+#-------------------------------------------------------------------------------
 def average_usage_by_machine(series_range, aggregation):
     """
     Get Houdini average usage by machine. Column Chart.
     """
     
-    start_date = series_range[0] 
-    end_date = series_range[1]
+    string_query = """
+         select {% aggregated_date "day" aggregation %} AS mydate, avg(total_seconds)
+         from (
+             select machine_config_id,
+             str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
+             sum(number_of_seconds) as total_seconds
+             from houdini_stats_uptime
+             where {% where_between "date" start_date end_date %}
+             group by machine_config_id, day
+         ) as TempTable
+         group by mydate
+         order by mydate"""
     
-    if aggregation is None:
-        aggregation = "daily"
+    return time_series.seconds_to_time_unit_series(
+        _get_sql_report_data(string_query, 'stats', locals()), 
+        "hours")
 
-    cursor = connections['stats'].cursor()
-    cursor.execute("""
-        select cast(day as datetime), avg(total_seconds)
-        from (
-            select machine_config_id, str_to_date(date_format(date, '%%Y-%%m-%%d'), '%%Y-%%m-%%d') as day,
-                sum(number_of_seconds) as total_seconds
-                from houdini_stats_uptime
-                where date between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                    and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                group by machine_config_id, day
-        ) as TempTable
-        group by day
-        order by day""".format(
-            start_date.strftime("%Y-%m-%d %H:%M:%S"),
-            end_date.strftime("%Y-%m-%d %H:%M:%S"))
-        )  
-    
-    time_serie = [(row[0], row[1]) for row in cursor.fetchall()]
-    serie = _get_right_time(_compute_time_serie(time_serie, get_time),"minutes")
-    
-    return _fill_missing_dates_with_zeros(serie, aggregation[:-2],series_range)
-                                  
 #===============================================================================
 # Houdini Tools Usage related reports
 
@@ -489,13 +243,25 @@ def usage_by_hou_version_or_build(all=True, build=False, is_apprentice=False):
 #===============================================================================
 # General reports
 
-def get_users_over_time(series_range, aggregation):
+def get_new_machines_over_time(series_range, aggregation):
     """
-    Get machine configs over time.
-    """
-    return _time_series(MachineConfig.objects.all(), 'creation_date', 
-                                                 series_range, agg=aggregation)
-
+    Get new machines over time.
+    """    
+    string_query = """
+        select {% aggregated_date "min_creation_date" aggregation %} AS mydate, machines_count
+        from(  
+            select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'), '%%Y-%%m-%%d')) as min_creation_date,
+                   count(distinct machine_id) as machines_count 
+            from houdini_stats_machineconfig
+            where {% where_between "creation_date" start_date end_date %}
+            group by machine_id
+            order by min_creation_date)
+        as TempTable
+        group by mydate
+        order by mydate"""
+        
+    return _get_sql_report_data(string_query,'stats', locals())
+        
 #===============================================================================
 # Surveys Database reports
 
@@ -575,7 +341,7 @@ def hou_engine_maya_unity_breakdown(series_range, aggregation):
     
     users_count = [("Maya | Unity", users_for_maya.count(), users_for_unity.count())]
     
-    users_over_time = _merge_time_series(_get_time_series_sequences([users_for_maya, users_for_unity],
+    users_over_time = time_series.merge_time_series(time_series.seconds_to_multiple_time_units_series_sequences([users_for_maya, users_for_unity],
                        interval= series_range, aggregation= aggregation,
                        date_field ="date"))
     
@@ -648,41 +414,18 @@ def apprentice_replied_survey_counts(series_range, aggregation):
     and an aggregation form.
     """
     
-    start_date = series_range[0] 
-    end_date = series_range[1]
-    
-    if aggregation is None:
-        aggregation = "daily"
-    
     survey_id = 2
     questions = get_questions_from_survey(survey_id)
+    questions_ids = tuple(int(q.id) for q in questions)
     
-    questions_ids = []
-    
-    for q in questions:
-        questions_ids.append(int(q.id))
-    
-    cursor = connections['surveys'].cursor()
-    
-    cursor.execute("""
-        select cast( cast( date AS date ) AS datetime ) 
-                          AS mydate,
-               count(distinct(user_id))
+    string_query = """
+        select {% aggregated_date "date" aggregation %} AS mydate, count(distinct(user_id))
         from user_answers
-        where question_id in {0} and date between date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                         and date_format('{2}', '%%Y-%%c-%%d %%H:%%i:%%S')
-        group by mydate  
-        order by mydate  
-        """.format(tuple(questions_ids), 
-                   start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                   end_date.strftime("%Y-%m-%d %H:%M:%S")
-                  )
-        )  
-    
-    user_counts = [(row[0], row[1]) for row in cursor.fetchall()]  
-       
-    return _fill_missing_dates_with_zeros(user_counts, 
-                                          aggregation[:-2], series_range)
+        where question_id in {{ questions_ids }} and {% where_between "date" start_date end_date %}
+        group by mydate
+        order by mydate"""
+        
+    return _get_sql_report_data(string_query,'surveys', locals())
      
 #===============================================================================
 # Forum Database reports
@@ -692,7 +435,7 @@ def _get_active_users_over_time(series_range, aggregation):
     Number of active users registered in SideFX website over time
     """
     
-    return _time_series(MosUsers.objects.filter(user_active=1).exclude(id=-1),
+    return time_series.time_series(MosUsers.objects.filter(user_active=1).exclude(id=-1),
                                   'registerdate', series_range, agg=aggregation)
 
 #-------------------------------------------------------------------------------
@@ -769,24 +512,24 @@ def get_active_users_forum_and_openid(series_range, aggregation,
     all_users_serie = _get_active_users_over_time(series_range, aggregation)
     
     # Filling with zeros the empty dates in the events
-    events_to_annotate = _fill_missing_dates_with_zeros(events_to_annotate, 
+    events_to_annotate = time_series.fill_missing_dates_with_zeros(events_to_annotate, 
                                                  aggregation[:-2], series_range,
                                                  True) 
     
     # Creating the time serie from the results of the cursor
     forum_serie = _get_active_users_by_method_per_day(start_date, end_date) 
     #Filling the empty dates
-    forum_serie = _fill_missing_dates_with_zeros(forum_serie, aggregation[:-2],
+    forum_serie = time_series.fill_missing_dates_with_zeros(forum_serie, aggregation[:-2],
                                                                   series_range) 
    
     # Creating the time serie from the results of the cursor
     openid_serie = _get_active_users_by_method_per_day(start_date, end_date, 
                                                         openid=True) 
     # Filling the empty dates
-    openid_serie = _fill_missing_dates_with_zeros(openid_serie, aggregation[:-2], 
+    openid_serie = time_series.fill_missing_dates_with_zeros(openid_serie, aggregation[:-2], 
                                                                 series_range)
     
-    return _merge_time_series([all_users_serie, events_to_annotate, forum_serie,
+    return time_series.merge_time_series([all_users_serie, events_to_annotate, forum_serie,
                                                                   openid_serie])
 
 #-------------------------------------------------------------------------------
@@ -881,7 +624,7 @@ def get_num_of_user_registered_and_asked_to_susbcribe(series_range, aggregation)
     """
     Number of users registered and asked to subscribe, over time
     """
-    return _time_series(MachineConfig.objects.filter(asked_to_subscribe=1),
+    return time_series.time_series(MachineConfig.objects.filter(asked_to_subscribe=1),
                               'creation_date',series_range, agg=aggregation)
 
 #===============================================================================
@@ -926,7 +669,7 @@ def apprentice_activations_over_time(series_range, aggregation):
     
     apprentice_activations = [(row[0], row[1]) for row in cursor.fetchall()] 
     
-    return _fill_missing_dates_with_zeros(apprentice_activations, 
+    return time_series.fill_missing_dates_with_zeros(apprentice_activations, 
                                           aggregation[:-2], series_range)
 
 #-------------------------------------------------------------------------------
@@ -964,7 +707,7 @@ def get_apprentice_hd_licenses_over_time(series_range, aggregation):
     
     apprentice_hd_sales = [(row[0], row[1]) for row in cursor.fetchall()] 
     
-    return _fill_missing_dates_with_zeros(apprentice_hd_sales, 
+    return time_series.fill_missing_dates_with_zeros(apprentice_hd_sales, 
                                           aggregation[:-2], series_range)
     
 #-------------------------------------------------------------------------------
@@ -1022,7 +765,7 @@ def get_apprentice_activations_by_geo(series_range):
     
     lat_longs =  []
     for dates_ip in dates_ips:
-        lat_long = _get_lat_and_long(dates_ip[1])
+        lat_long = get_lat_and_long(dates_ip[1])
         if lat_long is not None:
             lat_longs.append(lat_long)
     
@@ -1109,7 +852,7 @@ def get_apprentice_downloads(series_range, aggregation):
                                                      common_query_where,
                                                      common_query_end)
     
-    return _fill_missing_dates_with_zeros(apprentice_downloads, 
+    return time_series.fill_missing_dates_with_zeros(apprentice_downloads, 
                                                  aggregation[:-2], series_range)
         
 #-------------------------------------------------------------------------------    
@@ -1144,15 +887,15 @@ def get_num_software_downloads(series_range, aggregation,
                                                      common_query_where,
                                                      common_query_end)
     
-    all_downloads = _fill_missing_dates_with_zeros(all_downloads, 
+    all_downloads = time_series.fill_missing_dates_with_zeros(all_downloads, 
                                                 aggregation[:-2], series_range)
-    commercial_downloads = _fill_missing_dates_with_zeros(commercial_downloads, 
+    commercial_downloads = time_series.fill_missing_dates_with_zeros(commercial_downloads, 
                                                 aggregation[:-2], series_range)
-    apprentice_downloads = _fill_missing_dates_with_zeros(apprentice_downloads, 
+    apprentice_downloads = time_series.fill_missing_dates_with_zeros(apprentice_downloads, 
                                                  aggregation[:-2], series_range)
     
     return all_downloads, commercial_downloads, apprentice_downloads, \
-          _merge_time_series([all_downloads, events_to_annotate, 
+          time_series.merge_time_series([all_downloads, events_to_annotate, 
                               commercial_downloads, apprentice_downloads])
                                                                                     
 #-------------------------------------------------------------------------------
@@ -1162,8 +905,8 @@ def get_percentage_of_total(total_serie, fraction_serie):
     on another serie. Column Chart.
     """  
     
-    return _compute_time_series(
-        [fraction_serie, total_serie], _get_percent)  
+    return time_series.compute_time_series(
+        [fraction_serie, total_serie], get_percent)  
     
 #-------------------------------------------------------------------------------    
 def get_percentage_downloads(all_downloads, apprentice_downloads,
@@ -1174,7 +917,7 @@ def get_percentage_downloads(all_downloads, apprentice_downloads,
     commercial_percentages = get_percentage_of_total(all_downloads, 
                                                       commercial_downloads)
     
-    return _merge_time_series([commercial_percentages, apprentice_percentages])
+    return time_series.merge_time_series([commercial_percentages, apprentice_percentages])
 
    
     

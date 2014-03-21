@@ -16,6 +16,8 @@ import functools
 
 import settings
 from static_data import top_menu_options
+from utils import get_events_in_range, get_common_vars_for_charts
+from time_series import fill_missing_dates_with_zeros, merge_time_series
 import reports
 
 #===============================================================================
@@ -296,7 +298,7 @@ def hou_reports_view(request, dropdown_option_key):
     limit = 20
 
     series = {}
-    series_range, aggregation = reports.get_common_vars_for_charts(request)
+    series_range, aggregation = get_common_vars_for_charts(request)
     pies = {}
     url_to_reverse = {}
     show_date_picker = True
@@ -305,8 +307,8 @@ def hou_reports_view(request, dropdown_option_key):
         aggregation = "daily"
     
     # Events serie 
-    events_to_annotate = reports.get_events_in_range(series_range)
-    events_to_annotate_filled = reports._fill_missing_dates_with_zeros(
+    events_to_annotate = get_events_in_range(series_range)
+    events_to_annotate_filled = fill_missing_dates_with_zeros(
                                            events_to_annotate, aggregation[:-2],
                                                              series_range, True) 
     if not dropdown_option_key:
@@ -329,18 +331,17 @@ def hou_reports_view(request, dropdown_option_key):
         # We started collecting meaningful data from Houdini at a different date
         # thats why we pass an additional param to the function
         # the param name is for_hou_rep, and the value will be True 
-        series_range, aggregation = reports.get_common_vars_for_charts(request,
+        series_range, aggregation = get_common_vars_for_charts(request,
                                                                            True)
     if dropdown_option_key == "usage":
-        series['users_over_time'] = reports.get_users_over_time(
+        series['machines_over_time'] = reports.get_new_machines_over_time(
             series_range, aggregation)
-
+        
     if dropdown_option_key == "uptime":
         series['hou_average_session_length'] = (
             reports.average_session_length(series_range, aggregation))
         series['hou_average_usage_by_machine'] = (
             reports.average_usage_by_machine(series_range, aggregation))
-
     if dropdown_option_key == "crashes":
         series['hou_crashes_over_time'] = (
             reports.get_hou_crashes_over_time(series_range))
@@ -382,6 +383,7 @@ def hou_reports_view(request, dropdown_option_key):
                 all=False,
                 build=True))
 
+
     return render_response(
         "hou_reports.html",
         _add_common_context_params(request, series_range, aggregation, {
@@ -395,7 +397,8 @@ def hou_reports_view(request, dropdown_option_key):
             'active_houdini': True,
             'active_menu': top_menu_options['houdini']['menu_name'],
             'active_menu_option_info':
-                _get_active_menu_option_info('houdini', dropdown_option_key)
+                _get_active_menu_option_info('houdini', dropdown_option_key),
+            'plot_three': True    
         }),
         request)
 
@@ -407,14 +410,14 @@ def hou_apprentice_view(request, dropdown_option_key):
     """Houdini Apprentice."""
     
     series = {}
-    series_range, aggregation = reports.get_common_vars_for_charts(request)
+    series_range, aggregation = get_common_vars_for_charts(request)
     
     if aggregation is None:
         aggregation = "daily"
     
     # Events serie 
-    events_to_annotate = reports.get_events_in_range(series_range)
-    events_to_annotate_filled = reports._fill_missing_dates_with_zeros(
+    events_to_annotate = get_events_in_range(series_range)
+    events_to_annotate_filled = fill_missing_dates_with_zeros(
                                            events_to_annotate, aggregation[:-2],
                                                              series_range, True) 
     if not dropdown_option_key:
@@ -427,7 +430,7 @@ def hou_apprentice_view(request, dropdown_option_key):
         apprentice_downloads = reports.get_apprentice_downloads(series_range, 
                                                                    aggregation)
         
-        series['apprentice_lic_over_time'] = reports._merge_time_series(
+        series['apprentice_lic_over_time'] = merge_time_series(
             [apprentice_downloads, events_to_annotate_filled,
              apprentice_activations])
         
@@ -438,7 +441,7 @@ def hou_apprentice_view(request, dropdown_option_key):
         apprentice_hd_licenses = reports.get_apprentice_hd_licenses_over_time(
             series_range, aggregation)
         
-        series['apprentice_hd_lic'] = reports._merge_time_series(
+        series['apprentice_hd_lic'] = merge_time_series(
             [apprentice_hd_licenses, events_to_annotate_filled]) 
         series['apprentice_hd_lic_cumu'] = (
             reports.get_apprentice_hd_licenses_cumulative(
@@ -479,7 +482,7 @@ def hou_surveys_view(request, dropdown_option_key):
         dropdown_option_key = "sidefx_labs"
 
     show_date_picker = True
-    series_range, aggregation = reports.get_common_vars_for_charts(request)
+    series_range, aggregation = get_common_vars_for_charts(request)
     count_total =0
 
     if dropdown_option_key == "sidefx_labs":
@@ -502,7 +505,7 @@ def hou_surveys_view(request, dropdown_option_key):
         series['survey_counts_percentages'] = reports.get_percentage_of_total(
             apprentice_activations, user_counts)
 
-        reports._merge_time_series([user_counts, apprentice_activations])
+        merge_time_series([user_counts, apprentice_activations])
 
         # For apprentice survey pie charts
         questions_tuples, questions_and_total_counts, user_answers = (
@@ -550,8 +553,8 @@ def hou_forum_view(request, dropdown_option_key):
     Houdini forum reports.
     """
     series = {}
-    series_range, aggregation = reports.get_common_vars_for_charts(request)
-    events_to_annotate = reports.get_events_in_range(series_range)
+    series_range, aggregation = get_common_vars_for_charts(request)
+    events_to_annotate = get_events_in_range(series_range)
 
     if not dropdown_option_key:
         dropdown_option_key = "login_registration"
@@ -599,7 +602,7 @@ def hou_heatmap_view(request, option):
     View to visualize Heatmaps.
     """
     series = {}
-    series_range, aggregation = reports.get_common_vars_for_charts(request)
+    series_range, aggregation = get_common_vars_for_charts(request)
     
     lat_longs = []
     

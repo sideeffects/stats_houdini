@@ -4,8 +4,10 @@ from houdini_stats.models import *
 from datetime import datetime, timedelta
 from django.contrib.gis.geoip import GeoIP
 import re
+import datetime
+from settings import REPORTS_START_DATE, HOUDINI_REPORTS_START_DATE
 
-#-------------------------------------------------------------------------------
+#===============================================================================
 
 def text_http_response(content, status=200):
     """
@@ -98,7 +100,7 @@ def date_range_to_seconds(datetime1, datetime2):
 
 #-------------------------------------------------------------------------------
 
-def get_time(secs):
+def seconds_to_multiple_time_units(secs):
     """
     This function receives a number of seconds and return how many min, hours,
     days those seconds represent.
@@ -119,6 +121,15 @@ def get_percent(part, whole):
     return round(100 * float(part)/float(whole)  if whole !=0 else 0.0, 2)
 
 #-------------------------------------------------------------------------------
+
+def get_lat_and_long(ip):
+    """
+    Get the values of the latitude and long by ip address
+    """
+    g = GeoIP(cache=GeoIP.GEOIP_MEMORY_CACHE)
+    
+    return  g.lat_lon(ip)#lat, long 
+
 
 def get_or_save_machine_config(user_info, ip_address):
     """
@@ -268,4 +279,100 @@ def get_ip_address(request):
     Get the ip address from the machine doing the request.
     """
     return request.META.get("REMOTE_ADDR", "0.0.0.0")
+ 
+ 
+#-------------------------------------------------------------------------------   
+def series_range(start_request, end_request):
+    """
+    Series range parameter to pass for the reports
+    """
+    # Get the time interval for the graphs
+    if start_request is not None:
+        t = time.strptime(start_request, "%d/%m/%Y")
+        start = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
+    else:
+        # We launched the site in August
+        start = settings.STARTING_DATE
+
+    if end_request is not None:
+        t = time.strptime(end_request, "%d/%m/%Y")
+        end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
+    else:
+        end = datetime.datetime.now()
+
+    # By default, time_series will get the count
+    return [start, end] 
     
+#-------------------------------------------------------------------------------
+def get_events_in_range(series_range):
+    """
+    Get all the events in the give time period. Return the results as a time
+    serie [date, event_name]
+    """
+    
+    events = Event.objects.filter(date__range=[series_range[0],
+                                  series_range[1]]).exclude(show=False)
+    
+    return  [[datetime.datetime.combine(event.date, datetime.time.min), 
+                                              event.title] for event in events]   
+
+#-------------------------------------------------------------------------------
+def _get_start_request(request, for_hou_rep = False):
+    """
+    Get start date from the request.
+    """
+    start_request = request.GET.get("start", None)
+    
+    if start_request is not None:
+        t = time.strptime(start_request, "%d/%m/%Y")
+        start = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
+    elif for_hou_rep:
+        # Date when we started collecting good data for houdini reports
+        start = HOUDINI_REPORTS_START_DATE
+    else:
+        # Date when we launched the Stats website
+        start = REPORTS_START_DATE
+            
+    return start
+
+#------------------------------------------------------------------------------- 
+def _get_end_request(request):
+    """
+    Get end date from the request.
+    """
+    end_request = request.GET.get("end", None)
+    
+    if end_request is not None:
+        t = time.strptime(end_request, "%d/%m/%Y")
+        end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
+    else:
+        end = datetime.datetime.now()
+
+    return end
+
+#------------------------------------------------------------------------------- 
+def _get_aggregation(get_vars):
+    """
+    Get aggregation from the request.GET.
+    """
+    # For aggregation 
+    valid_agg = ["monthly", "weekly", "yearly", "daily"]
+    if "ag" not in get_vars:
+        return None
+    
+    aggregation = get_vars["ag"].lower()
+    
+    if aggregation not in valid_agg and aggregation !="inherit":
+        raise NotFoundError("Not valid aggregation")
+    elif aggregation=="inherit":
+        return None  
+    
+    return aggregation 
+
+#-------------------------------------------------------------------------------
+def get_common_vars_for_charts(request, for_hou_rep=False):
+    """
+    Get all variables that will be used for the reports.
+    """
+    return [_get_start_request(request, for_hou_rep), _get_end_request(request)], \
+           _get_aggregation(request.GET)
