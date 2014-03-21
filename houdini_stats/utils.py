@@ -376,3 +376,28 @@ def get_common_vars_for_charts(request, for_hou_rep=False):
     """
     return [_get_start_request(request, for_hou_rep), _get_end_request(request)], \
            _get_aggregation(request.GET)
+
+#-------------------------------------------------------------------------------
+def get_list_of_tuples_from_list(list):
+    """
+    Get a list of tuples from a list.
+    
+    For example given:    
+    
+    [1,2,3,4,5,6]
+    
+    Return [(1,2),(3,4)(5,6)]
+    
+    """
+    output = []
+    item = []
+    
+    for i in list:
+        item.append(i)
+        if len(item) == 2:
+            output.append(item)
+            item = []
+    if item:
+        output.append(item) 
+    
+    return output

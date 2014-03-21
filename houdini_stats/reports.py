@@ -7,8 +7,7 @@ from django.db.models import Avg, Sum, Count
 from django.db import connections
 from collections import defaultdict
 
-from utils import get_percent, get_lat_and_long, seconds_to_multiple_time_units
-                   
+import utils             
 import time_series 
 import time
 import datetime
@@ -19,29 +18,7 @@ from django.template import Context, Template
     
 #===============================================================================
 
-def _get_list_of_tuples_from_list(list):
-    """
-    Get a list of tuples from a list.
-    
-    For example given:    
-    
-    [1,2,3,4,5,6]
-    
-    Return [(1,2),(3,4)(5,6)]
-    
-    """
-    output = []
-    item = []
-    
-    for i in list:
-        item.append(i)
-        if len(item) == 2:
-            output.append(item)
-            item = []
-    if item:
-        output.append(item) 
-    
-    return output
+
 
 #-------------------------------------------------------------------------------   
 
@@ -132,7 +109,7 @@ def average_session_length(series_range, aggregation):
                                           agg=aggregation)
 
     return time_series.choose_unit_from_multiple_time_units_series(
-           time_series.compute_time_serie(serie, seconds_to_multiple_time_units),
+           time_series.compute_time_serie(serie, utils.seconds_to_multiple_time_units),
                                                                      "hours") 
     
 
@@ -403,7 +380,7 @@ def apprentice_followup_survey(series_range, aggregation):
                                                 key=lambda x:x[1], reverse=True)
 
     # Form pairs with questions numbers Ex. [[1, 2], [3, 4], [5]]
-    questions_tuples = _get_list_of_tuples_from_list(questions_and_total_counts)
+    questions_tuples = utils.get_list_of_tuples_from_list(questions_and_total_counts)
     
     return questions_tuples, questions_and_total_counts, sorted_answers  
 
@@ -635,43 +612,27 @@ def apprentice_activations_over_time(series_range, aggregation):
     Get Apprentice Activations over time. Line Chart.
     """
     
-    start_date = series_range[0] 
-    end_date = series_range[1]
-    
-    if aggregation is None:
-        aggregation = "daily"
-
     nc_custid = 2711
-    cursor = connections['licensedb'].cursor()
     
-    cursor.execute("""
-        select cast(activation_date as datetime)
-                          as date, 
+    string_query = """
+        select {% aggregated_date "activation_date" aggregation %} AS mydate, 
                count(*) as num_activated
         from (
             select from_days(min(to_days(Keystrings.CreateDate))) as 
-                   activation_date 
-            from Servers, Keystrings
-            where Servers.CustID='{0}'
-            and Servers.ServerID=Keystrings.ServerID
-            and Keystrings.KType='LICENSE'
-            group by Servers.ServerID
+                       activation_date 
+                from Servers, Keystrings
+                where Servers.CustID='{{ nc_custid }}'
+                and Servers.ServerID=Keystrings.ServerID
+                and Keystrings.KType='LICENSE'
+                group by Servers.ServerID
         ) as TempTable
-        where activation_date between date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                         and date_format('{2}', '%%Y-%%c-%%d %%H:%%i:%%S')
-        group by date  
-        order by date  
-        """.format(nc_custid, 
-                   start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                   end_date.strftime("%Y-%m-%d %H:%M:%S")
-                  )
-        )  
+        where {% where_between "activation_date" start_date end_date %}
+        group by mydate  
+        order by mydate  
+       """
+        
+    return _get_sql_report_data(string_query,'licensedb', locals())    
     
-    apprentice_activations = [(row[0], row[1]) for row in cursor.fetchall()] 
-    
-    return time_series.fill_missing_dates_with_zeros(apprentice_activations, 
-                                          aggregation[:-2], series_range)
-
 #-------------------------------------------------------------------------------
 
 def get_apprentice_hd_licenses_over_time(series_range, aggregation):
@@ -679,36 +640,20 @@ def get_apprentice_hd_licenses_over_time(series_range, aggregation):
     Get Apprentice HD Licenses generated over time. Line Chart.
     """
     
-    start_date = series_range[0] 
-    end_date = series_range[1]
-    
-    if aggregation is None:
-        aggregation = "daily"
-
-    cursor = connections['licensedb'].cursor()
-    
     # Not queriying entitlements
-    cursor.execute("""
-        select cast(CreateDate as datetime)
-                          as date, 
+    string_query = """
+        select {% aggregated_date "CreateDate" aggregation %} AS mydate, 
                sum(KTokens) as num_licenses
         from Keystrings
         where Product = 'HOUDINI-APPRENTICE-HD' and Disabled = 'N'
             and KType = 'LICENSE'
             and (LicType = 'PURCHASED' or LicType = 'SUBSCRIPTION')
-            and CreateDate between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
-            and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-        group by date  
-        order by date  
-        """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                   end_date.strftime("%Y-%m-%d %H:%M:%S")
-                  )
-        )  
-    
-    apprentice_hd_sales = [(row[0], row[1]) for row in cursor.fetchall()] 
-    
-    return time_series.fill_missing_dates_with_zeros(apprentice_hd_sales, 
-                                          aggregation[:-2], series_range)
+            and {% where_between "CreateDate" start_date end_date %}
+        group by mydate  
+        order by mydate  
+       """
+        
+    return _get_sql_report_data(string_query,'licensedb', locals())   
     
 #-------------------------------------------------------------------------------
 
@@ -906,7 +851,7 @@ def get_percentage_of_total(total_serie, fraction_serie):
     """  
     
     return time_series.compute_time_series(
-        [fraction_serie, total_serie], get_percent)  
+        [fraction_serie, total_serie], utils.get_percent)  
     
 #-------------------------------------------------------------------------------    
 def get_percentage_downloads(all_downloads, apprentice_downloads,
