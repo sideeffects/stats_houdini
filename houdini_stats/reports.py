@@ -307,9 +307,11 @@ def hou_engine_maya_unity_breakdown(series_range, aggregation):
     
     users_count = [("Maya | Unity", users_for_maya.count(), users_for_unity.count())]
     
-    users_over_time = time_series.merge_time_series(time_series.seconds_to_multiple_time_units_series_sequences([users_for_maya, users_for_unity],
-                       interval= series_range, aggregation= aggregation,
-                       date_field ="date"))
+    users_over_time = time_series.merge_time_series(time_series.get_time_series_sequences(
+                                              [users_for_maya, users_for_unity],
+                                              interval= series_range, 
+                                              aggregation= aggregation,
+                                              date_field ="date"))
     
     return {"count_total": count_total, 
             "user_answers_count" : users_count, 
@@ -442,7 +444,7 @@ def get_active_users_forum_and_openid(series_range, aggregation,
     # Filling with zeros the empty dates in the events
     events_to_annotate = time_series.fill_missing_dates_with_zeros(
                                           events_to_annotate, aggregation[:-2], 
-                                          series_range, True) 
+                                                            series_range, True) 
     
     # Creating the time serie from the results of the cursor
     forum_serie = get_active_users_by_method_per_day(series_range, aggregation) 
