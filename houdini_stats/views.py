@@ -9,15 +9,15 @@ from django.contrib.auth.views import redirect_to_login
 from django.core.urlresolvers import reverse
 from django.contrib.auth import authenticate, login, logout
 from django.core.exceptions import PermissionDenied
+from static_data import top_menu_options
+from utils import get_events_in_range, get_common_vars_for_charts
+from time_series import fill_missing_dates_with_zeros, merge_time_series
+from houdini_stats.models import *
 
 import datetime
 import urllib
 import functools
-
 import settings
-from static_data import top_menu_options
-from utils import get_events_in_range, get_common_vars_for_charts
-from time_series import fill_missing_dates_with_zeros, merge_time_series
 import reports
 
 #===============================================================================
@@ -291,9 +291,7 @@ def hou_reports_view(request, dropdown_option_key):
     """
     Analytics from data we collect from inside Houdini.
     """
-    # Min mumber of tool usage we will show in graph
-    tool_usage_count = 1
-
+    
     # Max number of rows we are going to get by query
     limit = 20
 
@@ -344,20 +342,19 @@ def hou_reports_view(request, dropdown_option_key):
             reports.average_usage_by_machine(series_range, aggregation))
     if dropdown_option_key == "crashes":
         series['hou_crashes_over_time'] = (
-            reports.get_hou_crashes_over_time(series_range))
-
+            reports.get_orm_data_for_report(HoudiniCrash.objects.all(), 'date', 
+                                            series_range, aggregation))
     
     if dropdown_option_key == "tools_usage":
-        
-        show_date_picker = False
+        show_date_picker = True
         series['hou_most_popular_tools'] = (
-            reports.most_popular_tools(tool_usage_count, limit))
+            reports.most_popular_tools(series_range, aggregation))
         series['hou_most_popular_tools_shelf'] = (
-            reports.most_popular_tools(tool_usage_count, limit, 1))
+            reports.most_popular_tools(series_range, aggregation, "(1)"))
         series['hou_most_popular_tools_viewer'] = (
-            reports.most_popular_tools(tool_usage_count, limit, 2))
+            reports.most_popular_tools(series_range, aggregation, "(2)"))
         series['hou_most_popular_tools_network'] = (
-            reports.most_popular_tools(tool_usage_count, limit, 3))
+            reports.most_popular_tools(series_range, aggregation, "(3)"))
         
     if dropdown_option_key == "versions_and_builds":
         show_date_picker = False

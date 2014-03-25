@@ -1,11 +1,12 @@
-import json
 from django.http import HttpResponse
 from houdini_stats.models import *
-from datetime import datetime, timedelta
 from django.contrib.gis.geoip import GeoIP
+from settings import REPORTS_START_DATE, HOUDINI_REPORTS_START_DATE
+
+import json
 import re
 import datetime
-from settings import REPORTS_START_DATE, HOUDINI_REPORTS_START_DATE
+import time
 
 #===============================================================================
 
@@ -39,7 +40,7 @@ class ServerError(ApiError):
     def __init__(self, msg_template, **kwargs):
         ApiError.__init__(self, 500, msg_template, **kwargs)       
 
-#---------------------------from datetime import datetime, timedelta-------------------------------------------------
+#----------------------------------------------------------------------------
 
 def json_http_response(content, status=200):
     """
@@ -176,7 +177,7 @@ def get_or_save_machine_config(user_info, ip_address):
         machine_config = MachineConfig(config_hash = config_hash, 
              ip_address = ip_address,  
              machine = machine,                       
-             creation_date = datetime.now(),
+             creation_date = datetime.datetime.now(),
              houdini_major_version = user_info.get('houdini_major_version',0),
              houdini_minor_version = user_info.get('houdini_minor_version',0),
              houdini_build_number = user_info.get('houdini_build_number',0),
@@ -201,7 +202,7 @@ def save_uptime(machine_config, num_seconds):
     Create Uptime record and save it in DB.
     """
     uptime = Uptime(machine_config = machine_config,
-                    date = datetime.now(),
+                    date = datetime.datetime.now(),
                     number_of_seconds = num_seconds)                    
     uptime.save()        
     
@@ -245,7 +246,7 @@ def save_tools_usage(machine_config, counts_dict):
                     is_asset = True
                                 
                 tools_usage = HoudiniToolUsage(machine_config = machine_config,
-                                date = datetime.now(), tool_name = tool_name,
+                                date = datetime.datetime.now(), tool_name = tool_name,
                                 tool_creation_location = tool_creation_location,
                                 tool_creation_mode= mode, count = count,
                                 is_builtin = (not is_asset and not is_custom), 
@@ -266,7 +267,7 @@ def save_crash(machine_config, crash_log):
     """
     crash = HoudiniCrash(
         machine_config=machine_config,
-        date=datetime.now(),
+        date=datetime.datetime.now(),
         stack_trace=crash_log['traceback'],
         type="crash",
     )

@@ -2,40 +2,59 @@ from houdini_stats.models import *
 from houdini_licenses.models import *
 from houdini_surveys.models import *
 from houdini_forum.models import *
-
-from django.db.models import Avg, Sum, Count
-from django.db import connections
 from collections import defaultdict
+from django.db import connections
+from django.db.models import Avg, Sum, Count
 
 import utils             
 import time_series 
-import time
 import datetime
 from dircache import annotate
 from operator import *
+from django.db.models import get_model
 
 from django.template import Context, Template
     
 #===============================================================================
-
-
-
-#-------------------------------------------------------------------------------   
 
 def _get_cursor(db_name):
     """
     Given a db name returns a cursor.
     """
     return connections[db_name].cursor()
-#-------------------------------------------------------------------------------
 
-def _get_sql_report_data(string_query, db_name, context_vars):
+#-------------------------------------------------------------------------------
+def _get_cumulative_values(initial_total, tuples):
     """
-    Generic function to get data for reports which use cursors.
+    Get cumulative values. 
+    """
     
-    This func will receive the query, the database name to create a cursor.
-    The the period range, the aggregation. And will also receive as parameter
-    the time unit we want the data to be presented.    
+    if len(tuples) == 0:
+        return tuples
+
+    result = []
+    total = initial_total
+    for date, value in tuples:
+        total += value
+        result.append([date, total])
+
+    return result
+
+#-------------------------------------------------------------------------------
+def _get_sum_values(tuples):
+    """
+    Get summarised values.  
+    """
+    return sum(counts for date, counts in tuples)
+
+#-------------------------------------------------------------------------------
+def get_sql_data_for_report(string_query, db_name, context_vars, 
+                            fill_zeros = True):
+    """
+    Generic function to get data for reports, doing sql queries using a cursor.
+    
+    This func will receive the string with the query, the database name to 
+    create a cursor and the context vars using in the query. 
     """
     
     context_vars = context_vars.copy()
@@ -53,48 +72,31 @@ def _get_sql_report_data(string_query, db_name, context_vars):
     
     cursor.execute(tpl.render(Context(context_vars)))
     
-    # Build time serie from the data in the cursor and fill with zeros the 
-    # empty dates
-    return time_series.fill_missing_dates_with_zeros(
-                               [(row[0], row[1]) for row in cursor.fetchall()],
-                               context_vars['aggregation'][:-2], 
-                               context_vars['series_range'])  
-    
-#===============================================================================
-# Houdini Crashes related reports
+    series = [(row[0], row[1]) for row in cursor.fetchall()]
 
-def get_hou_crashes_over_time(series_range):
-    """
-    Get Houdini Crashes over time, in a give date range. Line Chart.index
-    """
-    # Get Crashes
-    houdini_crashes = HoudiniCrash.objects.all()
+    if not fill_zeros:
+        return series
     
-    return time_series.time_series(houdini_crashes, 'date', series_range)
+    return time_series.fill_missing_dates_with_zeros(series,
+                                              context_vars['aggregation'][:-2], 
+                                              context_vars['series_range'])  
 
 #-------------------------------------------------------------------------------
-def get_hou_crashes_group_by_os(series_range):
+def get_orm_data_for_report(query_set, time_field, series_range, 
+                            aggregation = None, func = None):
     """
-    Get Houdini Crashes grouped by operating system, in a give date range.
-    Pie Chart.
-    """
-    # Get Crashes
-    houdini_crashes_query = HoudiniCrash.objects.all()
+    Generic function to get data for reports, using django orm for the queries.
     
-    return times_series.time_series(houdini_crashes_query,'date', series_range)
-
-#-------------------------------------------------------------------------------
-def get_hou_crashes_group_by_product(series_range):
+    This function will receive the queryset, the name of the time field to be 
+    passed to the time series function, the series range, the aggregation and 
+    the function to be passed for aggregation in the time series.    
     """
-    Get Houdini Crashes grouped by product (Apprentice, Houdini FX, etc), 
-    in a give date range. Pie.
-    """
-    # Get Crashes
-    houdini_crashes_query = HoudiniCrash.objects.all()
     
-    return times_series.time_series(houdini_crashes_query,'date', series_range)
-
+    return time_series.time_series(query_set, time_field, 
+                                   series_range, func, aggregation)
+     
 #===============================================================================
+
 # Houdini Uptime related reports
 
 def average_session_length(series_range, aggregation):
@@ -102,17 +104,12 @@ def average_session_length(series_range, aggregation):
     Get Houdini average session length. Column Chart.
     """
     
-    uptimes = Uptime.objects.all()
+    series = get_orm_data_for_report(Uptime.objects.all(), 'date', series_range, 
+                            aggregation, func=Avg("number_of_seconds"))
     
-    serie = time_series.time_series(uptimes, 'date', series_range, 
-                                          func=Avg("number_of_seconds"), 
-                                          agg=aggregation)
-
     return time_series.choose_unit_from_multiple_time_units_series(
-           time_series.compute_time_serie(serie, utils.seconds_to_multiple_time_units),
+           time_series.compute_time_serie(series, utils.seconds_to_multiple_time_units),
                                                                      "hours") 
-    
-
     
 #-------------------------------------------------------------------------------
 def average_usage_by_machine(series_range, aggregation):
@@ -134,44 +131,36 @@ def average_usage_by_machine(series_range, aggregation):
          order by mydate"""
     
     return time_series.seconds_to_time_unit_series(
-        _get_sql_report_data(string_query, 'stats', locals()), 
+        get_sql_data_for_report(string_query, 'stats', locals()), 
         "hours")
 
 #===============================================================================
 # Houdini Tools Usage related reports
 
-def _most_popular_tools_base_query():
+def most_popular_tools(series_range, aggregation, creation_mode="(1,2,3)"):
     """
-    Creates the base query for most popular tools.
+    Most popular houdini tools. Column Chart.
     """
-    return """
-           select tool_name, tool_count 
+    
+    tool_usage_count = 1
+
+    string_query = """
+          select tool_name, tool_count 
            from (
               select sum(count) as tool_count, tool_name, tool_creation_mode
                 from houdini_stats_houdinitoolusage
+                where {% where_between "date" start_date end_date %}
                 group by tool_name 
                 order by tool_count
            ) as TempTable
+           where tool_count >=  {{ tool_usage_count }} and 
+           tool_creation_mode in {{ creation_mode }} 
+           order by tool_count desc
+           limit 20
            """
-
-#-------------------------------------------------------------------------------  
-def most_popular_tools(tool_usage_count, limit, creation_mode=0):
-    """
-    Most popular houdini tools, the ones with more than tool_usage_count number of usage. 
-    Column Chart.
-    """
-    cursor = connections['stats'].cursor()
-    base_query = _most_popular_tools_base_query()
     
-    where_query = "where"
-    if creation_mode !=0:
-        where_query = where_query + " tool_creation_mode={0} and".format(
-                                                                  creation_mode) 
-    where_query = where_query + """ tool_count >={0} order by tool_count desc
-                                    limit {1}""".format(tool_usage_count, limit)
-    
-    cursor.execute("{0} {1}".format(base_query, where_query)) 
-    return [(row[0], row[1]) for row in cursor.fetchall()]
+    return get_sql_data_for_report(string_query, 'stats', locals(), 
+                                   fill_zeros=False)
 
 #===============================================================================
 # Houdini Versions and Builds related reports
@@ -237,7 +226,7 @@ def get_new_machines_over_time(series_range, aggregation):
         group by mydate
         order by mydate"""
         
-    return _get_sql_report_data(string_query,'stats', locals())
+    return get_sql_data_for_report(string_query,'stats', locals())
         
 #===============================================================================
 # Surveys Database reports
@@ -402,110 +391,66 @@ def apprentice_replied_survey_counts(series_range, aggregation):
         group by mydate
         order by mydate"""
         
-    return _get_sql_report_data(string_query,'surveys', locals())
+    return get_sql_data_for_report(string_query,'surveys', locals())
      
 #===============================================================================
 # Forum Database reports
 
-def _get_active_users_over_time(series_range, aggregation):
-    """
-    Number of active users registered in SideFX website over time
-    """
-    
-    return time_series.time_series(MosUsers.objects.filter(user_active=1).exclude(id=-1),
-                                  'registerdate', series_range, agg=aggregation)
-
-#-------------------------------------------------------------------------------
-
-def _get_active_users_by_method_per_day(start_date, end_date, openid=False):
+def get_active_users_by_method_per_day(series_range, aggregation, openid=False):
     """
     Get count active users that registered with forum or open id per day, 
-    given a period of time.
+    given a period of time. 
+    
+    Function used from get_active_users_forum_and_openid report.
     """
     
     to_compare = "= u.id"
     if openid:
         to_compare = "IS NULL"
         
-    cursor = connections['mambo'].cursor()  
-    
-    common_query = """
-                   SELECT cast( cast( u.registerDate AS date ) AS datetime ) 
-                          AS new_date, COUNT(u.id) AS user_count
-                   FROM mos_users u
-                   LEFT JOIN oid_user_to_mos_user a ON a.mos_user_id = u.id
-                   WHERE u.id != -1
-                   AND u.user_active =1
-                   AND u.registerDate between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                         and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                   AND u.registerDate!= "0000-00-00 00:00:00"      
-                   AND a.mos_user_id
-                   """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                              end_date.strftime("%Y-%m-%d %H:%M:%S"))
-    
-    cursor.execute("{0} {1} {2}"
-          .format(common_query, to_compare, "GROUP BY new_date ORDER BY new_date"))  
-    
-    return [(row[0], row[1]) for row in cursor.fetchall()]    
-
-#-------------------------------------------------------------------------------
-def _get_cumulative_values(initial_total, tuples):
-    """
-    Get cumulative values. 
-    """
-    
-    if len(tuples) == 0:
-        return tuples
-
-    result = []
-    total = initial_total
-    for date, value in tuples:
-        total += value
-        result.append([date, total])
-
-    return result
-
-#-------------------------------------------------------------------------------
-def _get_sum_values(tuples):
-    """
-    Get summarised values.  
-    """
-    return sum(counts for date, counts in tuples)
+    string_query = """
+          select {% aggregated_date "registerDate" aggregation %} AS mydate, 
+                 COUNT(u.id) AS user_count
+          FROM mos_users u
+          LEFT JOIN oid_user_to_mos_user a ON a.mos_user_id = u.id
+          WHERE u.id != -1
+          AND u.user_active =1
+          AND {% where_between "registerDate" start_date end_date %}     
+          AND u.registerDate!= "0000-00-00 00:00:00"      
+          AND a.mos_user_id {{ to_compare }}
+          GROUP BY mydate
+          ORDER BY mydate
+          """
+     
+    return get_sql_data_for_report(string_query, 'mambo', locals())
 
 #-------------------------------------------------------------------------------             
 def get_active_users_forum_and_openid(series_range, aggregation,
                                       events_to_annotate ):
     """
-    Number of users active that registered with forum or open id
+    Number of users active that registered with forum or open id.
     """
-    
-    start_date = series_range[0] 
-    end_date = series_range[1]
     
     if aggregation is None:
         aggregation = "daily"
-
+    
     # To get all users registered in the given interval
-    all_users_serie = _get_active_users_over_time(series_range, aggregation)
+    all_users_serie = get_orm_data_for_report(
+                          MosUsers.objects.filter(user_active=1).exclude(id=-1), 
+                          'registerdate', series_range, aggregation)
     
     # Filling with zeros the empty dates in the events
-    events_to_annotate = time_series.fill_missing_dates_with_zeros(events_to_annotate, 
-                                                 aggregation[:-2], series_range,
-                                                 True) 
+    events_to_annotate = time_series.fill_missing_dates_with_zeros(
+                                          events_to_annotate, aggregation[:-2], 
+                                          series_range, True) 
     
     # Creating the time serie from the results of the cursor
-    forum_serie = _get_active_users_by_method_per_day(start_date, end_date) 
-    #Filling the empty dates
-    forum_serie = time_series.fill_missing_dates_with_zeros(forum_serie, aggregation[:-2],
-                                                                  series_range) 
-   
+    forum_serie = get_active_users_by_method_per_day(series_range, aggregation) 
+    
     # Creating the time serie from the results of the cursor
-    openid_serie = _get_active_users_by_method_per_day(start_date, end_date, 
+    openid_serie = get_active_users_by_method_per_day(series_range, aggregation, 
                                                         openid=True) 
-    # Filling the empty dates
-    openid_serie = time_series.fill_missing_dates_with_zeros(openid_serie, aggregation[:-2], 
-                                                                series_range)
-    
+    # Return all the series merged
     return time_series.merge_time_series([all_users_serie, events_to_annotate, forum_serie,
                                                                   openid_serie])
 
@@ -521,8 +466,8 @@ def openid_providers_breakdown(series_range, aggregation):
     if aggregation is None:
         aggregation = "daily"
         
-    total_forum = _get_sum_values(_get_active_users_by_method_per_day(
-                                                   start_date, end_date, False))
+    total_forum = _get_sum_values(get_active_users_by_method_per_day(series_range, 
+                                                                  aggregation))
     total_openid= 0
     
     providers = {"forum":{"provider": "http://www.facebook.com/",
@@ -631,7 +576,7 @@ def apprentice_activations_over_time(series_range, aggregation):
         order by mydate  
        """
         
-    return _get_sql_report_data(string_query,'licensedb', locals())    
+    return get_sql_data_for_report(string_query,'licensedb', locals())    
     
 #-------------------------------------------------------------------------------
 
@@ -653,7 +598,7 @@ def get_apprentice_hd_licenses_over_time(series_range, aggregation):
         order by mydate  
        """
         
-    return _get_sql_report_data(string_query,'licensedb', locals())   
+    return get_sql_data_for_report(string_query,'licensedb', locals())   
     
 #-------------------------------------------------------------------------------
 

@@ -32,11 +32,11 @@ def aggregated_date(field_name, aggregation="daily"):
     assert (aggregation in valid_agg)
     
     #  By default we assume it is a daily aggregation
-    agg_date = "cast(cast(%s AS date) AS datetime)" % field_name 
+    agg_date = "cast(cast({0} AS date) AS datetime)" . format(field_name) 
     
     if aggregation== "monthly":
-        agg_date = """cast(concat(date_format(%s, '%%Y-%%c'), '-01') AS 
-                      datetime)""" % field_name 
+        agg_date = """cast(concat(date_format({0}, '%%Y-%%c'), '-01') AS 
+                      datetime)""" . format(field_name)
         
     elif aggregation== "weekly":
         # The aggregation query will return the first day of each week

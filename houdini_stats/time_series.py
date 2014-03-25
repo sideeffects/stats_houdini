@@ -1,7 +1,10 @@
-
+from django.db import connections
 from dateutil.relativedelta import relativedelta
 from qsstats import QuerySetStats
+from django.db.models import Avg, Sum, Count
+
 import utils 
+
 #===============================================================================
 def fill_missing_dates_with_zeros(time_series, agg_by, interval, 
                                    fill_with_empty_string = False):
@@ -18,6 +21,7 @@ def fill_missing_dates_with_zeros(time_series, agg_by, interval,
         filler = ""
         
     result_time_series = []
+    
     dates = [x[0] for x in time_series]
     
     # Determine the first date that will be in the result time series.  If
@@ -64,7 +68,7 @@ def time_series(queryset, date_field, interval, func=None, agg=None):
         # We need to set the range dynamically
         interval_filter = {date_field + "__gte" : interval[0],
                            date_field + "__lte" : interval[1]}
-
+        
         # Slightly raw-ish SQL query
         result = (queryset.extra(select={agg_by: connections[queryset.db]
                              .ops.date_trunc_sql(agg_by, date_field)})
