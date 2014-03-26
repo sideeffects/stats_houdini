@@ -24,23 +24,6 @@ def _get_cursor(db_name):
     return connections[db_name].cursor()
 
 #-------------------------------------------------------------------------------
-def _get_cumulative_values(initial_total, tuples):
-    """
-    Get cumulative values. 
-    """
-    
-    if len(tuples) == 0:
-        return tuples
-
-    result = []
-    total = initial_total
-    for date, value in tuples:
-        total += value
-        result.append([date, total])
-
-    return result
-
-#-------------------------------------------------------------------------------
 def _get_sum_values(tuples):
     """
     Get summarised values.  
@@ -61,9 +44,6 @@ def get_sql_data_for_report(string_query, db_name, context_vars,
     
     context_vars["start_date"] = context_vars['series_range'][0] 
     context_vars["end_date"] = context_vars['series_range'][1]
-    
-    if context_vars['aggregation'] is None:
-        context_vars['aggregation'] = "daily"
     
     cursor = _get_cursor(db_name)
     tpl_header =  "{% load reports_tags %} "
@@ -108,7 +88,8 @@ def average_session_length(series_range, aggregation):
                             aggregation, func=Avg("number_of_seconds"))
     
     return time_series.choose_unit_from_multiple_time_units_series(
-           time_series.compute_time_serie(series, utils.seconds_to_multiple_time_units),
+           time_series.compute_time_serie(series, 
+                                          utils.seconds_to_multiple_time_units),
                                                                      "hours") 
     
 #-------------------------------------------------------------------------------
@@ -118,7 +99,8 @@ def average_usage_by_machine(series_range, aggregation):
     """
     
     string_query = """
-         select {% aggregated_date "day" aggregation %} AS mydate, avg(total_seconds)
+         select {% aggregated_date "day" aggregation %} AS mydate, 
+                avg(total_seconds)
          from (
              select machine_config_id,
              str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
@@ -214,9 +196,12 @@ def get_new_machines_over_time(series_range, aggregation):
     Get new machines over time.
     """    
     string_query = """
-        select {% aggregated_date "min_creation_date" aggregation %} AS mydate, machines_count
+        select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
+               machines_count
         from(  
-            select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'), '%%Y-%%m-%%d')) as min_creation_date,
+            select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'),
+                                                                '%%Y-%%m-%%d')) 
+                   as min_creation_date,
                    count(distinct machine_id) as machines_count 
             from houdini_stats_machineconfig
             where {% where_between "creation_date" start_date end_date %}
@@ -303,11 +288,14 @@ def hou_engine_maya_unity_breakdown(series_range, aggregation):
     subscribed to Maya or Unity, over time.
     """
     
-    users_for_maya, users_for_unity, count_total = _get_common_for_hou_engine_breakdown()
+    users_for_maya, users_for_unity, count_total = \
+                                          _get_common_for_hou_engine_breakdown()
     
-    users_count = [("Maya | Unity", users_for_maya.count(), users_for_unity.count())]
+    users_count = [("Maya | Unity", users_for_maya.count(), 
+                                    users_for_unity.count())]
     
-    users_over_time = time_series.merge_time_series(time_series.get_time_series_sequences(
+    users_over_time = time_series.merge_time_series(
+                                          time_series.get_time_series_sequences(
                                               [users_for_maya, users_for_unity],
                                               interval= series_range, 
                                               aggregation= aggregation,
@@ -366,12 +354,13 @@ def apprentice_followup_survey(series_range, aggregation):
             user_answers_total_count += user_answers.count()
             
         questions_and_total_counts[index_q] = {"text": value["question"],
-                                                "count": user_answers_total_count}         
+                                             "count": user_answers_total_count}         
         sorted_answers[index_q] = sorted(answers_count.items(), 
                                                 key=lambda x:x[1], reverse=True)
 
     # Form pairs with questions numbers Ex. [[1, 2], [3, 4], [5]]
-    questions_tuples = utils.get_list_of_tuples_from_list(questions_and_total_counts)
+    questions_tuples = utils.get_list_of_tuples_from_list(
+                                                    questions_and_total_counts)
     
     return questions_tuples, questions_and_total_counts, sorted_answers  
 
@@ -387,16 +376,18 @@ def apprentice_replied_survey_counts(series_range, aggregation):
     questions_ids = tuple(int(q.id) for q in questions)
     
     string_query = """
-        select {% aggregated_date "date" aggregation %} AS mydate, count(distinct(user_id))
+        select {% aggregated_date "date" aggregation %} AS mydate, 
+               count(distinct(user_id))
         from user_answers
-        where question_id in {{ questions_ids }} and {% where_between "date" start_date end_date %}
+        where question_id in {{ questions_ids }} and 
+              {% where_between "date" start_date end_date %}
         group by mydate
         order by mydate"""
         
     return get_sql_data_for_report(string_query,'surveys', locals())
      
 #===============================================================================
-# Forum Database reports
+# Side Effects Website reports
 
 def get_active_users_by_method_per_day(series_range, aggregation, openid=False):
     """
@@ -433,11 +424,8 @@ def get_active_users_forum_and_openid(series_range, aggregation,
     Number of users active that registered with forum or open id.
     """
     
-    if aggregation is None:
-        aggregation = "daily"
-    
     # To get all users registered in the given interval
-    all_users_serie = get_orm_data_for_report(
+    all_users_series = get_orm_data_for_report(
                           MosUsers.objects.filter(user_active=1).exclude(id=-1), 
                           'registerdate', series_range, aggregation)
     
@@ -447,16 +435,106 @@ def get_active_users_forum_and_openid(series_range, aggregation,
                                                             series_range, True) 
     
     # Creating the time serie from the results of the cursor
-    forum_serie = get_active_users_by_method_per_day(series_range, aggregation) 
+    forum_series = get_active_users_by_method_per_day(series_range, aggregation) 
     
     # Creating the time serie from the results of the cursor
-    openid_serie = get_active_users_by_method_per_day(series_range, aggregation, 
+    openid_series = get_active_users_by_method_per_day(series_range, aggregation, 
                                                         openid=True) 
     # Return all the series merged
-    return time_series.merge_time_series([all_users_serie, events_to_annotate, forum_serie,
-                                                                  openid_serie])
+    return time_series.merge_time_series([all_users_series, events_to_annotate,
+                                          forum_series, openid_series])
+
 
 #-------------------------------------------------------------------------------
+# Global providers list to be used in the reports for users login
+PROVIDERS = {
+             "forum":{"provider": "", "count": 0},
+             "facebook": {"provider": "https://www.facebook.com/", "count": 0},
+             "orbolt": {"provider": "https://www.orbolt.com/openid/",
+                        "count": 0},
+             "gmail": {"provider": "https://www.google.com/accounts/",
+                           "count": 0},
+             "yahoo": {"provider": "https://www.google.com/accounts/", 
+                       "count": 0},
+             "windowslive": {"provider": "https://profile.live.com/", 
+                             "count": 0},
+             "linkedin": {"provider": "http://www.linkedin.com/pub/",
+                          "count": 0},
+             "aol": {"provider": ".aofrom operator import *l", "count": 0}
+             }
+
+#-------------------------------------------------------------------------------
+def _get_total_active_users_forum(series_range, aggregation):
+    """
+    Get total number of users who logged in with forum.
+    """
+    forum_series = get_active_users_by_method_per_day(series_range, aggregation)
+    
+    return sum(counts for date, counts in forum_series)
+
+#-------------------------------------------------------------------------------    
+def _get_total_active_openid(all_openid_providers):    
+    """
+    Get total number of users who logged in with openid. 
+    """
+    
+    total_openid = 0  
+    for provider in all_openid_providers:
+        # Always increase total_openid count
+        total_openid +=1
+        
+        if PROVIDERS["facebook"]["provider"] in provider:
+            PROVIDERS["facebook"]["count"] +=1 
+        
+        elif PROVIDERS["gmail"]["provider"] in provider:
+            PROVIDERS["gmail"]["count"] +=1
+            
+        elif PROVIDERS["yahoo"]["provider"] in provider:
+            PROVIDERS["yahoo"]["count"] +=1
+            
+        elif PROVIDERS["orbolt"]["provider"] in provider:
+            PROVIDERS["orbolt"]["count"] +=1
+            
+        elif PROVIDERS["windowslive"]["provider"] in provider:
+            PROVIDERS["windowslive"]["count"] +=1
+            
+        elif PROVIDERS["linkedin"]["provider"] in provider:
+            PROVIDERS["linkedin"]["count"] +=1
+            
+        elif PROVIDERS["aol"]["provider"] in provider:
+            PROVIDERS["aol"]["count"] +=1
+            
+    return total_openid 
+#-------------------------------------------------------------------------------
+def _get_sorted_openid_providers_list():     
+    """
+    Sort providers by count descendent order
+    """
+     
+    return sorted(PROVIDERS.items(), key=lambda x:getitem(x[1],'count'), 
+                             reverse=True) 
+    
+#-------------------------------------------------------------------------------
+def get_all_openid_providers(series_range, aggregation):
+    """
+    Get all open id provider with which users ha registered.
+    """
+    string_query = """
+             SELECT {% aggregated_date "u.registerDate" aggregation %} AS mydate,
+                    provider_url 
+             FROM oid_user_to_mos_user a
+             LEFT JOIN mos_users u ON u.id = a.mos_user_id 
+             WHERE 
+             {% where_between "u.registerDate" start_date end_date %}  
+             AND u.registerDate!= "0000-00-00 00:00:00"      
+             AND u.id = a.mos_user_id
+             """
+     
+    return get_sql_data_for_report(string_query, 'mambo', locals(), 
+                                   fill_zeros = False)
+
+#-------------------------------------------------------------------------------
+
 def openid_providers_breakdown(series_range, aggregation):
     """
     Breakdown of open id user by providers
@@ -465,91 +543,17 @@ def openid_providers_breakdown(series_range, aggregation):
     start_date = series_range[0] 
     end_date = series_range[1]
     
-    if aggregation is None:
-        aggregation = "daily"
-        
-    total_forum = _get_sum_values(get_active_users_by_method_per_day(series_range, 
-                                                                  aggregation))
-    total_openid= 0
+    total_forum = _get_total_active_users_forum(series_range, aggregation)
+    PROVIDERS["forum"]["count"] = total_forum
     
-    providers = {"forum":{"provider": "http://www.facebook.com/",
-                          "count": total_forum},
-                 "facebook": {"provider": "http://www.facebook.com/",
-                              "count": 0},
-                 "orbolt": {"provider": "https://www.orbolt.com/openid/",
-                            "count": 0},
-                 "gmail": {"provider": "https://www.google.com/accounts/",
-                           "count": 0},
-                 "yahoo": {"provider": "https://www.google.com/accounts/",
-                           "count": 0},
-                 "windowslive": {"provider": "https://profile.live.com/",
-                                 "count": 0},
-                 "linkedin": {"provider": "http://www.linkedin.com/pub/",
-                              "count": 0},
-                 "aol": {"provider": ".aofrom operator import *l",
-                         "count": 0} 
-                }
+    all_openid_providers = [provider[1] for provider in get_all_openid_providers(
+                                                    series_range, aggregation)]
     
-    cursor = connections['mambo'].cursor()
-    
-    cursor.execute("""SELECT provider_url FROM oid_user_to_mos_user a
-                      LEFT JOIN mos_users u ON u.id = a.mos_user_id 
-                      WHERE 
-                      u.registerDate between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                         and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                      AND u.registerDate!= "0000-00-00 00:00:00"      
-                      AND u.id = a.mos_user_id
-                      """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                                 end_date.strftime("%Y-%m-%d %H:%M:%S")))
-                   
-    all_providers =  [row[0] for row in cursor.fetchall()]
-    #total_openid= len(all_providers)
-    
-    
-    for provider in all_providers:
-        if providers["facebook"]["provider"] in provider:
-            providers["facebook"]["count"] +=1 
-            total_openid +=1
-        
-        if providers["gmail"]["provider"] in provider:
-            providers["gmail"]["count"] +=1
-            total_openid +=1       
-        
-        elif providers["yahoo"]["provider"] in provider:
-            providers["yahoo"]["count"] +=1
-            total_openid +=1 
-        
-        elif providers["orbolt"]["provider"] in provider:
-            providers["orbolt"]["count"] +=1
-            total_openid +=1  
-        
-        elif providers["windowslive"]["provider"] in provider:
-            providers["windowslive"]["count"] +=1
-            total_openid +=1 
-        
-        elif providers["linkedin"]["provider"] in provider:
-            providers["linkedin"]["count"] +=1
-            total_openid +=1                    
-    
-        elif providers["aol"]["provider"] in provider:
-            providers["aol"]["count"] +=1
-            total_openid +=1        
-    
-    # Sort providers by count descendent order
-    sorted_providers= sorted(providers.items(),
-                             key=lambda x:getitem(x[1],'count'), 
-                             reverse=True)
+    total_openid = _get_total_active_openid(all_openid_providers)
+    sorted_providers = _get_sorted_openid_providers_list()
     
     return [(key.title(),value["count"]) for key, value in sorted_providers], \
             total_forum, total_openid 
-
-#-------------------------------------------------------------------------------
-def get_num_of_user_registered_and_asked_to_susbcribe(series_range, aggregation):
-    """
-    Number of users registered and asked to subscribe, over time
-    """
-    return time_series.time_series(MachineConfig.objects.filter(asked_to_subscribe=1),
-                              'creation_date',series_range, agg=aggregation)
 
 #===============================================================================
 # Houdini Licenses and downloads related reports
@@ -604,6 +608,24 @@ def get_apprentice_hd_licenses_over_time(series_range, aggregation):
     
 #-------------------------------------------------------------------------------
 
+def _get_cumulative_values(initial_total, tuples):
+    """
+    Get cumulative values. 
+    """
+    
+    if len(tuples) == 0:
+        return tuples
+
+    result = []
+    total = initial_total
+    for date, value in tuples:
+        total += value
+        result.append([date, total])
+
+    return result
+
+#-------------------------------------------------------------------------------
+
 def get_apprentice_hd_licenses_cumulative(hd_licenses_series, range_start_date):
     """
     Get Apprentice HD Licenses cumulative over time.
@@ -630,173 +652,104 @@ def get_apprentice_hd_licenses_cumulative(hd_licenses_series, range_start_date):
 
 #-------------------------------------------------------------------------------
 
-def get_apprentice_activations_by_geo(series_range):
+def get_apprentice_activations_by_geo(series_range, aggregation):
     """
     Get Apprentice HD Licenses by Geography. Ip address.
+    Heatmap report.
     """
-    
-    start_date = series_range[0] 
-    end_date = series_range[1]
-    
-    cursor = connections['licensedb'].cursor()
-    
-    cursor.execute("""
-        select cast(LogDate as datetime) as date, IPAddress
-        from NCHistory
-        where LogDate between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
-            and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S') and
-            IPAddress IS NOT NULL
-        group by date  
-        order by date  
-        """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
-                   end_date.strftime("%Y-%m-%d %H:%M:%S")
-                  )
-        )  
-    
-    dates_ips = [(row[0], row[1]) for row in cursor.fetchall()] 
-    
+    string_query = """
+         select {% aggregated_date "LogDate" aggregation %} AS mydate, 
+                IPAddress
+         from NCHistory
+         where {% where_between "LogDate" start_date end_date %} and
+               IPAddress IS NOT NULL
+         group by mydate  
+         order by mydate  
+        """
+         
+    dates_ips = get_sql_data_for_report(string_query,'licensedb', locals())   
+
     lat_longs =  []
     for dates_ip in dates_ips:
-        lat_long = get_lat_and_long(dates_ip[1])
+        lat_long = utils.get_lat_and_long(dates_ip[1])
         if lat_long is not None:
             lat_longs.append(lat_long)
     
     return lat_longs
 
 #-------------------------------------------------------------------------------
-
-def _return_common_for_download_reports(start_date, end_date):
-    # Return common query strings for Houdini download reports
-    common_query_start = """
-                   select cast(cast(downloads.dls_time as date ) as datetime) as new_date, 
-                   count(downloads.id) 
-                   from dls_houdini_downloads AS downloads
-                   """
-    common_query_where = "where " 
-    common_query_end = """
-    downloads.dls_time between date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
-    and date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-    group by new_date  
-    order by new_date  
-    """.format(start_date.strftime("%Y-%m-%d %H:%M:%S"),
-               end_date.strftime("%Y-%m-%d %H:%M:%S"))   
+def _get_data_for_houdini_download_reports(series_range, aggregation, 
+                                          sql_where_statement='',
+                                          sql_join_statement=''):
+    """
+    Get data for download reports, total downloads, commercial and apprentice
+    will use this same function.
+    """
     
-    return common_query_start, common_query_where, common_query_end 
-
-#-------------------------------------------------------------------------------
-def _execute_cursor_query(cursor, common_query_start, join = "", 
-                          common_query_where= "", common_query_end= ""):
+    string_query = """
+         select {% aggregated_date 'downloads.dls_time' aggregation %} AS mydate, 
+                count(downloads.id)
+         from dls_houdini_downloads AS downloads
+         {{ sql_join_statement }}
+         where {% where_between 'downloads.dls_time' start_date end_date %}  
+         {{ sql_where_statement }}
+         group by mydate  
+         order by mydate
+        """
     
-    cursor.execute("{0} {1} {2} {3}"
-          .format(common_query_start, join, common_query_where,  
-                  common_query_end))
-    
-    return [(row[0], row[1]) for row in cursor.fetchall()] 
+    return get_sql_data_for_report(string_query,'mambo', locals()) 
+ 
+#------------------------------------------------------------------------------- 
+def get_all_houdini_downloads(series_range, aggregation):
+    """
+    Get all downloads
+    """
+    return _get_data_for_houdini_download_reports(series_range, aggregation)
 
-#-------------------------------------------------------------------------------
-def _get_all_downloads(cursor, common_query_start, common_query_where, 
-                       common_query_end):
-    return _execute_cursor_query(cursor, common_query_start, "", 
-                                 common_query_where, 
-                                 common_query_end)
+#-------------------------------------------------------------------------------  
 
-#-------------------------------------------------------------------------------
-def _get_commercial_downloads(cursor, common_query_start, common_query_where,
-                              common_query_end):
-    
-    where = """downloads.apprentice_user_id IS NULL
-               and user_id != -1 and   
-            """             
-    return _execute_cursor_query(cursor, common_query_start, "", 
-                              common_query_where + where, common_query_end )
-
-#-------------------------------------------------------------------------------    
-def _get_apprentice_downloads(cursor, common_query_start, common_query_where,
-                              common_query_end):
-    
-    middle_join = """
+def get_houdini_apprentice_downloads(series_range, aggregation):
+    """
+    Get apprentice downloads
+    """
+    sql_join_statement = """
                   inner join dls_apprentice_users AS apprentice 
                   ON downloads.apprentice_user_id = apprentice.id
                   """ 
-    where = """
-            downloads.apprentice_user_id IS NOT NULL
-            and user_id = -1 and  
-            """             
-    return _execute_cursor_query(cursor, common_query_start, middle_join, 
-                                 common_query_where + where, common_query_end ) 
- 
-#-------------------------------------------------------------------------------  
-def get_apprentice_downloads(series_range, aggregation):
+    sql_where_statement = """
+            and downloads.apprentice_user_id IS NOT NULL
+            and user_id = -1   
+            """                          
+    return _get_data_for_houdini_download_reports(series_range, aggregation,
+                                       sql_where_statement, sql_join_statement) 
+    
+#------------------------------------------------------------------------------- 
+def get_houdini_commercial_downloads(series_range, aggregation):
     """
-    External function to be reused for getting apprentice downloads
+    Get commercial downloads
     """
     
-    if aggregation is None:
-        aggregation = "daily"
-    
-    cursor = connections['mambo'].cursor()
-    
-    common_query_start, common_query_where, common_query_end = \
-                           _return_common_for_download_reports(series_range[0], 
-                                                                series_range[1]) 
-    # Apprentice downloads    
-    apprentice_downloads = _get_apprentice_downloads(cursor, common_query_start, 
-                                                     common_query_where,
-                                                     common_query_end)
-    
-    return time_series.fill_missing_dates_with_zeros(apprentice_downloads, 
-                                                 aggregation[:-2], series_range)
-        
-#-------------------------------------------------------------------------------    
-def get_num_software_downloads(series_range, aggregation, 
-                               events_to_annotate):
-    """
-    Get num of software downloads through the website per day. 
-    """
-    start_date = series_range[0] 
-    end_date = series_range[1]
-    
-    if aggregation is None:
-        aggregation = "daily"
+    sql_where_statement = """and downloads.apprentice_user_id IS NULL 
+                             and user_id != -1"""  
+    return _get_data_for_houdini_download_reports(series_range, 
+                                               aggregation, sql_where_statement)
 
-    cursor = connections['mambo'].cursor()
-    
-    common_query_start, common_query_where, common_query_end = \
-                       _return_common_for_download_reports(start_date, end_date) 
-     
-    # All downloads
-    all_downloads = _get_all_downloads(cursor, common_query_start,
-                                       common_query_where,
-                                       common_query_end)
-    
-    # Commercial downloads     
-    commercial_downloads = _get_commercial_downloads(cursor, common_query_start, 
-                                                     common_query_where,
-                                                     common_query_end)
-    
-    # Apprentice downloads    
-    apprentice_downloads = _get_apprentice_downloads(cursor, common_query_start, 
-                                                     common_query_where,
-                                                     common_query_end)
-    
-    all_downloads = time_series.fill_missing_dates_with_zeros(all_downloads, 
-                                                aggregation[:-2], series_range)
-    commercial_downloads = time_series.fill_missing_dates_with_zeros(commercial_downloads, 
-                                                aggregation[:-2], series_range)
-    apprentice_downloads = time_series.fill_missing_dates_with_zeros(apprentice_downloads, 
-                                                 aggregation[:-2], series_range)
-    
-    return all_downloads, commercial_downloads, apprentice_downloads, \
-          time_series.merge_time_series([all_downloads, events_to_annotate, 
+#-------------------------------------------------------------------------------    
+def get_merge_houdini_downloads(all_downloads, apprentice_downloads, 
+                                      commercial_downloads, events_to_annotate):
+    """
+    Get a time series with a merfe of all the houdini downloads, and the event
+    to anootate. These stats are houdini downloads through the website per day. 
+    """
+    return time_series.merge_time_series([all_downloads, events_to_annotate, 
                               commercial_downloads, apprentice_downloads])
                                                                                     
 #-------------------------------------------------------------------------------
 def get_percentage_of_total(total_serie, fraction_serie):
     """
-    Get which percentage is each element of a serie from the same element (same date)
-    on another serie. Column Chart.
-    """  
-    
+    Get which percentage is each element of a serie from the same element 
+    (same date) on another serie. Column Chart.
+    """      
     return time_series.compute_time_series(
         [fraction_serie, total_serie], utils.get_percent)  
     
@@ -809,7 +762,8 @@ def get_percentage_downloads(all_downloads, apprentice_downloads,
     commercial_percentages = get_percentage_of_total(all_downloads, 
                                                       commercial_downloads)
     
-    return time_series.merge_time_series([commercial_percentages, apprentice_percentages])
+    return time_series.merge_time_series([commercial_percentages, 
+                                          apprentice_percentages])
 
    
     

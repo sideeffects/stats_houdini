@@ -301,9 +301,6 @@ def hou_reports_view(request, dropdown_option_key):
     url_to_reverse = {}
     show_date_picker = True
 
-    if aggregation is None:
-        aggregation = "daily"
-    
     # Events serie 
     events_to_annotate = get_events_in_range(series_range)
     events_to_annotate_filled = fill_missing_dates_with_zeros(
@@ -313,17 +310,19 @@ def hou_reports_view(request, dropdown_option_key):
         dropdown_option_key = "downloads"
         
     if dropdown_option_key == "downloads":
-        all_downloads, commercial_downloads, apprentice_downloads, merge = \
-            reports.get_num_software_downloads(
-                series_range, aggregation, events_to_annotate_filled)
-
-        series["software_downloads"] = merge
-
-        series["percentages"] = reports.get_percentage_downloads(
-            all_downloads,
-            apprentice_downloads,
-            commercial_downloads)
-
+        all_downloads = reports.get_all_houdini_downloads(series_range, 
+                                                                    aggregation)
+        apprentice_downloads = reports.get_houdini_apprentice_downloads(
+                                                      series_range, aggregation)
+        commercial_downloads = reports.get_houdini_commercial_downloads(
+                                                      series_range, aggregation) 
+        
+        series["software_downloads"] = reports.get_merge_houdini_downloads(
+                                all_downloads, apprentice_downloads, 
+                                commercial_downloads, events_to_annotate_filled) 
+        
+        series["percentages"] = reports.get_percentage_downloads(all_downloads,
+                                     apprentice_downloads, commercial_downloads)
        
     if not dropdown_option_key == "downloads":
         # We started collecting meaningful data from Houdini at a different date
@@ -408,9 +407,6 @@ def hou_apprentice_view(request, dropdown_option_key):
     
     series = {}
     series_range, aggregation = get_common_vars_for_charts(request)
-    
-    if aggregation is None:
-        aggregation = "daily"
     
     # Events serie 
     events_to_annotate = get_events_in_range(series_range)
@@ -604,7 +600,8 @@ def hou_heatmap_view(request, option):
     lat_longs = []
     
     if option == "apprentice_heatmap":
-        lat_longs = reports.get_apprentice_activations_by_geo(series_range)
+        lat_longs = reports.get_apprentice_activations_by_geo(series_range, 
+                                                              aggregation)
     return render_response(
         "heatmap.html", {
             "lat_longs": lat_longs,

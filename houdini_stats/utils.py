@@ -355,18 +355,19 @@ def _get_end_request(request):
 def _get_aggregation(get_vars):
     """
     Get aggregation from the request.GET.
+    If there is not aggregation we set it to daily by default.
     """
     # For aggregation 
     valid_agg = ["monthly", "weekly", "yearly", "daily"]
     if "ag" not in get_vars:
-        return None
+        return "daily"
     
     aggregation = get_vars["ag"].lower()
     
     if aggregation not in valid_agg and aggregation !="inherit":
         raise NotFoundError("Not valid aggregation")
     elif aggregation=="inherit":
-        return None  
+        return "daily"  
     
     return aggregation 
 
