@@ -112,6 +112,9 @@ class API(object):
             # Save counts 
             save_counts(machine_config, json_data["counts"], data_log_date)
         
+            # Save
+            save_data_log_to_file(data_log_date, user_info['config_hash'],
+                                  json_data)
             # TODO(YB): Implement save flags and save logs  
         
         return json_http_response(True)
