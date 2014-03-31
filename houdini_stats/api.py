@@ -1,13 +1,14 @@
+
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
+from datetime import datetime
+from utils import *
 
 import json
 import datetime
 import traceback
 import settings
-
-from utils import *
 
 #-------------------------------------------------------------------------------
 
@@ -85,22 +86,33 @@ class API(object):
         Save user stats
         """
         
-        # Get or save machine config
-        machine_config = get_or_save_machine_config(user_info,
-                                                    get_ip_address(request))
-        
         # Get json content. Contains start_time and end_time and counts for the 
         # Houdini tools usage
         json_data = json.loads(stats['json_content'])
         
         # Get total seconds
+        data_log_date =  datetime.datetime.fromtimestamp(json_data["start_time"])
+        
         total_sec = json_data["end_time"] - json_data["start_time"]
         
-        # Save uptime
-        save_uptime(machine_config, total_sec)
+        # Get or save machine config
+        machine_config = get_or_save_machine_config(user_info,
+            get_ip_address(request), data_log_date)
         
-        # Save tools usage
-        save_tools_usage(machine_config, json_data["counts"])
+        is_new_log = True
+        if "log_id" in json_data.keys():
+            # Save log id if it hasnt been saved in the db yet
+            is_new_log = is_new_log_or_existing(machine_config, 
+                                    json_data["log_id"], data_log_date)
+        
+        # Just save the stats data if  the log id was new
+        if is_new_log:
+            # Save uptime
+            save_uptime(machine_config, total_sec, data_log_date)
+            # Save counts 
+            save_counts(machine_config, json_data["counts"], data_log_date)
+        
+            # TODO(YB): Implement save flags and save logs  
         
         return json_http_response(True)
 
@@ -111,10 +123,10 @@ class API(object):
         """
         # Get or save machine config
         machine_config = get_or_save_machine_config(user_info,
-                                                    get_ip_address(request))
-        
+                                                    get_ip_address(request),
+                                                    datetime.datetime.now())
         # Save the crash
-        save_crash(machine_config, crashlog)
+        save_crash(machine_config, crashlog, datetime.datetime.now())
         
         return json_http_response(True)
 

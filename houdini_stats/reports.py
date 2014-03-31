@@ -147,6 +147,7 @@ def most_popular_tools(series_range, aggregation, creation_mode="(1,2,3)"):
 #===============================================================================
 # Houdini Versions and Builds related reports
 
+#TODO(YB) : improve the way this report is implemented
 def usage_by_hou_version_or_build(all=True, build=False, is_apprentice=False):
     """
     Usage by Houdini version or builds. Aggregating or not by product.
@@ -310,7 +311,7 @@ def hou_engine_maya_unity_breakdown(series_range, aggregation):
 def _get_common_for_apprentice_followup_survey():
             
     survey_id = 2
-    questions = get_questions_from_survey(survey_id, 8)
+    questions =  (survey_id, 8)
     
     questions_answers = {}
     

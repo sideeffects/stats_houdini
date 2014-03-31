@@ -13,7 +13,7 @@ class Machine(models.Model):
     
     hardware_id = models.CharField(
         help_text='''Mac address hash.''',
-        max_length=40,
+        max_length=80,
         default=''
     )
         
@@ -23,6 +23,8 @@ class Machine(models.Model):
     class Meta:
         # How to order results when doing queries:
         db_name = 'stats'
+
+#-------------------------------------------------------------------------------
 
 class MachineConfig(models.Model):
     """
@@ -41,7 +43,7 @@ class MachineConfig(models.Model):
 
     config_hash = models.CharField(
         help_text='''Hash of the information from the user machine.''',
-        max_length=40
+        max_length=80
     )    
     
     ip_address = models.CharField(
@@ -135,6 +137,38 @@ class MachineConfig(models.Model):
     class Meta:
         # How to order results when doing queries:
         ordering = ('creation_date', )
+        db_name = 'stats'
+            
+#-------------------------------------------------------------------------------
+
+class LogId(models.Model):
+    """
+    LogId to identify which stats have been already saved in the db and not
+    save the same info more than once.
+    """
+    
+    log_id = models.CharField(
+        help_text='''Lod id.''',
+        max_length=80
+    )  
+
+    machine_config = models.ForeignKey(
+        'MachineConfig',
+        help_text='''The machine config associated with this log.''',
+    )
+
+    logging_date = models.DateTimeField(
+        help_text='''When this particular log was saved.''',
+        auto_now_add=True,
+    )
+    
+    def __unicode__(self):
+        return "LogId(%s, %s)" % (
+            self.log_id, self.machine_config.config_hash)
+
+    class Meta:
+        # How to order results when doing queries:
+        ordering = ('logging_date',)
         db_name = 'stats'
             
 #-------------------------------------------------------------------------------
@@ -236,9 +270,110 @@ class HoudiniToolUsage(models.Model):
 
     class Meta:
         # How to order results when doing queries:
-        ordering = ('date', )    
+        ordering = ('date', 'count')    
         db_name = 'stats'
 
+
+#-------------------------------------------------------------------------------
+
+class HoudiniUsageCount(models.Model):
+    """
+    Model to represent houdini usage keys different from the tools.
+    """
+
+    machine_config = models.ForeignKey(
+        'MachineConfig',
+        help_text='''The machine config associated with the key.''',
+    )
+    
+    date = models.DateTimeField(
+        help_text='''Date to record the key.'''
+    )
+        
+    key = models.CharField(
+        help_text='''The key.''',
+        max_length=100
+    )
+            
+    count = models.PositiveIntegerField(
+        default=0,
+        help_text='''Number of times the key was used.'''
+    )
+        
+    def __unicode__(self):
+        return "HoudiniUsageCounts(%s, %s)" % \
+            (self.key, self.machine_config.config_hash)
+
+    class Meta:
+        # How to order results when doing queries:
+        ordering = ('date','count')    
+        db_name = 'stats'        
+    
+
+#-------------------------------------------------------------------------------
+
+class HoudiniUsageFlag(models.Model):
+    """
+    Model to represent houdini usage flags.
+    """
+
+    machine_config = models.ForeignKey(
+        'MachineConfig',
+        help_text='''The machine config associated with the flag.''',
+    )
+    
+    date = models.DateTimeField(
+        help_text='''Date to record the flag.'''
+    )
+        
+    key = models.CharField(
+        help_text='''The key.''',
+        max_length=100
+    )
+            
+    def __unicode__(self):
+        return "HoudiniUsageFlags(%s, %s)" % \
+            (self.key, self.machine_config.config_hash)
+
+    class Meta:
+        # How to order results when doing queries:
+        ordering = ('date',)    
+        db_name = 'stats'        
+
+
+#-------------------------------------------------------------------------------
+
+class HoudiniUsageLog(models.Model):
+    """
+    Model to represent houdini usage logs.
+    """
+    machine_config = models.ForeignKey(
+        'MachineConfig',
+        help_text='''The machine config associated with the log.''',
+    )
+    
+    date = models.DateTimeField(
+        help_text='''Date to record the log.'''
+    )
+        
+    key = models.CharField(
+        help_text='''The key.''',
+        max_length=100
+    )
+    
+    message = models.TextField(
+        help_text='''Message for the log.''',
+        default=''
+    )
+            
+    def __unicode__(self):
+        return "HoudiniUsageLog(%s, %s)" % \
+            (self.key, self.machine_config.config_hash)
+
+    class Meta:
+        # How to order results when doing queries:
+        ordering = ('date',)    
+        db_name = 'stats'            
 #-------------------------------------------------------------------------------
 
 class Uptime(models.Model):
@@ -268,8 +403,8 @@ class Uptime(models.Model):
         # How to order results when doing queries:
         ordering = ('date','number_of_seconds')    
         db_name = 'stats'
-        
-    
+     
+
 #-------------------------------------------------------------------------------
 
 class Event(models.Model):

@@ -420,7 +420,7 @@ def hou_apprentice_view(request, dropdown_option_key):
         apprentice_activations = reports.apprentice_activations_over_time(
                                                       series_range, aggregation)
         
-        apprentice_downloads = reports.get_apprentice_downloads(series_range, 
+        apprentice_downloads = reports.get_houdini_apprentice_downloads(series_range, 
                                                                    aggregation)
         
         series['apprentice_lic_over_time'] = merge_time_series(

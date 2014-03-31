@@ -7,6 +7,7 @@ import json
 import re
 import datetime
 import time
+import hashlib
 
 #===============================================================================
 
@@ -131,8 +132,29 @@ def get_lat_and_long(ip):
     
     return  g.lat_lon(ip)#lat, long 
 
+#-------------------------------------------------------------------------------
+def is_valid_machine_config_hash(user_info):
+    """
+    Compute the hash of the data, ignoring the hash value stored in the data,
+    and validate that the computed hash matches the one in the data.
+    We want to make sure that the same user configs always create the
+    same hash, so the data needs to be ordered.
+    """
+    string_to_hash = ''.join([
+        key + ": " + user_info[key]
+        for key in sorted(user_info.keys())
+        if key != "config_hash"])
+ 
+    print  "The hash passed to server: ", user_info["config_hash"]
+    print  "The hash created by server: ", hashlib.md5(string_to_hash).hexdigest()
+ 
+    return (user_info["config_hash"] ==
+        hashlib.md5(string_to_hash).hexdigest()) 
 
-def get_or_save_machine_config(user_info, ip_address):
+
+#-------------------------------------------------------------------------------
+
+def get_or_save_machine_config(user_info, ip_address, data_log_date):
     """
     Get or save if not already in db the machine config
         
@@ -151,8 +173,16 @@ def get_or_save_machine_config(user_info, ip_address):
                 ""
               }
     """
-    
-    # 1. Get or save Machine by hardware_id
+        
+    # 1. Validate machine config
+    config_hash = user_info['config_hash']
+     
+    #if not is_valid_machine_config_hash(user_info):
+    #    print "Different"
+        #raise ServerError("Invalid config hash %(name)s.",
+        #                      name=config_hash)
+   
+    # 2. Get or save Machine by hardware_id
     hardware_id = user_info.get('mac_address_hash','')   
     
     try:
@@ -162,22 +192,21 @@ def get_or_save_machine_config(user_info, ip_address):
         machine = Machine(hardware_id=hardware_id)
         machine.save()
     
-    # 2. Get or save Machine Config 
-    config_hash = user_info['config_hash']
-        
+    # 3. Get or save Machine Config 
     try:
         machine_config = MachineConfig.objects.get(machine = machine, 
                                                 config_hash__exact=config_hash)
     except MachineConfig.DoesNotExist:
         
         sys_memory = user_info.get('system_memory', "0")
-        product = user_info.get('application_name',"") + " " + user_info.get('license_category',"")
+        product = user_info.get('application_name',"") + " " + user_info.get(
+                                                         'license_category',"")
         
         # Create new machine config 
         machine_config = MachineConfig(config_hash = config_hash, 
              ip_address = ip_address,  
              machine = machine,                       
-             creation_date = datetime.datetime.now(),
+             creation_date = data_log_date,
              houdini_major_version = user_info.get('houdini_major_version',0),
              houdini_minor_version = user_info.get('houdini_minor_version',0),
              houdini_build_number = user_info.get('houdini_build_number',0),
@@ -196,19 +225,54 @@ def get_or_save_machine_config(user_info, ip_address):
     return machine_config
 
 #-------------------------------------------------------------------------------
+def is_new_log_or_existing(machine_config, log_id, data_log_date):
+    """
+    Verify if a log already exists and if not save it.
+    Returns true if the log is new, and false otherwise.
+    """
+    try:
+        log = LogId.objects.get(machine_config=machine_config, 
+                                log_id = log_id)
+        return False
+        
+    except LogId.DoesNotExist:
+        log = LogId(machine_config=machine_config, log_id = log_id, 
+                                logging_date = data_log_date )
+        log.save()
+        return True
+
+#-------------------------------------------------------------------------------
     
-def save_uptime(machine_config, num_seconds):
+def save_uptime(machine_config, num_seconds, data_log_date):
     """
     Create Uptime record and save it in DB.
     """
     uptime = Uptime(machine_config = machine_config,
-                    date = datetime.datetime.now(),
+                    date = data_log_date,
                     number_of_seconds = num_seconds)                    
     uptime.save()        
-    
+
 #-------------------------------------------------------------------------------
     
-def save_tools_usage(machine_config, counts_dict):
+def save_counts(machine_config, counts_dict, data_log_date):
+    """
+    Save the data that comes in "counts" 
+    """
+    
+    # Prefix for the houdini tools
+    tools_prefix = "tools/"
+    
+    for key, count in counts_dict.iteritems():
+        if key.startswith(tools_prefix):
+            save_tool_usage(machine_config, tools_prefix, key, count, 
+                            data_log_date)
+        else:
+            save_key_usage(machine_config, key, count, 
+                            data_log_date)    
+            
+#-------------------------------------------------------------------------------
+
+def save_tool_usage(machine_config, tools_prefix, key, count, data_log_date):
     """
     Create HoudiniToolUsage object and save it in DB.
     
@@ -223,40 +287,47 @@ def save_tools_usage(machine_config, counts_dict):
     
     is_asset = False
     is_custom = False
-                     
-    for key, count in counts_dict.iteritems():
-        
-        for mode, name in HoudiniToolUsage.TOOL_CREATION_MODES:
-            prefix = "tools/"+ name
-            if key.startswith(prefix):
+    
+    for mode, name in HoudiniToolUsage.TOOL_CREATION_MODES:
+        prefix = tools_prefix + name
+        if key.startswith(prefix):
+            # Find "|" to get tool creation mode
+            pipe_pos = key.index("|")
+            tool_creation_location = key[len(prefix)+1: pipe_pos]
+            tool_name = key[pipe_pos +1:]
                 
-                # Find "|" to get tool creation mode
-                pipe_pos = key.index("|")
-                tool_creation_location = key[len(prefix)+1: pipe_pos]
-                tool_name = key[pipe_pos +1:]
-                
-                # Verify if tool type is a custom_tool
-                if "(custom_tool)" in tool_name:
-                    tool_name = re.sub('[\(\)]', "", tool_name)
-                    is_custom = True
-                                    
-                # Verify if tool type is an Orbolt asset
-                elif "(orbolt)" in tool_name:
-                    tool_name = tool_name.replace("(orbolt)","")
-                    is_asset = True
+            # Verify if tool type is a custom_tool
+            if "(custom_tool)" in tool_name:
+                tool_name = re.sub('[\(\)]', "", tool_name)
+                is_custom = True
+            # Verify if tool type is an Orbolt asset
+            elif "(orbolt)" in tool_name:
+                tool_name = tool_name.replace("(orbolt)","")
+                is_asset = True
                                 
-                tools_usage = HoudiniToolUsage(machine_config = machine_config,
-                                date = datetime.datetime.now(), tool_name = tool_name,
-                                tool_creation_location = tool_creation_location,
-                                tool_creation_mode= mode, count = count,
-                                is_builtin = (not is_asset and not is_custom), 
-                                is_asset = is_asset)
-                tools_usage.save()
-                break          
+            tools_usage = HoudiniToolUsage(machine_config = machine_config,
+                          date = data_log_date, tool_name = tool_name,
+                          tool_creation_location = tool_creation_location,
+                          tool_creation_mode= mode, count = count,
+                          is_builtin = (not is_asset and not is_custom), 
+                          is_asset = is_asset)
+            tools_usage.save()
+            break          
 
-#-------------------------------------------------------------------------------    
+#------------------------------------------------------------------------------- 
+
+def save_key_usage(machine_config, key, count, data_log_date):
+    """
+    Create HoudiniUsageCount object and save it in DB.
+    """
+     
+    key_usage = HoudiniUsageCount(machine_config = machine_config,
+                                 date = data_log_date, key = key, count = count)
+    key_usage.save()
+        
+#------------------------------------------------------------------------------- 
       
-def save_crash(machine_config, crash_log):
+def save_crash(machine_config, crash_log, data_log_date):
     """
     Create a HoudiniCrash object and save it in DB..
     
@@ -267,7 +338,7 @@ def save_crash(machine_config, crash_log):
     """
     crash = HoudiniCrash(
         machine_config=machine_config,
-        date=datetime.datetime.now(),
+        date=data_log_date,
         stack_trace=crash_log['traceback'],
         type="crash",
     )

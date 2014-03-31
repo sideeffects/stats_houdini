@@ -8,8 +8,8 @@ from django.db import models
 
 class Migration(SchemaMigration):
 
-    def forwards(self, orm):
-	db = dbs['stats']
+    def forwards(self, orm):        
+        db = dbs['stats']
         db.dry_run = south.db.db.dry_run
 
         # Adding field 'HoudiniToolUsage.tool_creation_location'

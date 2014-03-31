@@ -45,6 +45,20 @@ class MachineConfigAdmin(admin.ModelAdmin):
 
 #-------------------------------------------------------------------------------
 
+@admin_site_register(LogId)
+class LogIdAdmin(admin.ModelAdmin):
+    """
+    Control how the admin site displays Log Ids.
+    """
+    list_filter = ("log_id", "machine_config", "logging_date")
+    list_display = list_filter 
+    list_display_links =list_filter
+    
+    list_per_page = 20
+    ordering = ["-logging_date"]
+
+#-------------------------------------------------------------------------------
+
 @admin_site_register(HoudiniCrash)
 class HoudiniCrashAdmin(admin.ModelAdmin):
     """
@@ -73,6 +87,19 @@ class HoudiniToolUsageAdmin(admin.ModelAdmin):
 
 #-------------------------------------------------------------------------------
 
+@admin_site_register(HoudiniUsageCount)
+class HoudiniUsageCountAdmin(admin.ModelAdmin):
+    """
+    Control how the admin site displays usage counts.
+    """
+    list_filter = ("key", "machine_config", "date", "count")
+    list_display = list_filter 
+    list_display_links =list_filter
+    
+    list_per_page = 20
+    ordering = ["-date"]
+
+#-------------------------------------------------------------------------------
 @admin_site_register(Uptime)
 class UptimeAdmin(admin.ModelAdmin):
     """
