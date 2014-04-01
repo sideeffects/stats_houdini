@@ -99,7 +99,8 @@ class API(object):
         machine_config = get_or_save_machine_config(user_info,
             get_ip_address(request), data_log_date)
         
-        is_new_log = True
+        # The logs without log id wont be saved
+        is_new_log = False
         if "log_id" in json_data.keys():
             # Save log id if it hasnt been saved in the db yet
             is_new_log = is_new_log_or_existing(machine_config, 
