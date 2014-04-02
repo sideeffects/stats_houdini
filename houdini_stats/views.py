@@ -10,7 +10,7 @@ from django.core.urlresolvers import reverse
 from django.contrib.auth import authenticate, login, logout
 from django.core.exceptions import PermissionDenied
 from static_data import top_menu_options
-from utils import get_events_in_range, get_common_vars_for_charts
+from utils import get_common_vars_for_charts
 from time_series import fill_missing_dates_with_zeros, merge_time_series
 from houdini_stats.models import *
 
@@ -302,14 +302,13 @@ def hou_reports_view(request, dropdown_option_key):
     show_date_picker = True
 
     # Events serie 
-    events_to_annotate = get_events_in_range(series_range)
-    events_to_annotate_filled = fill_missing_dates_with_zeros(
-                                           events_to_annotate, aggregation[:-2],
-                                                             series_range, True) 
+    events_to_annotate = reports.get_events_in_range(series_range, aggregation)
+    
     if not dropdown_option_key:
         dropdown_option_key = "downloads"
         
     if dropdown_option_key == "downloads":
+        
         all_downloads = reports.get_all_houdini_downloads(series_range, 
                                                                     aggregation)
         apprentice_downloads = reports.get_houdini_apprentice_downloads(
@@ -319,7 +318,7 @@ def hou_reports_view(request, dropdown_option_key):
         
         series["software_downloads"] = reports.get_merge_houdini_downloads(
                                 all_downloads, apprentice_downloads, 
-                                commercial_downloads, events_to_annotate_filled) 
+                                commercial_downloads, events_to_annotate) 
         
         series["percentages"] = reports.get_percentage_downloads(all_downloads,
                                      apprentice_downloads, commercial_downloads)
@@ -409,10 +408,8 @@ def hou_apprentice_view(request, dropdown_option_key):
     series_range, aggregation = get_common_vars_for_charts(request)
     
     # Events serie 
-    events_to_annotate = get_events_in_range(series_range)
-    events_to_annotate_filled = fill_missing_dates_with_zeros(
-                                           events_to_annotate, aggregation[:-2],
-                                                             series_range, True) 
+    events_to_annotate = reports.get_events_in_range(series_range, aggregation)
+
     if not dropdown_option_key:
         dropdown_option_key = "apprentice_activations"
 
@@ -424,7 +421,7 @@ def hou_apprentice_view(request, dropdown_option_key):
                                                                    aggregation)
         
         series['apprentice_lic_over_time'] = merge_time_series(
-            [apprentice_downloads, events_to_annotate_filled,
+            [apprentice_downloads, events_to_annotate,
              apprentice_activations])
         
         series['apprentice_act_percentages'] = reports.get_percentage_of_total(
@@ -435,7 +432,7 @@ def hou_apprentice_view(request, dropdown_option_key):
             series_range, aggregation)
         
         series['apprentice_hd_lic'] = merge_time_series(
-            [apprentice_hd_licenses, events_to_annotate_filled]) 
+            [apprentice_hd_licenses, events_to_annotate]) 
         series['apprentice_hd_lic_cumu'] = (
             reports.get_apprentice_hd_licenses_cumulative(
                 apprentice_hd_licenses, series_range[0]))
@@ -547,7 +544,8 @@ def hou_forum_view(request, dropdown_option_key):
     """
     series = {}
     series_range, aggregation = get_common_vars_for_charts(request)
-    events_to_annotate = get_events_in_range(series_range)
+    events_to_annotate = reports.get_events_in_range(series_range, aggregation,
+                                                     fill_empty_string = False)
 
     if not dropdown_option_key:
         dropdown_option_key = "login_registration"

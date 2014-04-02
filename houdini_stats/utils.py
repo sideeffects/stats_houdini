@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from houdini_stats.models import *
 from django.contrib.gis.geoip import GeoIP
-from settings import REPORTS_START_DATE, HOUDINI_REPORTS_START_DATE
+from settings import REPORTS_START_DATE, HOUDINI_REPORTS_START_DATE, _this_dir
 
 import json
 import re
@@ -350,7 +350,7 @@ def save_data_log_to_file(date, config_hash, json_data):
     Save the received data log to a text file
     """
     
-    with open("houdini_logs.txt", "a") as log_file:
+    with open(_this_dir + "/houdini_logs.txt", "a") as log_file:
         log_file.write("""\n Date: {0}, Config Hash: {1} \n {2}
             """.format(date, config_hash, str(json_data)))
         
@@ -385,19 +385,6 @@ def series_range(start_request, end_request):
     # By default, time_series will get the count
     return [start, end] 
     
-#-------------------------------------------------------------------------------
-def get_events_in_range(series_range):
-    """
-    Get all the events in the give time period. Return the results as a time
-    serie [date, event_name]
-    """
-    
-    events = Event.objects.filter(date__range=[series_range[0],
-                                  series_range[1]]).exclude(show=False)
-    
-    return  [[datetime.datetime.combine(event.date, datetime.time.min), 
-                                              event.title] for event in events]   
-
 #-------------------------------------------------------------------------------
 def _get_start_request(request, for_hou_rep = False):
     """

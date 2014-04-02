@@ -31,8 +31,27 @@ def _get_sum_values(tuples):
     return sum(counts for date, counts in tuples)
 
 #-------------------------------------------------------------------------------
+def get_events_in_range(series_range, aggregation, fill_empty_string = True):
+    """
+    Get all the events in the give time period. Return the results as a time
+    serie [date, event_name]
+    """
+    
+    string_query = """
+        select {% aggregated_date "date" aggregation %} AS mydate, 
+               title
+        from houdini_stats_event
+        where {% where_between "date" start_date end_date %}
+        group by mydate
+        order by mydate"""
+    
+    return get_sql_data_for_report(string_query,'stats', locals(),
+                                   fill_zeros = False, 
+                                   fill_empty_string = fill_empty_string)
+
+#-------------------------------------------------------------------------------
 def get_sql_data_for_report(string_query, db_name, context_vars, 
-                            fill_zeros = True):
+                            fill_zeros = True, fill_empty_string = False):
     """
     Generic function to get data for reports, doing sql queries using a cursor.
     
@@ -54,9 +73,14 @@ def get_sql_data_for_report(string_query, db_name, context_vars,
     
     series = [(row[0], row[1]) for row in cursor.fetchall()]
 
+    if not fill_zeros and fill_empty_string:
+        return time_series.fill_missing_dates_with_zeros(series,
+                                              context_vars['aggregation'][:-2], 
+                                              context_vars['series_range'],
+                                              True) 
     if not fill_zeros:
         return series
-    
+        
     return time_series.fill_missing_dates_with_zeros(series,
                                               context_vars['aggregation'][:-2], 
                                               context_vars['series_range'])  
