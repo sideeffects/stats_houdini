@@ -335,7 +335,7 @@ def hou_engine_maya_unity_breakdown(series_range, aggregation):
 def _get_common_for_apprentice_followup_survey():
             
     survey_id = 2
-    questions =  (survey_id, 8)
+    questions =  get_questions_from_survey(survey_id, 8)
     
     questions_answers = {}
     
