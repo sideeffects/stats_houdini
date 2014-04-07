@@ -39,7 +39,7 @@ def get_events_in_range(series_range, aggregation, fill_empty_string = True):
     
     string_query = """
         select {% aggregated_date "date" aggregation %} AS mydate, 
-               title
+               group_concat(title separator ', ') AS my_title
         from houdini_stats_event
         where {% where_between "date" start_date end_date %}
         group by mydate
