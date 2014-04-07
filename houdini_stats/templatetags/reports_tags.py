@@ -47,6 +47,10 @@ def aggregated_date(field_name, aggregation="daily"):
                    INTERVAL week({0}) WEEK ) )
                    DAY ) AS datetime ) """ . format(field_name)
     
+    elif aggregation== "yearly":
+        agg_date = """cast(concat(date_format({0}, '%%Y'), '-01-01') AS 
+                      datetime)""" . format(field_name)               
+    
     return agg_date
 
 #-------------------------------------------------------------------------------
