@@ -430,7 +430,7 @@ def get_active_users_by_method_per_day(series_range, aggregation, openid=False):
           select {% aggregated_date "registerDate" aggregation %} AS mydate, 
                  COUNT(u.id) AS user_count
           FROM mos_users u
-          LEFT JOIN oid_user_to_mos_user a ON a.mos_user_id = u.id
+          JOIN oid_user_to_mos_user a ON a.mos_user_id = u.id
           WHERE u.id != -1
           AND u.user_active =1
           AND {% where_between "registerDate" start_date end_date %}     
