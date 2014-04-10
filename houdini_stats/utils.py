@@ -209,7 +209,7 @@ def get_or_save_machine_config(user_info, ip_address, data_log_date):
              creation_date = data_log_date,
              houdini_major_version = user_info.get('houdini_major_version',0),
              houdini_minor_version = user_info.get('houdini_minor_version',0),
-             houdini_build_number = user_info.get('houdini_build_number',0),
+             houdini_build_number = user_info.get('houdini_build_version',0),
              product = user_info.get('application_name',"").title(),
              is_apprentice = user_info.get('license_category',"") == 'Apprentice',
              graphics_card = user_info.get('graphics_card',''),
