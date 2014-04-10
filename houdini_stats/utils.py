@@ -386,7 +386,7 @@ def series_range(start_request, end_request):
     return [start, end] 
     
 #-------------------------------------------------------------------------------
-def _get_start_request(request, for_hou_rep = False):
+def _get_start_request(request, aggregation, for_hou_rep = False):
     """
     Get start date from the request.
     """
@@ -402,8 +402,29 @@ def _get_start_request(request, for_hou_rep = False):
         # Date when we launched the Stats website
         start = REPORTS_START_DATE
             
-    return start
-
+    return _adjust_start_date(start, aggregation)
+    
+#------------------------------------------------------------------------------- 
+def _adjust_start_date(start_date, aggregation):
+    """
+    Adjust the start date depending on the aggregation
+    """            
+    print aggregation
+    
+    if aggregation == "weekly":
+        # Return the Monday of the starting date week    
+        return start_date - datetime.timedelta(days = start_date.weekday())
+    if aggregation == "monthly":
+       # Return the fist day of the starting date's month   
+       return datetime.datetime(start_date.year, start_date.month, 1) 
+    
+    if aggregation == "yearly":
+       # Return the first day of the first month of the current year    
+       return datetime.datetime(start_date.year, 1, 1)      
+    
+    # Daily aggregation        
+    return start_date
+        
 #------------------------------------------------------------------------------- 
 def _get_end_request(request):
     """
@@ -415,7 +436,8 @@ def _get_end_request(request):
         t = time.strptime(end_request, "%d/%m/%Y")
         end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
     else:
-        end = datetime.datetime.now()
+        # We get yesterday's date    
+        end = datetime.datetime.now() - datetime.timedelta(hours=24)
 
     return end
 
@@ -444,8 +466,11 @@ def get_common_vars_for_charts(request, for_hou_rep=False):
     """
     Get all variables that will be used for the reports.
     """
-    return [_get_start_request(request, for_hou_rep), _get_end_request(request)], \
-           _get_aggregation(request.GET)
+    
+    aggregation = _get_aggregation(request.GET)
+    
+    return [_get_start_request(request, aggregation, for_hou_rep), \
+            _get_end_request(request)], aggregation
 
 #-------------------------------------------------------------------------------
 def get_list_of_tuples_from_list(list):
