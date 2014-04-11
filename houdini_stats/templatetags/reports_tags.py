@@ -61,7 +61,7 @@ def where_between(field_name, start_date, end_date):
     """
     
     str = """ {0} between date_format('{1}', '%%Y-%%c-%%d %%H:%%i:%%S')
-                and date_format('{2}', '%%Y-%%c-%%d %%H:%%i:%%S')
+                and date_format('{2}', '%%Y-%%c-%%d 23:%%i:%%S')
            """ .format( field_name,
                         start_date.strftime("%Y-%m-%d %H:%M:%S"),
                         end_date.strftime("%Y-%m-%d %H:%M:%S"))

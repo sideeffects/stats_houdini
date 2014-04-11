@@ -222,7 +222,7 @@ def get_new_machines_over_time(series_range, aggregation):
     """    
     string_query = """
         select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
-               machines_count
+               count(machines_count)
         from(  
             select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'),
                                                                 '%%Y-%%m-%%d')) 
