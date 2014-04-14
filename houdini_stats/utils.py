@@ -436,7 +436,7 @@ def _get_end_request(request):
         end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
     else:
         # We get yesterday's date    
-        end = datetime.datetime.now() # - datetime.timedelta(hours=24)
+        end = datetime.datetime.now() - datetime.timedelta(hours=24)
 
     return end
 

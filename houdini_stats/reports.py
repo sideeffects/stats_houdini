@@ -71,6 +71,8 @@ def get_sql_data_for_report(string_query, db_name, context_vars,
     
     cursor.execute(tpl.render(Context(context_vars)))
     
+    #print tpl.render(Context(context_vars))
+    
     series = [(row[0], row[1]) for row in cursor.fetchall()]
 
     if not fill_zeros and fill_empty_string:
@@ -220,6 +222,13 @@ def get_new_machines_over_time(series_range, aggregation):
     """
     Get new machines over time.
     """    
+    
+    # Observation: When aggregating different dates the query don't take into 
+    # account that the machine configs might have been inserted to the DB in an 
+    # earlier period of time and counts machine configs that might have
+    # been inserted earlier, since the distinct operator just do the lookup
+    # in the given time range.  
+    
     string_query = """
         select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
                count(machines_count)
@@ -237,6 +246,58 @@ def get_new_machines_over_time(series_range, aggregation):
         order by mydate"""
         
     return get_sql_data_for_report(string_query,'stats', locals())
+    
+#-------------------------------------------------------------------------------
+        
+def get_num_of_machines_configs_sending_stats_per_day(series_range, 
+                                                      aggregation):
+    """
+    Get how many machine configs are sending stats each day.
+    """    
+    string_query = """
+        select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
+               count(config_hash_distinct)
+        from(  
+            select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'),
+                                                                '%%Y-%%m-%%d')) 
+                   as min_creation_date,
+                   count(distinct config_hash) as config_hash_distinct 
+            from houdini_stats_machineconfig
+            where {% where_between "creation_date" start_date end_date %}
+            group by config_hash
+            order by min_creation_date)
+        as TempTable
+        group by mydate
+        order by mydate"""
+        
+    return get_sql_data_for_report(string_query,'stats', locals())
+
+#-------------------------------------------------------------------------------
+        
+def get_avg_num_of_individual_successful_conn_per_day(series_range, 
+                                                      aggregation):
+    """
+    Get Average number of individual successful connections per day.
+    """    
+    #TO IMPROVE (YB): Take into account the connections that resulted into crashes.
+    # which means take the crashes table into account too, to compute the
+    # results for the average (Maybe doing a merge using Panda?). 
+    
+    string_query = """
+         select {% aggregated_date "day" aggregation %} AS mydate, 
+                avg(total_records)
+         from (
+             select machine_config_id,
+             str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
+             count(machine_config_id) as total_records
+             from houdini_stats_uptime
+             where {% where_between "date" start_date end_date %}
+             group by machine_config_id, day
+         ) as TempTable
+         group by mydate
+         order by mydate"""
+    
+    return get_sql_data_for_report(string_query,'stats', locals())        
         
 #===============================================================================
 # Surveys Database reports

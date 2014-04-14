@@ -330,9 +330,15 @@ def hou_reports_view(request, dropdown_option_key):
         series_range, aggregation = get_common_vars_for_charts(request,
                                                                            True)
     if dropdown_option_key == "usage":
-        series['machines_over_time'] = reports.get_new_machines_over_time(
+        series['new_machines_over_time'] = reports.get_new_machines_over_time(
             series_range, aggregation)
-        
+        series['machine_configs_sending_stats_per_day'] = \
+            reports.get_num_of_machines_configs_sending_stats_per_day(
+                series_range, aggregation)
+        series['avg_of_individual_successful_conn_per_day'] = \
+            reports.get_avg_num_of_individual_successful_conn_per_day(
+                series_range, aggregation)
+            
     if dropdown_option_key == "uptime":
         series['hou_average_session_length'] = (
             reports.average_session_length(series_range, aggregation))
