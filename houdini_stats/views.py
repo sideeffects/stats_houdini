@@ -332,8 +332,8 @@ def hou_reports_view(request, dropdown_option_key):
     if dropdown_option_key == "usage":
         series['new_machines_over_time'] = reports.get_new_machines_over_time(
             series_range, aggregation)
-        series['machine_configs_sending_stats_per_day'] = \
-            reports.get_num_of_machines_configs_sending_stats_per_day(
+        series['machines_sending_stats_per_day'] = \
+            reports.get_num_of_machines_sending_stats_per_day(
                 series_range, aggregation)
         series['avg_of_individual_successful_conn_per_day'] = \
             reports.get_avg_num_of_individual_successful_conn_per_day(

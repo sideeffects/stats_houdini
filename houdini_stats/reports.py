@@ -249,27 +249,25 @@ def get_new_machines_over_time(series_range, aggregation):
     
 #-------------------------------------------------------------------------------
         
-def get_num_of_machines_configs_sending_stats_per_day(series_range, 
+def get_num_of_machines_sending_stats_per_day(series_range, 
                                                       aggregation):
     """
-    Get how many machine configs are sending stats each day.
-    """    
+    Get how many machines are sending stats each day.
+    """
+
     string_query = """
-        select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
-               count(config_hash_distinct)
-        from(  
-            select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'),
-                                                                '%%Y-%%m-%%d')) 
-                   as min_creation_date,
-                   count(distinct config_hash) as config_hash_distinct 
-            from houdini_stats_machineconfig
-            where {% where_between "creation_date" start_date end_date %}
-            group by config_hash
-            order by min_creation_date)
-        as TempTable
-        group by mydate
-        order by mydate"""
-        
+            select mydate, count( distinct machine )
+            from (
+            select {% aggregated_date "u.date" aggregation %} AS mydate, 
+                   mc.machine_id AS machine
+            from houdini_stats_uptime u, houdini_stats_machineconfig mc
+            where mc.id = u.machine_config_id
+            and {% where_between "u.date" start_date end_date %}
+            ORDER BY u.date
+            ) as tempTable
+            GROUP BY mydate
+            ORDER BY mydate  
+            """
     return get_sql_data_for_report(string_query,'stats', locals())
 
 #-------------------------------------------------------------------------------
