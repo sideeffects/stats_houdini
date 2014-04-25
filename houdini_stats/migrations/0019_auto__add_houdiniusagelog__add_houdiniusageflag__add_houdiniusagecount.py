@@ -42,6 +42,8 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run    
         # Deleting model 'HoudiniUsageLog'
         db.delete_table(u'houdini_stats_houdiniusagelog')
 

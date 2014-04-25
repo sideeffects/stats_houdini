@@ -22,6 +22,8 @@ class Migration(SchemaMigration):
         db.alter_column(u'houdini_stats_machineconfig', 'config_hash', self.gf('django.db.models.fields.CharField')(max_length=80))
 
     def backwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run    
 
         # Changing field 'Machine.hardware_id'
         db.alter_column(u'houdini_stats_machine', 'hardware_id', self.gf('django.db.models.fields.CharField')(max_length=40))
