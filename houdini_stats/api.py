@@ -86,38 +86,40 @@ class API(object):
         Save user stats
         """
         
-        # Get json content. Contains start_time and end_time and counts for the 
-        # Houdini tools usage
-        json_data = json.loads(stats['json_content'])
+        # Get stats log version
+        stat_log_version = json.loads(stats['stat_log_version'])
         
-        # Get total seconds
-        data_log_date =  datetime.datetime.fromtimestamp(json_data["start_time"])
-        
-        total_sec = json_data["end_time"] - json_data["start_time"]
-        
-        # Get or save machine config
-        machine_config = get_or_save_machine_config(user_info,
-            get_ip_address(request), data_log_date)
-        
-        # The logs without log id wont be saved
-        is_new_log = False
-        if "log_id" in json_data.keys():
-            # Save log id if it hasnt been saved in the db yet
-            is_new_log = is_new_log_or_existing(machine_config, 
-                                    json_data["log_id"], data_log_date)
-        
-        # Just save the stats data if  the log id was new
-        if is_new_log:
-            # Save uptime
-            save_uptime(machine_config, total_sec, data_log_date)
-            # Save counts 
-            save_counts(machine_config, json_data["counts"], data_log_date)
-        
-            # Save
-            save_data_log_to_file(data_log_date, user_info['config_hash'],
-                                  json_data)
-            # TODO(YB): Implement save flags and save logs  
-        
+        # We will just save the logs which version is 2 or higher
+        if stat_log_version >=2:
+            # Get json content. Contains start_time and end_time and counts for the 
+            # Houdini tools usage
+            json_data = json.loads(stats['json_content'])
+                
+            # Get total seconds
+            data_log_date =  datetime.datetime.fromtimestamp(json_data["start_time"])
+            total_sec = json_data["end_time"] - json_data["start_time"]
+                
+            # Get or save machine config
+            machine_config = get_or_save_machine_config(user_info,
+                get_ip_address(request), data_log_date)
+                
+            # The logs without log id wont be saved
+            is_new_log = False
+            if "log_id" in json_data.keys():                        
+                # Save log id if it hasnt been saved in the db yet
+                is_new_log = is_new_log_or_existing(machine_config, 
+                                                    json_data["log_id"], data_log_date)
+                # Just save the stats data if  the log id was new
+                if is_new_log:
+                    # Save uptime
+                    save_uptime(machine_config, total_sec, data_log_date)
+                    # Save counts 
+                    save_counts(machine_config, json_data["counts"], data_log_date)
+                       
+                    # Put everything inside json
+                    save_data_log_to_file(data_log_date, user_info['config_hash'],
+                                          json_data)
+                    # TODO(YB): Implement save flags and save logs  
         return json_http_response(True)
 
     @login_not_required
