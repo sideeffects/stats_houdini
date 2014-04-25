@@ -130,7 +130,7 @@ def get_lat_and_long(ip):
     """
     g = GeoIP(cache=GeoIP.GEOIP_MEMORY_CACHE)
     
-    return  g.lat_lon(ip)#lat, long 
+    return  g.lat_lon(str(ip))#lat, long 
 
 #-------------------------------------------------------------------------------
 def is_valid_machine_config_hash(user_info):
