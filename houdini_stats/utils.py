@@ -362,8 +362,16 @@ def get_ip_address(request):
     """
     return request.META.get("REMOTE_ADDR", "0.0.0.0")
  
- 
-#-------------------------------------------------------------------------------   
+#-------------------------------------------------------------------------------
+def _validate_date_format(date):
+        
+    try:
+        datetime.strptime(date, '%d/%m/%Y')
+        return True
+    except:
+        raise ServerError("Invalid date format.")
+        
+#-------------------------------------------------------------------------------
 def series_range(start_request, end_request):
     """
     Series range parameter to pass for the reports
