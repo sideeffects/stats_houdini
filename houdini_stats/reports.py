@@ -741,18 +741,18 @@ def get_apprentice_activations_by_geo(series_range, aggregation):
     Get Apprentice HD Licenses by Geography. Ip address.
     Heatmap report.
     """
-    string_query = """
-         select {% aggregated_date "LogDate" aggregation %} AS mydate, 
-                IPAddress
-         from NCHistory
-         where {% where_between "LogDate" start_date end_date %} and
-               IPAddress IS NOT NULL
-         group by mydate  
-         order by mydate  
-        """
-         
-    dates_ips = get_sql_data_for_report(string_query,'licensedb', locals())   
 
+    string_query = """
+        select cast(cast(LogDate AS date) AS datetime) AS mydate, IPAddress
+        from NCHistory, Keystrings, Servers
+        where NCHistory.KSID=Keystrings.KSID
+            and Keystrings.ServerID=Servers.ServerID
+            and {% where_between "LogDate" start_date end_date %} 
+        group by Servers.ServerID
+        """
+
+    dates_ips = get_sql_data_for_report(string_query,'licensedb', locals())  
+    
     lat_longs =  []
     for dates_ip in dates_ips:
         lat_long = utils.get_lat_and_long(dates_ip[1])
