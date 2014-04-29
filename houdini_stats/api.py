@@ -44,7 +44,7 @@ class API(object):
         """
         try:
             return self._dispatch_without_catching_api_errors(request)
-        except ApiError as e:
+        except StatsError as e:
             return text_http_response(
                 (traceback.format_exc() if settings.DEBUG else str(e)))#,
                 #status=e.status_code)

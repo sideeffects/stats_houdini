@@ -22,9 +22,9 @@ def text_http_response(content, status=200):
 
 #-------------------------------------------------------------------------------
 
-class ApiError(Exception):
+class StatsError(Exception):
     """
-    Parent class for all api exceptions.  Requires an HTTP status
+    Parent class for all stats exceptions.  Requires an HTTP status
     code, an error message template, and optionally some formatting
     arguments for that template.
     """
@@ -33,13 +33,20 @@ class ApiError(Exception):
         self.status_code = status_code
         
 #-------------------------------------------------------------------------------
-
-class ServerError(ApiError):
+class ServerError(StatsError):
     """
     Internal error.
     """
     def __init__(self, msg_template, **kwargs):
-        ApiError.__init__(self, 500, msg_template, **kwargs)       
+        StatsError.__init__(self, 500, msg_template, **kwargs)       
+
+#-------------------------------------------------------------------------------
+class UnauthorizedError(StatsError):
+    """
+    Access control (as opposed to permission).
+    """
+    def __init__(self, msg_template, **kwargs):
+        StatsError.__init__(self, 401, msg_template, **kwargs)
 
 #----------------------------------------------------------------------------
 
