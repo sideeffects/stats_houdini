@@ -10,9 +10,9 @@ from django.core.urlresolvers import reverse
 from django.contrib.auth import authenticate, login, logout
 from django.core.exceptions import PermissionDenied
 from static_data import top_menu_options
-from utils import get_common_vars_for_charts
 from time_series import fill_missing_dates_with_zeros, merge_time_series
 from houdini_stats.models import *
+from utils import *
 
 import datetime
 import urllib
@@ -134,7 +134,11 @@ def _get_active_menu_option_info(selected_menu, selected_option_key):
     selected_top_menu_info = top_menu_options[selected_menu]
     menu_options = selected_top_menu_info['menu_options']
 
-    next_prev_options = _get_top_menu_options_next_prevs()[selected_option_key]
+    
+    if not selected_option_key in _get_top_menu_options_next_prevs():
+            raise Http404
+    
+    next_prev_options = _get_top_menu_options_next_prevs()[selected_option_key]  
 
     prev_option_key = next_prev_options['prev']
     prev_option_name = ("" if prev_option_key == ""
