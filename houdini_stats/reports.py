@@ -69,7 +69,7 @@ def get_sql_data_for_report(string_query, db_name, context_vars,
          
     tpl = Template(tpl_header + string_query)
     
-    cursor.execute(tpl.render(Context(context_vars)))
+    cursor.execute(tpl.render(Context(context_vars)), [])
     
     #print tpl.render(Context(context_vars))
     
@@ -748,7 +748,7 @@ def get_apprentice_activations_by_geo(series_range, aggregation):
         where NCHistory.KSID=Keystrings.KSID
             and Keystrings.ServerID=Servers.ServerID
             and {% where_between "LogDate" start_date end_date %} 
-        group by Servers.ServerID
+        group by Servers.ServerID, mydate
         """
 
     dates_ips = get_sql_data_for_report(string_query,'licensedb', locals())  
