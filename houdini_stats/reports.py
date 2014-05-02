@@ -642,7 +642,7 @@ def openid_providers_breakdown(series_range, aggregation):
 #===============================================================================
 # Houdini Licenses and downloads related reports
 
-def apprentice_activations_over_time(series_range, aggregation):
+def apprentice_new_activations_over_time(series_range, aggregation):
     """
     Get Apprentice Activations over time. Line Chart.
     """
@@ -667,7 +667,34 @@ def apprentice_activations_over_time(series_range, aggregation):
        """
         
     return get_sql_data_for_report(string_query,'licensedb', locals())    
+
+#-------------------------------------------------------------------------------
+
+def apprentice_total_activations_over_time(series_range, aggregation):
+    """
+    Get Apprentice Activations over time. Line Chart.
+    """
     
+    nc_custid = 2711
+    
+    string_query = """
+        select {% aggregated_date "activation_date" aggregation %} AS mydate, 
+               count(*) as num_activated
+        from (
+            select cast(cast(CreateDate as date) as datetime) as 
+                       activation_date 
+                from Servers, Keystrings
+                where Servers.CustID='{{ nc_custid }}'
+                and Servers.ServerID=Keystrings.ServerID
+                and Keystrings.KType='LICENSE'
+                group by Servers.ServerID, activation_date 
+        ) as TempTable
+        where {% where_between "activation_date" start_date end_date %}
+        group by mydate  
+        order by mydate  
+       """
+        
+    return get_sql_data_for_report(string_query,'licensedb', locals())     
 #-------------------------------------------------------------------------------
 
 def get_apprentice_hd_licenses_over_time(series_range, aggregation):
@@ -743,11 +770,11 @@ def get_apprentice_activations_by_geo(series_range, aggregation):
     """
 
     string_query = """
-        select cast(cast(LogDate AS date) AS datetime) AS mydate, IPAddress
+        select cast(cast(Keystrings.CreateDate AS date) AS datetime) AS mydate, IPAddress
         from NCHistory, Keystrings, Servers
         where NCHistory.KSID=Keystrings.KSID
             and Keystrings.ServerID=Servers.ServerID
-            and {% where_between "LogDate" start_date end_date %} 
+            and {% where_between "Keystrings.CreateDate" start_date end_date %} 
         group by Servers.ServerID, mydate
         """
 

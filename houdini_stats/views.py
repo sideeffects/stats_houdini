@@ -284,6 +284,7 @@ def index_view(request):
             {
                 'url': reverse("index"),
                 'show_date_picker': False,
+		'show_agg_widget' : False
             }),
         request)
 
@@ -304,6 +305,7 @@ def hou_reports_view(request, dropdown_option_key):
     pies = {}
     url_to_reverse = {}
     show_date_picker = True
+    show_agg_widget = True
 
     # Events serie 
     events_to_annotate = reports.get_events_in_range(series_range, aggregation)
@@ -355,6 +357,7 @@ def hou_reports_view(request, dropdown_option_key):
     
     if dropdown_option_key == "tools_usage":
         show_date_picker = True
+        show_agg_widget = False
         series['hou_most_popular_tools'] = (
             reports.most_popular_tools(series_range, aggregation))
         series['hou_most_popular_tools_shelf'] = (
@@ -366,6 +369,7 @@ def hou_reports_view(request, dropdown_option_key):
         
     if dropdown_option_key == "versions_and_builds":
         show_date_picker = False
+        show_agg_widget = False
 
         # Pie Charts
         pies['houdini_versions'] = reports.usage_by_hou_version_or_build()
@@ -399,6 +403,7 @@ def hou_reports_view(request, dropdown_option_key):
                 kwargs={"dropdown_option_key": dropdown_option_key}),
             'dropdown_option_key': dropdown_option_key,
             'show_date_picker': show_date_picker,
+            'show_agg_widget': show_agg_widget,
             'active_houdini': True,
             'active_menu': top_menu_options['houdini']['menu_name'],
             'active_menu_option_info':
@@ -417,6 +422,8 @@ def hou_apprentice_view(request, dropdown_option_key):
     series = {}
     series_range, aggregation = get_common_vars_for_charts(request)
     
+    show_agg_widget = True
+    
     # Events serie 
     events_to_annotate = reports.get_events_in_range(series_range, aggregation)
 
@@ -424,7 +431,10 @@ def hou_apprentice_view(request, dropdown_option_key):
         dropdown_option_key = "apprentice_activations"
 
     if dropdown_option_key == "apprentice_activations":
-        apprentice_activations = reports.apprentice_activations_over_time(
+        apprentice_activations_total = reports.apprentice_total_activations_over_time(
+                                                      series_range, aggregation)
+        
+        apprentice_activations_new = reports.apprentice_new_activations_over_time(
                                                       series_range, aggregation)
         
         apprentice_downloads = reports.get_houdini_apprentice_downloads(series_range, 
@@ -432,10 +442,10 @@ def hou_apprentice_view(request, dropdown_option_key):
         
         series['apprentice_lic_over_time'] = merge_time_series(
             [apprentice_downloads, events_to_annotate,
-             apprentice_activations])
+             apprentice_activations_new, apprentice_activations_total])
         
         series['apprentice_act_percentages'] = reports.get_percentage_of_total(
-            apprentice_downloads, apprentice_activations)
+            apprentice_downloads, apprentice_activations_new)
 
     if dropdown_option_key == "apprentice_hd":
         apprentice_hd_licenses = reports.get_apprentice_hd_licenses_over_time(
@@ -447,6 +457,9 @@ def hou_apprentice_view(request, dropdown_option_key):
             reports.get_apprentice_hd_licenses_cumulative(
                 apprentice_hd_licenses, series_range[0]))
     
+    if dropdown_option_key == "apprentice_heatmap":
+        show_agg_widget = False
+            
     return render_response(
         "apprentice_reports.html",
         _add_common_context_params(
@@ -461,6 +474,7 @@ def hou_apprentice_view(request, dropdown_option_key):
                     "hou_apprentice",
                     kwargs={"dropdown_option_key": dropdown_option_key}),
                 'show_date_picker': True,
+                'show_agg_widget': show_agg_widget,
                 'active_menu': top_menu_options['apprentice']['menu_name'],
                 'active_menu_option_info': _get_active_menu_option_info(
                 'apprentice', dropdown_option_key),
@@ -481,7 +495,6 @@ def hou_surveys_view(request, dropdown_option_key):
     if not dropdown_option_key:
         dropdown_option_key = "sidefx_labs"
 
-    show_date_picker = True
     series_range, aggregation = get_common_vars_for_charts(request)
     count_total =0
 
@@ -500,7 +513,7 @@ def hou_surveys_view(request, dropdown_option_key):
         user_counts = reports.apprentice_replied_survey_counts(
             series_range, aggregation)
 
-        apprentice_activations = reports.apprentice_activations_over_time(
+        apprentice_activations = reports.apprentice_total_activations_over_time(
             series_range, aggregation)
         series['survey_counts_percentages'] = reports.get_percentage_of_total(
             apprentice_activations, user_counts)
@@ -536,7 +549,8 @@ def hou_surveys_view(request, dropdown_option_key):
                     kwargs={"dropdown_option_key": dropdown_option_key}),
                 'count_total': count_total,
                 'dropdown_option_key': dropdown_option_key,
-                'show_date_picker': show_date_picker,
+                'show_date_picker': True,
+                'show_agg_widget': True,
                 'active_menu': top_menu_options['surveys']['menu_name'],
                 'active_menu_option_info': _get_active_menu_option_info(
                     'surveys', dropdown_option_key),
@@ -587,6 +601,7 @@ def hou_forum_view(request, dropdown_option_key):
                     "hou_forum",
                     kwargs={"dropdown_option_key": dropdown_option_key}),
                 'show_date_picker': True,
+                'show_agg_widget': True,
                 'active_menu': top_menu_options['sidefx.com']['menu_name'],
                 'active_menu_option_info': _get_active_menu_option_info(
                     'sidefx.com', dropdown_option_key),
