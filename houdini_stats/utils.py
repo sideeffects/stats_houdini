@@ -2,6 +2,7 @@ from django.http import HttpResponse
 from houdini_stats.models import *
 from django.contrib.gis.geoip import GeoIP
 from settings import REPORTS_START_DATE, HOUDINI_REPORTS_START_DATE, _this_dir
+from dateutil.relativedelta import relativedelta
 
 import json
 import re
@@ -399,6 +400,28 @@ def series_range(start_request, end_request):
 
     # By default, time_series will get the count
     return [start, end] 
+
+#-------------------------------------------------------------------------------
+def _reset_time_for_date(date):
+    """
+    Set time on a datetime to 00:00:00
+    """
+    return date.replace(hour=0, minute=0, second=0, microsecond=0 )      
+    
+#-------------------------------------------------------------------------------
+def _get_yesterdays_date():
+    """
+    Get yesterday's date    
+    """  
+    return datetime.datetime.now() - datetime.timedelta(hours=24)  
+
+#-------------------------------------------------------------------------------
+def _get_months_ago_date(months = 3):
+    """
+    Get n-months ago date. Starting from yesterday's date. 
+    """
+    return _reset_time_for_date(_get_yesterdays_date() + relativedelta(
+                                                             months = -months))  
     
 #-------------------------------------------------------------------------------
 def _get_start_request(request, aggregation, for_hou_rep = False):
@@ -414,9 +437,10 @@ def _get_start_request(request, aggregation, for_hou_rep = False):
         # Date when we started collecting good data for houdini reports
         start = HOUDINI_REPORTS_START_DATE
     else:
-        # Date when we launched the Stats website
-        start = REPORTS_START_DATE
-            
+        # The start date will be three months from yesterday's date
+        start = _get_months_ago_date()
+        
+    
     return _adjust_start_date(start, aggregation)
     
 #------------------------------------------------------------------------------- 
@@ -451,7 +475,7 @@ def _get_end_request(request):
         end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
     else:
         # We get yesterday's date    
-        end = datetime.datetime.now() - datetime.timedelta(hours=24)
+        end = _reset_time_for_date(_get_yesterdays_date())
 
     return end
 
