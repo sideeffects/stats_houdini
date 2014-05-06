@@ -863,18 +863,25 @@ def get_percentage_of_total(total_serie, fraction_serie):
     """      
     return time_series.compute_time_series(
         [fraction_serie, total_serie], utils.get_percent)  
+
+#-------------------------------------------------------------------------------
+def get_difference_between_series(series1, series2):
+    """
+    Get the difference between the numbers in two time series. Column Chart.
+    """      
+    return time_series.compute_time_series(
+        [series1, series2], utils.get_difference)  
     
 #-------------------------------------------------------------------------------    
-def get_percentage_downloads(all_downloads, apprentice_downloads,
-                              commercial_downloads):
+def get_percentage_two_series_one_total(series_total, series1, series2):
     
-    apprentice_percentages = get_percentage_of_total(all_downloads, 
-                                                      apprentice_downloads)
-    commercial_percentages = get_percentage_of_total(all_downloads, 
-                                                      commercial_downloads)
+    series1_percentages = get_percentage_of_total(series_total, 
+                                                      series1)
+    series2_percentages = get_percentage_of_total(series_total, 
+                                                      series2)
     
-    return time_series.merge_time_series([commercial_percentages, 
-                                          apprentice_percentages])
+    return time_series.merge_time_series([series1_percentages, 
+                                          series2_percentages])
 
    
     

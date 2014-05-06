@@ -132,6 +132,15 @@ def get_percent(part, whole):
 
 #-------------------------------------------------------------------------------
 
+def get_difference(num1, num2):
+    """
+    Get difference between number one and number two.
+    """
+    
+    return num1-num2
+
+#-------------------------------------------------------------------------------
+
 def get_lat_and_long(ip):
     """
     Get the values of the latitude and long by ip address

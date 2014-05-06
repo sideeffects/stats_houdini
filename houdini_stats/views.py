@@ -326,8 +326,8 @@ def hou_reports_view(request, dropdown_option_key):
                                 all_downloads, apprentice_downloads, 
                                 commercial_downloads, events_to_annotate) 
         
-        series["percentages"] = reports.get_percentage_downloads(all_downloads,
-                                     apprentice_downloads, commercial_downloads)
+        series["percentages"] = reports.get_percentage_two_series_one_total(
+                      all_downloads, apprentice_downloads, commercial_downloads)
        
     if not dropdown_option_key == "downloads":
         # We started collecting meaningful data from Houdini at a different date
@@ -431,22 +431,39 @@ def hou_apprentice_view(request, dropdown_option_key):
         dropdown_option_key = "apprentice_activations"
 
     if dropdown_option_key == "apprentice_activations":
-        apprentice_activations_total = reports.apprentice_total_activations_over_time(
-                                                      series_range, aggregation)
-        
-        apprentice_activations_new = reports.apprentice_new_activations_over_time(
-                                                      series_range, aggregation)
         
         apprentice_downloads = reports.get_houdini_apprentice_downloads(series_range, 
                                                                    aggregation)
         
-        series['apprentice_lic_over_time'] = merge_time_series(
-            [apprentice_downloads, events_to_annotate,
-             apprentice_activations_new, apprentice_activations_total])
+        apprentice_activations_new = reports.apprentice_new_activations_over_time(
+                                                      series_range, aggregation)
         
-        series['apprentice_act_percentages'] = reports.get_percentage_of_total(
+        apprentice_activations_total = reports.apprentice_total_activations_over_time(
+                                                      series_range, aggregation)
+        
+        # Difference between apprentice activations total and the new
+        # new activations
+        apprentice_reactivations = reports.get_difference_between_series(
+                                                   apprentice_activations_total, 
+                                                   apprentice_activations_new)
+        
+        series['apprentice_lic_over_time'] = merge_time_series(
+                                                [apprentice_activations_total, 
+                                                 events_to_annotate,
+                                                 apprentice_activations_new,
+                                                 apprentice_reactivations,
+                                                 apprentice_downloads,
+                                                  ])
+        
+        series['apprentice_percentages_new_from_downloads'] = reports.get_percentage_of_total(
             apprentice_downloads, apprentice_activations_new)
-
+        
+        
+        series["apprentice_act_percentages"] = reports.get_percentage_two_series_one_total(
+                                                   apprentice_activations_total,
+                                                   apprentice_activations_new, 
+                                                   apprentice_reactivations)
+    
     if dropdown_option_key == "apprentice_hd":
         apprentice_hd_licenses = reports.get_apprentice_hd_licenses_over_time(
             series_range, aggregation)
