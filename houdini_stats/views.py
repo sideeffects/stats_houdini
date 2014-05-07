@@ -1,4 +1,4 @@
-from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django.http import HttpResponse, HttpResponseRedirect, Http404, HttpResponseServerError 
 from django.shortcuts import redirect, render_to_response
 from django.template import RequestContext
 from django.views.decorators.http import (
@@ -13,12 +13,15 @@ from static_data import top_menu_options
 from time_series import fill_missing_dates_with_zeros, merge_time_series
 from houdini_stats.models import *
 from utils import *
+from django.template.loader import get_template
+from django.template import Context, Template
 
 import datetime
 import urllib
 import functools
 import settings
 import reports
+import sys
 
 #===============================================================================
 
@@ -647,3 +650,16 @@ def hou_heatmap_view(request, option):
             "lat_longs": lat_longs,
         },
         request)    
+    
+#-------------------------------------------------------------------------------
+@require_http_methods(["GET", "POST"])
+@login_required
+def custom_500(request):
+    t = get_template('500.html')
+    type, value, tb = sys.exc_info()
+    
+    return HttpResponseServerError(t.render(Context({
+    'exception_value': value,
+})))    
+    
+    

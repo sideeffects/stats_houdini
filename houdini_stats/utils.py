@@ -16,7 +16,7 @@ def text_http_response(content, status=200):
     """
     Translate a response into HTML text.
     """
-    # FIXME (LM): Why doesn't Django set the Content-Length header?
+    # FIXME: Why doesn't Django set the Content-Length header?
     response = HttpResponse(content, status=status)
     response["Content-Length"] = str(len(response.content))
     return response
@@ -93,14 +93,6 @@ def parse_byte_size_string(string):
     return int(num * prefix[suffix])
 
 #-------------------------------------------------------------------------------
-
-def str_to_datetime(str_date):
-    """
-    Converts a string into a datetime object
-    """ 
-    return datetime.strptime(str_date.strip(), "%a %b  %d %H:%M:%S %Y")
-
-#-------------------------------------------------------------------------------
     
 def date_range_to_seconds(datetime1, datetime2):
     """
@@ -135,8 +127,7 @@ def get_percent(part, whole):
 def get_difference(num1, num2):
     """
     Get difference between number one and number two.
-    """
-    
+    """    
     return num1-num2
 
 #-------------------------------------------------------------------------------
@@ -380,36 +371,20 @@ def get_ip_address(request):
     return request.META.get("REMOTE_ADDR", "0.0.0.0")
  
 #-------------------------------------------------------------------------------
-def _validate_date_format(date):
-        
+def _get_valid_date_or_error(str_date):
+    """
+    Convert a string date to a valid datetime object or return error message.
+    """
+    
     try:
-        datetime.strptime(date, '%d/%m/%Y')
-        return True
+        return time.strptime(str_date, '%d/%m/%Y')
     except:
-        raise ServerError("Invalid date format.")
+        raise ServerError("""INVALID DATE: %(date)s. 
+                          The date format must be 'dd/mm/yyyy'. 
+                          You can fix the dates in the url and try again. 
+                          """,
+                          date=str_date)
         
-#-------------------------------------------------------------------------------
-def series_range(start_request, end_request):
-    """
-    Series range parameter to pass for the reports
-    """
-    # Get the time interval for the graphs
-    if start_request is not None:
-        t = time.strptime(start_request, "%d/%m/%Y")
-        start = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
-    else:
-        # We launched the site in August
-        start = settings.STARTING_DATE
-
-    if end_request is not None:
-        t = time.strptime(end_request, "%d/%m/%Y")
-        end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
-    else:
-        end = datetime.datetime.now()
-
-    # By default, time_series will get the count
-    return [start, end] 
-
 #-------------------------------------------------------------------------------
 def _reset_time_for_date(date):
     """
@@ -431,7 +406,7 @@ def _get_months_ago_date(months = 3):
     """
     return _reset_time_for_date(_get_yesterdays_date() + relativedelta(
                                                              months = -months))  
-    
+
 #-------------------------------------------------------------------------------
 def _get_start_request(request, aggregation, for_hou_rep = False):
     """
@@ -440,8 +415,9 @@ def _get_start_request(request, aggregation, for_hou_rep = False):
     start_request = request.GET.get("start", None)
     
     if start_request is not None:
-        t = time.strptime(start_request, "%d/%m/%Y")
+        t = _get_valid_date_or_error(start_request)
         start = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
+        
     elif for_hou_rep:
         # Date when we started collecting good data for houdini reports
         start = HOUDINI_REPORTS_START_DATE
@@ -480,7 +456,7 @@ def _get_end_request(request):
     end_request = request.GET.get("end", None)
     
     if end_request is not None:
-        t = time.strptime(end_request, "%d/%m/%Y")
+        t = _get_valid_date_or_error(end_request)
         end = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
     else:
         # We get yesterday's date    
@@ -502,7 +478,12 @@ def _get_aggregation(get_vars):
     aggregation = get_vars["ag"].lower()
     
     if aggregation not in valid_agg and aggregation !="inherit":
-        raise NotFoundError("Not valid aggregation")
+        raise ServerError("""INVALID AGGREGATION: %(agg)s. 
+                           The valid aggregations are:   
+                           'daily', 'weekly', 'monthly' or 'yearly'. 
+                           You can fix the aggregation in the url and try again. 
+                           """,
+                           agg=aggregation)
     elif aggregation=="inherit":
         return "daily"  
     
