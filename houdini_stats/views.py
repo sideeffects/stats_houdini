@@ -353,11 +353,21 @@ def hou_reports_view(request, dropdown_option_key):
             reports.average_session_length(series_range, aggregation))
         series['hou_average_usage_by_machine'] = (
             reports.average_usage_by_machine(series_range, aggregation))
+    
     if dropdown_option_key == "crashes":
         series['hou_crashes_over_time'] = (
             reports.get_orm_data_for_report(HoudiniCrash.objects.all(), 'date', 
                                             series_range, aggregation))
-    
+        
+        series['hou_avg_crashes_by_same_machine']=\
+                        reports.get_avg_num_of_crashes_by_same_machine_per_day(
+                                                      series_range, aggregation)
+        pies['hou_crashes_by_os'], pies['hou_crashes_by_os_detailed']=\
+                      reports.get_hou_crashes_by_os(series_range, aggregation)
+                      
+        pies['hou_crashes_by_product']= reports.get_hou_crashes_by_product(
+                                                      series_range, aggregation)
+         
     if dropdown_option_key == "tools_usage":
         show_date_picker = True
         show_agg_widget = False
