@@ -358,10 +358,13 @@ def hou_reports_view(request, dropdown_option_key):
         series['hou_crashes_over_time'] = (
             reports.get_orm_data_for_report(HoudiniCrash.objects.all(), 'date', 
                                             series_range, aggregation))
-        
+        series['hou_num_of_machines_sending_crashes_per_day']=\
+                        reports.get_num_of_machines_sending_crashes_per_day(
+                                                      series_range, aggregation)
         series['hou_avg_crashes_by_same_machine']=\
                         reports.get_avg_num_of_crashes_by_same_machine_per_day(
                                                       series_range, aggregation)
+        
         pies['hou_crashes_by_os'], pies['hou_crashes_by_os_detailed']=\
                       reports.get_hou_crashes_by_os(series_range, aggregation)
                       

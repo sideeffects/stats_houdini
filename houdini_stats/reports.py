@@ -213,6 +213,29 @@ def get_avg_num_of_crashes_by_same_machine_per_day(series_range,
 
 #-------------------------------------------------------------------------------
 
+def get_num_of_machines_sending_crashes_per_day(series_range, aggregation):
+    """
+    Get number of machines sending crashes per day.
+    """    
+
+    string_query = """
+         select {% aggregated_date "day" aggregation %} AS mydate, 
+                sum(total_records)
+         from (
+             select machine_config_id,
+             str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
+             count( DISTINCT machine_config_id ) AS total_records
+             from houdini_stats_houdinicrash
+             where {% where_between "date" start_date end_date %}
+             group by machine_config_id
+         ) as TempTable
+         group by mydate
+         order by mydate"""
+    
+    return get_sql_data_for_report(string_query,'stats', locals())  
+
+#-------------------------------------------------------------------------------
+
 def _get_hou_crashes_by_os_trans(full_os_name_and_counts_list):
     """
     This function does a data transformation.
