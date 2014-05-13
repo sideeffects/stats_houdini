@@ -178,6 +178,8 @@ def get_or_save_machine_config(user_info, ip_address, data_log_date):
                 'graphics_card': 'Quadro 600/PCIe/SSE2',
                 'graphics_card_version': '4.2.0 NVIDIA 304.88'
                 'mac_address_hash'      : '05e8458a3e60776298ece4af002dcef7',
+                'cpu_info': 
+                'system_resolution:
                 ""
               }
     """
@@ -225,6 +227,8 @@ def get_or_save_machine_config(user_info, ip_address, data_log_date):
              operating_system = user_info.get('operating_system', ""),             
              system_memory = parse_byte_size_string(sys_memory),
              number_of_processors = user_info.get('number_of_processors',0),
+             cpu_info =  user_info.get('cpu_info', ""), 
+             system_resolution =  user_info.get('system_resolution', ""), 
              raw_user_info = str(user_info)
         )
         # Save the asset version status
