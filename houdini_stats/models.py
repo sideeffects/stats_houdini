@@ -106,7 +106,7 @@ class MachineConfig(models.Model):
     
     system_resolution = models.CharField(
         help_text='''System resolution.''',
-        max_length=20,
+        max_length=40,
         blank=True,
     )
     
@@ -119,7 +119,7 @@ class MachineConfig(models.Model):
                         
     cpu_info = models.CharField(
         help_text='''CPU information.''',
-        max_length=20,
+        max_length=60,
         blank=True,
                                        
     )
