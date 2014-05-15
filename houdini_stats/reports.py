@@ -2,19 +2,20 @@ from houdini_stats.models import *
 from houdini_licenses.models import *
 from houdini_surveys.models import *
 from houdini_forum.models import *
-from collections import defaultdict
+
 from django.db import connections
 from django.db.models import Avg, Sum, Count
+from django.db.models import get_model
+from django.template import Context, Template
 
-import utils             
-import time_series 
+from collections import defaultdict
 import datetime
 from dircache import annotate
 from operator import *
-from django.db.models import get_model
 
-from django.template import Context, Template
-    
+import utils             
+import time_series 
+
 #===============================================================================
 
 def _get_cursor(db_name):
