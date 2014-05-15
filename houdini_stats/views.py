@@ -9,19 +9,22 @@ from django.contrib.auth.views import redirect_to_login
 from django.core.urlresolvers import reverse
 from django.contrib.auth import authenticate, login, logout
 from django.core.exceptions import PermissionDenied
-from static_data import top_menu_options
-from time_series import fill_missing_dates_with_zeros, merge_time_series
-from houdini_stats.models import *
-from utils import *
 from django.template.loader import get_template
 from django.template import Context, Template
 
 import datetime
 import urllib
 import functools
+import sys
+
+from time_series import fill_missing_dates_with_zeros, merge_time_series
+from houdini_stats.models import *
+from utils import *
+# TODO: Rename static_data to report_organization
+import static_data
 import settings
 import reports
-import sys
+import reportclasses
 
 #===============================================================================
 
@@ -68,6 +71,9 @@ def _remove_POST_param_from_path(path, param_name):
         "&" + param_name , "")
 
 #-------------------------------------------------------------------------------
+# This is the format needed when producing JavaScript dates.
+DATE_FORMAT = "M j, Y"
+
 def _add_common_context_params(request, series_range, agg=None, params = None):
     """
     Given a dictionary of template context parameters, add entries to it that
@@ -77,93 +83,90 @@ def _add_common_context_params(request, series_range, agg=None, params = None):
     
     new_params = {
             'get_request_string': (
-                     "?" + urllib.urlencode(request.GET, False) if len(request.GET) 
-                     else ""),     
+                "?" + urllib.urlencode(request.GET, False)
+                if len(request.GET)
+                else ""),     
             'is_logged_in' : request.user.is_authenticated(),
             'user':request.user,
-            'top_menu_options': _build_top_menu_options(request.user, 
-                                                    top_menu_options.values()),
+            'top_menu_options': _build_permitted_top_menu_options(request.user),
             "range": series_range,
             "aggregation": agg,
-            "date_format": "M j, Y"
+            "date_format": DATE_FORMAT,
         }
     new_params.update(params)
     
     return new_params
 
 #-------------------------------------------------------------------------------
-def _build_top_menu_options(user, top_menu_options_values):
+def _build_permitted_top_menu_options(user):
     """
     Build the top menu options depending on the groups the user belongs too.
     The groups will determine which permission accesses the user has. 
     """
-    top_menu_options_final = []
-    
-    for top_menu_info in top_menu_options_values:
-        if top_menu_info.has_key('groups'):
-            group_names = top_menu_info['groups']
-            if _user_in_groups(user, group_names):
-                top_menu_options_final.append(top_menu_info)
-    return top_menu_options_final         
-            
-#-------------------------------------------------------------------------------
-def _get_top_menu_options_next_prevs():
-    "Get a dictionary with all the menu options nexts and previous."
-    
-    top_menu_options_nexts_prevs = {}
-    for top_menu_name, top_menu_info in top_menu_options.items():
-        options = top_menu_info["menu_options"].keys()
-        for index, option in enumerate(options):
-            prev_option = (options[index-1] if index-1 >= 0 else "")
-            next_option = (options[index+1] if index+1 < len(options) else "")
-            top_menu_options_nexts_prevs[option] = {
-                "next": next_option,
-                "prev": prev_option}
-
-    return top_menu_options_nexts_prevs
+    return [
+        top_menu_info
+        for top_menu_info in static_data.top_menu_options.values()
+        if _user_in_groups(user, top_menu_info.get("groups", []))]
 
 #-------------------------------------------------------------------------------
-def _get_active_menu_option_info(selected_menu, selected_option_key):
+def _get_active_menu_option_info(menu, selected_option):
     """Return a dict with all the information we need from an active menu
-    option.  For example, for crashes:
-
-    dict = {'key': 'uptime',
-            'name': 'Session Information',
-            'menu_view': 'houdini_reports',
-            'prev_option': {'key': 'overview', name: "Overview" },
-            'next_option': {'key': 'crashes', name: "Crashes" }
-    }
+    option.  For example, for crashes,
+        menu might be "houdini"
+        selected_option might be "crashes"
+    and the result might be
+        {
+            'name': 'uptime',
+            'title': 'Session Information',
+            'menu_url': 'houdini/uptime',
+            'prev_option': {'name': 'overview', title: "Overview" },
+            'next_option': {'name': 'crashes', title: "Crashes" }
+        }
     """
-    selected_top_menu_info = top_menu_options[selected_menu]
-    menu_options = selected_top_menu_info['menu_options']
+    menu_info = static_data.top_menu_options[menu]
+    menu_option_infos = menu_info['menu_options']
 
-    
-    if not selected_option_key in _get_top_menu_options_next_prevs():
-            raise Http404
-    
-    next_prev_options = _get_top_menu_options_next_prevs()[selected_option_key]  
+    menu_selected_option = static_data.find_menu_option_info(
+        menu_option_infos, selected_option)
 
-    prev_option_key = next_prev_options['prev']
-    prev_option_name = ("" if prev_option_key == ""
-        else menu_options[prev_option_key])
+    menu_option_names_to_titles = static_data.menu_option_names_to_titles(
+        menu_option_infos)
 
-    next_option_key = next_prev_options['next']
-    next_option_name = ("" if next_option_key == ""
-        else menu_options[next_option_key])
+    if not selected_option in static_data.build_top_menu_options_next_prevs():
+        raise Http404
+
+    next_prev_options = static_data.build_top_menu_options_next_prevs()[
+        selected_option]
+
+    prev_option_name = next_prev_options['prev']
+    prev_option_title = ("" if prev_option_name == ""
+        else menu_option_names_to_titles[prev_option_name])
+    prev_option_url = ("" if prev_option_name == ""
+        else _get_url_for_menu_option(menu, prev_option_name))
+
+    next_option_name = next_prev_options['next']
+    next_option_title = ("" if next_option_name == ""
+        else menu_option_names_to_titles[next_option_name])
+    next_option_url = ("" if next_option_name == ""
+        else _get_url_for_menu_option(menu, next_option_name))
 
     return {
-        'key': selected_option_key,
-        'name': selected_top_menu_info['menu_options'][selected_option_key],
-        'menu_view': selected_top_menu_info['menu_view'],
-            'prev_option': {
-                'key': prev_option_key,
-                'name': prev_option_name
-            },
-            'next_option': {
-                'key': next_option_key,
-                'name': next_option_name
-            }
+        'name': selected_option,
+        'title': menu_option_names_to_titles[selected_option],
+        'menu_url': _get_url_for_menu_option(menu, selected_option),
+        'prev_option': {
+            'url': prev_option_url,
+            'title': prev_option_title,
+        },
+        'next_option': {
+            'url': next_option_url,
+            'title': next_option_title,
         }
+    }
+
+#-------------------------------------------------------------------------------
+def _get_url_for_menu_option(menu, option_name):
+    return reverse("generic_report", args=[menu, option_name])
 
 #-------------------------------------------------------------------------------
 def _user_in_groups(user, group_names):
@@ -174,25 +177,28 @@ def _user_in_groups(user, group_names):
     if user.is_staff:
         return True
     
-    return set(group.name for group in user.groups.all()).intersection(group_names)                                                     
-    
+    return set(group.name
+        for group in user.groups.all()).intersection(group_names)
+
 #-------------------------------------------------------------------------------
+def validate_user_is_in_group(request, group_names):
+    if not request.user.is_active or not _user_in_groups(
+            request.user, group_names):
+        raise PermissionDenied()
+
 def user_access(group_names=['staff', 'r&d']):
     """
     Decorator for views that checks if the user has access to the reports
     in Stats, depending on which groups they belong too.
     """
-    
     def wrapper(view_function):
-        
         @functools.wraps(view_function)
         def _checklogin(request, *args, **kwargs):
-            
-            if request.user.is_active and _user_in_groups(request.user, 
-                                                          group_names):
-                return view_function(request, *args, **kwargs)
-            raise PermissionDenied()
+            validate_user_is_in_group(request, group_names)
+            return view_function(request, *args, **kwargs)
+
         return _checklogin
+
     return wrapper
 
 #===============================================================================
@@ -291,7 +297,92 @@ def index_view(request):
             }),
         request)
 
-#-------------------------------------------------------------------------------  
+#-------------------------------------------------------------------------------
+
+@require_http_methods(["GET", "POST"])
+@login_required
+def generic_report_view(request, menu_name, dropdown_option):
+    series_range, aggregation = get_common_vars_for_charts(
+        request, minimum_start_date=settings.HOUDINI_REPORTS_START_DATE)
+
+    # TODO: Determine the proper group names for the intersection of the
+    #       reports.
+    validate_user_is_in_group(request, ['staff', 'r&d'])
+
+    # Find the report classes for this dropdown and create an instance of each
+    # report.
+    report_class_names = static_data.report_classes_for_menu_option(
+        menu_name, dropdown_option)
+    report_classes = [
+        getattr(reportclasses, report_class_name)
+        for report_class_name in report_class_names]
+    reports = [report_class() for report_class in report_classes]
+
+    # Run the queries for each report.
+    report_data = {}
+    for report in reports:
+        report_data[report.name()] = report.get_data(series_range, aggregation)
+
+    # Generate the html for the charts.
+    charts = render_chart_template(reports, report_data)
+
+    return render_response(
+        "generic_chart.html",
+        _add_common_context_params(request, series_range, aggregation, {
+            'report_data': report_data,
+            'url': reverse(
+                "generic_report",
+                kwargs=dict(
+                    menu_name=menu_name, dropdown_option=dropdown_option)),
+            'dropdown_option_key': dropdown_option,
+            'show_date_picker':
+                any(report.show_date_picker() for report in reports),
+            'show_agg_widget':
+                any(report.supports_aggregation() for report in reports),
+            'active_menu': menu_name,
+            'active_menu_option_info':
+                _get_active_menu_option_info(menu_name, dropdown_option),
+            'charts': charts,
+        }),
+        request)
+
+def find_template_path(template_file_name):
+    for template_dir in settings.TEMPLATE_DIRS:
+        template_path = os.path.join(template_dir, template_file_name)
+        if os.path.exists(template_path):
+            return template_path
+
+    return None
+
+def render_chart_template(reports, report_data):
+    chart_placeholders = ""
+    for report in reports:
+        chart_placeholders += report.generate_template_placeholder_code()
+
+    chart_drawing = ""
+    for report_number, report in enumerate(reports):
+        chart_drawing += report.generate_template_graph_drawing(report_number)
+
+    return render_template_from_string(
+        """
+        {% load googlecharts %}
+
+        """ + chart_placeholders + """
+        {% googlecharts %}
+            {% include 'googlecharts_options.html' %}
+            """ + chart_drawing + """
+        {% endgooglecharts %}
+        """,
+        dict(
+            chart_placeholders=chart_placeholders,
+            chart_drawing=chart_drawing,
+            report_data=report_data,
+            date_format=DATE_FORMAT,
+        ))
+
+def render_template_from_string(string, context_vars):
+    return Template(string).render(Context(context_vars))
+
 @require_http_methods(["GET", "POST"])
 @login_required
 @user_access(['staff','r&d'])
@@ -333,11 +424,10 @@ def hou_reports_view(request, dropdown_option_key):
                       all_downloads, apprentice_downloads, commercial_downloads)
        
     if not dropdown_option_key == "downloads":
-        # We started collecting meaningful data from Houdini at a different date
-        # thats why we pass an additional param to the function
-        # the param name is for_hou_rep, and the value will be True 
-        series_range, aggregation = get_common_vars_for_charts(request,
-                                                                           True)
+        # We started collecting meaningful data from Houdini at a different
+        # date thats why we pass an additional param to the function.
+        series_range, aggregation = get_common_vars_for_charts(
+            request, minimum_start_date=settings.HOUDINI_REPORTS_START_DATE)
     if dropdown_option_key == "usage":
         series['new_machines_over_time'] = reports.get_new_machines_over_time(
             series_range, aggregation)
@@ -358,13 +448,10 @@ def hou_reports_view(request, dropdown_option_key):
         series['hou_crashes_over_time'] = (
             reports.get_orm_data_for_report(HoudiniCrash.objects.all(), 'date', 
                                             series_range, aggregation))
-        series['hou_num_of_machines_sending_crashes_per_day']=\
-                        reports.get_num_of_machines_sending_crashes_per_day(
-                                                      series_range, aggregation)
+        
         series['hou_avg_crashes_by_same_machine']=\
                         reports.get_avg_num_of_crashes_by_same_machine_per_day(
                                                       series_range, aggregation)
-        
         pies['hou_crashes_by_os'], pies['hou_crashes_by_os_detailed']=\
                       reports.get_hou_crashes_by_os(series_range, aggregation)
                       
@@ -420,11 +507,9 @@ def hou_reports_view(request, dropdown_option_key):
             'dropdown_option_key': dropdown_option_key,
             'show_date_picker': show_date_picker,
             'show_agg_widget': show_agg_widget,
-            'active_houdini': True,
-            'active_menu': top_menu_options['houdini']['menu_name'],
+            'active_menu': static_data.top_menu_options['houdini']['menu_name'],
             'active_menu_option_info':
                 _get_active_menu_option_info('houdini', dropdown_option_key),
-            'plot_three': True    
         }),
         request)
 
@@ -447,38 +532,40 @@ def hou_apprentice_view(request, dropdown_option_key):
         dropdown_option_key = "apprentice_activations"
 
     if dropdown_option_key == "apprentice_activations":
+        apprentice_downloads = reports.get_houdini_apprentice_downloads(
+            series_range, aggregation)
         
-        apprentice_downloads = reports.get_houdini_apprentice_downloads(series_range, 
-                                                                   aggregation)
+        apprentice_activations_new = (
+            reports.apprentice_new_activations_over_time(
+                series_range, aggregation))
         
-        apprentice_activations_new = reports.apprentice_new_activations_over_time(
-                                                      series_range, aggregation)
-        
-        apprentice_activations_total = reports.apprentice_total_activations_over_time(
-                                                      series_range, aggregation)
+        apprentice_activations_total = (
+            reports.apprentice_total_activations_over_time(
+                series_range, aggregation))
         
         # Difference between apprentice activations total and the new
         # new activations
         apprentice_reactivations = reports.get_difference_between_series(
-                                                   apprentice_activations_total, 
-                                                   apprentice_activations_new)
+            apprentice_activations_total, 
+            apprentice_activations_new)
         
-        series['apprentice_lic_over_time'] = merge_time_series(
-                                                [apprentice_activations_total, 
-                                                 events_to_annotate,
-                                                 apprentice_activations_new,
-                                                 apprentice_reactivations,
-                                                 apprentice_downloads,
-                                                  ])
+        series['apprentice_lic_over_time'] = merge_time_series([
+            apprentice_activations_total, 
+            events_to_annotate,
+            apprentice_activations_new,
+            apprentice_reactivations,
+            apprentice_downloads,
+        ])
         
-        series['apprentice_percentages_new_from_downloads'] = reports.get_percentage_of_total(
-            apprentice_downloads, apprentice_activations_new)
+        series['apprentice_percentages_new_from_downloads'] = (
+            reports.get_percentage_of_total(
+                apprentice_downloads, apprentice_activations_new))
         
-        
-        series["apprentice_act_percentages"] = reports.get_percentage_two_series_one_total(
-                                                   apprentice_activations_total,
-                                                   apprentice_activations_new, 
-                                                   apprentice_reactivations)
+        series["apprentice_act_percentages"] = (
+            reports.get_percentage_two_series_one_total(
+                apprentice_activations_total,
+                apprentice_activations_new, 
+                apprentice_reactivations))
     
     if dropdown_option_key == "apprentice_hd":
         apprentice_hd_licenses = reports.get_apprentice_hd_licenses_over_time(
@@ -508,10 +595,10 @@ def hou_apprentice_view(request, dropdown_option_key):
                     kwargs={"dropdown_option_key": dropdown_option_key}),
                 'show_date_picker': True,
                 'show_agg_widget': show_agg_widget,
-                'active_menu': top_menu_options['apprentice']['menu_name'],
+                'active_menu':
+                    static_data.top_menu_options['apprentice']['menu_name'],
                 'active_menu_option_info': _get_active_menu_option_info(
                 'apprentice', dropdown_option_key),
-                'plot_three': True
             }),
             request)    
 
@@ -584,10 +671,10 @@ def hou_surveys_view(request, dropdown_option_key):
                 'dropdown_option_key': dropdown_option_key,
                 'show_date_picker': True,
                 'show_agg_widget': True,
-                'active_menu': top_menu_options['surveys']['menu_name'],
+                'active_menu':
+                    static_data.top_menu_options['surveys']['menu_name'],
                 'active_menu_option_info': _get_active_menu_option_info(
                     'surveys', dropdown_option_key),
-                     'plot_three': False
             }),
             request)
 
@@ -635,10 +722,10 @@ def hou_forum_view(request, dropdown_option_key):
                     kwargs={"dropdown_option_key": dropdown_option_key}),
                 'show_date_picker': True,
                 'show_agg_widget': True,
-                'active_menu': top_menu_options['sidefx.com']['menu_name'],
+                'active_menu':
+                    static_data.top_menu_options['sidefx.com']['menu_name'],
                 'active_menu_option_info': _get_active_menu_option_info(
                     'sidefx.com', dropdown_option_key),
-                'plot_three': True
             }),
             request)
 

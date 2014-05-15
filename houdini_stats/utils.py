@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from houdini_stats.models import *
 from django.contrib.gis.geoip import GeoIP
-from settings import REPORTS_START_DATE, HOUDINI_REPORTS_START_DATE, _this_dir
+from settings import REPORTS_START_DATE, _this_dir
 from dateutil.relativedelta import relativedelta
 
 import json
@@ -412,7 +412,7 @@ def _get_months_ago_date(months = 3):
                                                              months = -months))  
 
 #-------------------------------------------------------------------------------
-def _get_start_request(request, aggregation, for_hou_rep = False):
+def _get_start_request(request, aggregation, minimum_start_date=None):
     """
     Get start date from the request.
     """
@@ -422,13 +422,12 @@ def _get_start_request(request, aggregation, for_hou_rep = False):
         t = _get_valid_date_or_error(start_request)
         start = datetime.datetime(t.tm_year, t.tm_mon, t.tm_mday)
         
-    elif for_hou_rep:
-        # Date when we started collecting good data for houdini reports
-        start = HOUDINI_REPORTS_START_DATE
+    elif minimum_start_date is not None:
+        # Date when we started collecting good data for this report
+        start = max(minimum_start_date, _get_months_ago_date())
     else:
         # The start date will be three months from yesterday's date
         start = _get_months_ago_date()
-        
     
     return _adjust_start_date(start, aggregation)
     
@@ -494,14 +493,14 @@ def _get_aggregation(get_vars):
     return aggregation 
 
 #-------------------------------------------------------------------------------
-def get_common_vars_for_charts(request, for_hou_rep=False):
+def get_common_vars_for_charts(request, minimum_start_date=None):
     """
     Get all variables that will be used for the reports.
     """
     
     aggregation = _get_aggregation(request.GET)
     
-    return [_get_start_request(request, aggregation, for_hou_rep), \
+    return [_get_start_request(request, aggregation, minimum_start_date),
             _get_end_request(request)], aggregation
 
 #-------------------------------------------------------------------------------
