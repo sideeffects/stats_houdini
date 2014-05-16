@@ -98,6 +98,8 @@ class API(object):
             # Get total seconds
             data_log_date =  datetime.datetime.fromtimestamp(json_data["start_time"])
             total_sec = json_data["end_time"] - json_data["start_time"]
+            total_idle_time = json_data["idle_time"] \
+                if json_data.has_key("idle_time") else 0 
                 
             # Get or save machine config
             machine_config = get_or_save_machine_config(user_info,
@@ -112,7 +114,8 @@ class API(object):
                 # Just save the stats data if  the log id was new
                 if is_new_log:
                     # Save uptime
-                    save_uptime(machine_config, total_sec, data_log_date)
+                    save_uptime(machine_config, total_sec, total_idle_time, 
+                                data_log_date)
                     # Save counts 
                     save_counts(machine_config, json_data["counts"], data_log_date)
                        

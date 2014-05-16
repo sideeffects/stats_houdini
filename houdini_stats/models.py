@@ -394,6 +394,11 @@ class Uptime(models.Model):
         default=0,
         help_text='''Number of seconds houdini was used.'''
     )
+    
+    idle_time= models.PositiveIntegerField(
+        default=0,
+        help_text='''Number of seconds houdini was open but inactive.'''
+    )
         
     def __unicode__(self):
         return "Uptime(%s, %d, %s)" % \

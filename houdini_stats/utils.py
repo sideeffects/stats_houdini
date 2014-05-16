@@ -255,13 +255,14 @@ def is_new_log_or_existing(machine_config, log_id, data_log_date):
 
 #-------------------------------------------------------------------------------
     
-def save_uptime(machine_config, num_seconds, data_log_date):
+def save_uptime(machine_config, num_seconds, idle_time, data_log_date):
     """
     Create Uptime record and save it in DB.
     """
     uptime = Uptime(machine_config = machine_config,
                     date = data_log_date,
-                    number_of_seconds = num_seconds)                    
+                    number_of_seconds = num_seconds,
+                    idle_time = idle_time)                    
     uptime.save()        
 
 #-------------------------------------------------------------------------------
