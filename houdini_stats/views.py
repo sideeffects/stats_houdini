@@ -23,8 +23,9 @@ from utils import *
 # TODO: Rename static_data to report_organization
 import static_data
 import settings
-import reports
-import reportclasses
+import reportfunctions
+import genericreportclasses
+import reports.houdini
 
 #===============================================================================
 
@@ -306,7 +307,7 @@ def generic_report_view(request, menu_name, dropdown_option):
         request, minimum_start_date=settings.HOUDINI_REPORTS_START_DATE)
 
     # TODO: Determine the proper group names for the intersection of the
-    #       reports.
+    # reports
     validate_user_is_in_group(request, ['staff', 'r&d'])
 
     # Find the report classes for this dropdown and create an instance of each
@@ -314,7 +315,7 @@ def generic_report_view(request, menu_name, dropdown_option):
     report_class_names = static_data.report_classes_for_menu_option(
         menu_name, dropdown_option)
     report_classes = [
-        getattr(reportclasses, report_class_name)
+        genericreportclasses.find_report_class(report_class_name)
         for report_class_name in report_class_names]
     reports = [report_class() for report_class in report_classes]
 
@@ -402,25 +403,25 @@ def hou_reports_view(request, dropdown_option_key):
     show_agg_widget = True
 
     # Events serie 
-    events_to_annotate = reports.get_events_in_range(series_range, aggregation)
+    events_to_annotate = reportfunctions.get_events_in_range(series_range, aggregation)
     
     if not dropdown_option_key:
         dropdown_option_key = "downloads"
         
     if dropdown_option_key == "downloads":
         
-        all_downloads = reports.get_all_houdini_downloads(series_range, 
+        all_downloads = reportfunctions.get_all_houdini_downloads(series_range, 
                                                                     aggregation)
-        apprentice_downloads = reports.get_houdini_apprentice_downloads(
+        apprentice_downloads = reportfunctions.get_houdini_apprentice_downloads(
                                                       series_range, aggregation)
-        commercial_downloads = reports.get_houdini_commercial_downloads(
+        commercial_downloads = reportfunctions.get_houdini_commercial_downloads(
                                                       series_range, aggregation) 
         
-        series["software_downloads"] = reports.get_merge_houdini_downloads(
+        series["software_downloads"] = reportfunctions.get_merge_houdini_downloads(
                                 all_downloads, apprentice_downloads, 
                                 commercial_downloads, events_to_annotate) 
         
-        series["percentages"] = reports.get_percentage_two_series_one_total(
+        series["percentages"] = reportfunctions.get_percentage_two_series_one_total(
                       all_downloads, apprentice_downloads, commercial_downloads)
        
     if not dropdown_option_key == "downloads":
@@ -429,69 +430,71 @@ def hou_reports_view(request, dropdown_option_key):
         series_range, aggregation = get_common_vars_for_charts(
             request, minimum_start_date=settings.HOUDINI_REPORTS_START_DATE)
     if dropdown_option_key == "usage":
-        series['new_machines_over_time'] = reports.get_new_machines_over_time(
+        series['new_machines_over_time'] = reportfunctions.get_new_machines_over_time(
             series_range, aggregation)
         series['machines_sending_stats_per_day'] = \
-            reports.get_num_of_machines_sending_stats_per_day(
+            reportfunctions.get_num_of_machines_sending_stats_per_day(
                 series_range, aggregation)
         series['avg_of_individual_successful_conn_per_day'] = \
-            reports.get_avg_num_of_individual_successful_conn_per_day(
+            reportfunctions.get_avg_num_of_individual_successful_conn_per_day(
                 series_range, aggregation)
             
     if dropdown_option_key == "uptime":
         series['hou_average_session_length'] = (
-            reports.average_session_length(series_range, aggregation))
+            reportfunctions.average_session_length(series_range, aggregation))
         series['hou_average_usage_by_machine'] = (
-            reports.average_usage_by_machine(series_range, aggregation))
+            reportfunctions.average_usage_by_machine(series_range, aggregation))
     
     if dropdown_option_key == "crashes":
         series['hou_crashes_over_time'] = (
-            reports.get_orm_data_for_report(HoudiniCrash.objects.all(), 'date', 
-                                            series_range, aggregation))
-        
+            reportfunctions.get_orm_data_for_report(HoudiniCrash.objects.all(),
+                'date', series_range, aggregation))
+        series['hou_num_of_machines_sending_crashes_per_day']=\
+            reportfunctions.get_num_of_machines_sending_crashes_per_day(
+                series_range, aggregation)
         series['hou_avg_crashes_by_same_machine']=\
-                        reports.get_avg_num_of_crashes_by_same_machine_per_day(
-                                                      series_range, aggregation)
+            reportfunctions.get_avg_num_of_crashes_by_same_machine_per_day(
+                series_range, aggregation)
         pies['hou_crashes_by_os'], pies['hou_crashes_by_os_detailed']=\
-                      reports.get_hou_crashes_by_os(series_range, aggregation)
+            reportfunctions.get_hou_crashes_by_os(series_range, aggregation)
                       
-        pies['hou_crashes_by_product']= reports.get_hou_crashes_by_product(
-                                                      series_range, aggregation)
+        pies['hou_crashes_by_product']= reportfunctions.get_hou_crashes_by_product(
+            series_range, aggregation)
          
     if dropdown_option_key == "tools_usage":
         show_date_picker = True
         show_agg_widget = False
         series['hou_most_popular_tools'] = (
-            reports.most_popular_tools(series_range, aggregation))
+            reportfunctions.most_popular_tools(series_range, aggregation))
         series['hou_most_popular_tools_shelf'] = (
-            reports.most_popular_tools(series_range, aggregation, "(1)"))
+            reportfunctions.most_popular_tools(series_range, aggregation, "(1)"))
         series['hou_most_popular_tools_viewer'] = (
-            reports.most_popular_tools(series_range, aggregation, "(2)"))
+            reportfunctions.most_popular_tools(series_range, aggregation, "(2)"))
         series['hou_most_popular_tools_network'] = (
-            reports.most_popular_tools(series_range, aggregation, "(3)"))
+            reportfunctions.most_popular_tools(series_range, aggregation, "(3)"))
         
     if dropdown_option_key == "versions_and_builds":
         show_date_picker = False
         show_agg_widget = False
 
         # Pie Charts
-        pies['houdini_versions'] = reports.usage_by_hou_version_or_build()
-        pies['houdini_builds'] = reports.usage_by_hou_version_or_build(
+        pies['houdini_versions'] = reportfunctions.usage_by_hou_version_or_build()
+        pies['houdini_builds'] = reportfunctions.usage_by_hou_version_or_build(
             build=True)
         pies['houdini_versions_apprentice'] = (
-            reports.usage_by_hou_version_or_build(
+            reportfunctions.usage_by_hou_version_or_build(
                 all=False,
                 is_apprentice=True))
         pies['houdini_builds_apprentice'] =  (
-            reports.usage_by_hou_version_or_build(
+            reportfunctions.usage_by_hou_version_or_build(
                 all=False,
                 build=True,
                 is_apprentice=True))
         pies['houdini_versions_commercial'] = (
-            reports.usage_by_hou_version_or_build(
+            reportfunctions.usage_by_hou_version_or_build(
                 all=False))
         pies['houdini_builds_commercial'] = (
-            reports.usage_by_hou_version_or_build(
+            reportfunctions.usage_by_hou_version_or_build(
                 all=False,
                 build=True))
 
@@ -526,26 +529,26 @@ def hou_apprentice_view(request, dropdown_option_key):
     show_agg_widget = True
     
     # Events serie 
-    events_to_annotate = reports.get_events_in_range(series_range, aggregation)
+    events_to_annotate = reportfunctions.get_events_in_range(series_range, aggregation)
 
     if not dropdown_option_key:
         dropdown_option_key = "apprentice_activations"
 
     if dropdown_option_key == "apprentice_activations":
-        apprentice_downloads = reports.get_houdini_apprentice_downloads(
+        apprentice_downloads = reportfunctions.get_houdini_apprentice_downloads(
             series_range, aggregation)
         
         apprentice_activations_new = (
-            reports.apprentice_new_activations_over_time(
+            reportfunctions.apprentice_new_activations_over_time(
                 series_range, aggregation))
         
         apprentice_activations_total = (
-            reports.apprentice_total_activations_over_time(
+            reportfunctions.apprentice_total_activations_over_time(
                 series_range, aggregation))
         
         # Difference between apprentice activations total and the new
         # new activations
-        apprentice_reactivations = reports.get_difference_between_series(
+        apprentice_reactivations = reportfunctions.get_difference_between_series(
             apprentice_activations_total, 
             apprentice_activations_new)
         
@@ -558,23 +561,23 @@ def hou_apprentice_view(request, dropdown_option_key):
         ])
         
         series['apprentice_percentages_new_from_downloads'] = (
-            reports.get_percentage_of_total(
+            reportfunctions.get_percentage_of_total(
                 apprentice_downloads, apprentice_activations_new))
         
         series["apprentice_act_percentages"] = (
-            reports.get_percentage_two_series_one_total(
+            reportfunctions.get_percentage_two_series_one_total(
                 apprentice_activations_total,
                 apprentice_activations_new, 
                 apprentice_reactivations))
     
     if dropdown_option_key == "apprentice_hd":
-        apprentice_hd_licenses = reports.get_apprentice_hd_licenses_over_time(
+        apprentice_hd_licenses = reportfunctions.get_apprentice_hd_licenses_over_time(
             series_range, aggregation)
         
         series['apprentice_hd_lic'] = merge_time_series(
             [apprentice_hd_licenses, events_to_annotate]) 
         series['apprentice_hd_lic_cumu'] = (
-            reports.get_apprentice_hd_licenses_cumulative(
+            reportfunctions.get_apprentice_hd_licenses_cumulative(
                 apprentice_hd_licenses, series_range[0]))
     
     if dropdown_option_key == "apprentice_heatmap":
@@ -619,7 +622,7 @@ def hou_surveys_view(request, dropdown_option_key):
     count_total =0
 
     if dropdown_option_key == "sidefx_labs":
-        hou_engine_reports_data = reports.hou_engine_maya_unity_breakdown(
+        hou_engine_reports_data = reportfunctions.hou_engine_maya_unity_breakdown(
             series_range, aggregation)
         count_total = hou_engine_reports_data["count_total"]
 
@@ -630,19 +633,19 @@ def hou_surveys_view(request, dropdown_option_key):
 
     if dropdown_option_key == "apprentice_followup":
         # For apprentice activations and vs count of users who replied survey
-        user_counts = reports.apprentice_replied_survey_counts(
+        user_counts = reportfunctions.apprentice_replied_survey_counts(
             series_range, aggregation)
 
-        apprentice_activations = reports.apprentice_total_activations_over_time(
+        apprentice_activations = reportfunctions.apprentice_total_activations_over_time(
             series_range, aggregation)
-        series['survey_counts_percentages'] = reports.get_percentage_of_total(
+        series['survey_counts_percentages'] = reportfunctions.get_percentage_of_total(
             apprentice_activations, user_counts)
 
         merge_time_series([user_counts, apprentice_activations])
 
         # For apprentice survey pie charts
         questions_tuples, questions_and_total_counts, user_answers = (
-            reports.apprentice_followup_survey(series_range, aggregation))
+            reportfunctions.apprentice_followup_survey(series_range, aggregation))
 
         # This contains the questions text and total count
         series["questions_and_total_counts"] = questions_and_total_counts
@@ -688,7 +691,7 @@ def hou_forum_view(request, dropdown_option_key):
     """
     series = {}
     series_range, aggregation = get_common_vars_for_charts(request)
-    events_to_annotate = reports.get_events_in_range(series_range, aggregation,
+    events_to_annotate = reportfunctions.get_events_in_range(series_range, aggregation,
                                                      fill_empty_string = False)
 
     if not dropdown_option_key:
@@ -699,11 +702,11 @@ def hou_forum_view(request, dropdown_option_key):
 
     if dropdown_option_key == "login_registration":
         series["users_forum_openid"] = (
-            reports.get_active_users_forum_and_openid(
+            reportfunctions.get_active_users_forum_and_openid(
                 series_range, aggregation, events_to_annotate))
 
         breakdown, total_forum, total_openid = (
-            reports.openid_providers_breakdown(
+            reportfunctions.openid_providers_breakdown(
                 series_range, aggregation))
         series['open_id_breakdown'] = breakdown
 
@@ -743,7 +746,7 @@ def hou_heatmap_view(request, option):
     lat_longs = []
     
     if option == "apprentice_heatmap":
-        lat_longs = reports.get_apprentice_activations_by_geo(series_range, 
+        lat_longs = reportfunctions.get_apprentice_activations_by_geo(series_range, 
                                                               aggregation)
     return render_response(
         "heatmap.html", {

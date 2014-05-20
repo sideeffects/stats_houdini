@@ -22,10 +22,8 @@ if settings.IS_QUERY_SERVER:
         # Remove these URLs as reports get switched over to the new style.
         url(r'^houdini/(?P<dropdown_option_key>downloads)$',
             'hou_reports_view'),
-        url(r'^houdini/(?P<dropdown_option_key>usage)$',
-            'hou_reports_view'),
-        url(r'^houdini/(?P<dropdown_option_key>crashes)$',
-            'hou_reports_view'),
+        #url(r'^houdini/(?P<dropdown_option_key>crashes)$',
+        #    'hou_reports_view'),
         url(r'^houdini/(?P<dropdown_option_key>tools_usage)$',
             'hou_reports_view'),
         url(r'^houdini/(?P<dropdown_option_key>versions_and_builds)$',

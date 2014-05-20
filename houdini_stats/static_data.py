@@ -15,15 +15,20 @@ top_menu_options = OrderedDict([
             ("downloads", "Houdini Downloads",
                 "hou_reports"
             ),
-            ("usage", "Usage",
-                "hou_reports"
-            ),
-            ("uptime", "Session Information", [
-#                "AverageSessionLength",
-                "AverageUsageByMachine",
+            ("usage", "Usage", [
+                "NewMachinesOverTime",
+                "MachinesActivelySendingStats",
+                "AvgNumConnectionsFromSameMachine"
             ]),
-            ("crashes", "Crashes",
-                "hou_reports"
+            ("uptime", "Session Information", [
+                "AverageSessionLength",
+                "AverageUsageByMachine"
+            ]),
+            ("crashes", "Crashes",[
+               'NumCrashesOverTime',
+               'NumOfMachinesSendingCrashesOverTime',
+               'AvgNumCrashesFromSameMachine']
+               # "hou_reports"
             ),
             ("tools_usage", "Shelf & Tab menu Tools",
                 "hou_reports"

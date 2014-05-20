@@ -3,9 +3,30 @@ from django.template import Context, Template
 
 import time_series
 
+#===============================================================================
+
+registered_report_classes = []
+            
+class ReportMetaclass(type):
+    def __new__(cls, name, bases, dct):
+        result_class = type.__new__(cls, name, bases, dct)
+        registered_report_classes.append(result_class)
+        return result_class
+
+#-------------------------------------------------------------------------------
+
+def find_report_class(name):
+    return [cls for cls in registered_report_classes
+        if cls.__name__ == name][0]
+
+#-------------------------------------------------------------------------------
+        
 class Report(object):
+    __metaclass__ = ReportMetaclass
+      
     def name(self):
         pass
+#-------------------------------------------------------------------------------
 
 class ChartReport(Report):
     def title(self):
@@ -28,17 +49,33 @@ class ChartReport(Report):
 
     def minimum_start_date(self):
         return None
-
-    def generate_template_placeholder_code(self):
-        # TODO: Clean this up!
+ 
+    def generate_template_placeholder_code(self, report_count=1):
+        """
+        Generate the template placeholder to draw the chart.
+        The param report_count will specify how many reports will be draw under 
+        the same div. By default we always have just one report under place
+        holder.
+        """        
+        
+        # Work in progress
+#         report_title = '''<div class="graph-title">''' + self.title() + '''</div>
+#         <br>'''
+#        
+#         report_placeholder = ''' <div id="''' + self.name() + '''
+#         " class="wide graph"></div> <br> '''
+#         
+#         #if report_count > 1:
+#         #    for i in range(1, report
+        
         return '''
     <div class="graph-title">''' + self.title() + '''</div>
     <br>
     <div id="''' + self.name() + '''" class="wide graph"></div>
     <br>
-'''
+    '''
 
-    def generate_template_graph_drawing(self, report_number):
+    def generate_template_graph_drawing(self, report_number, report_count=1):
         # TODO: Clean this up!
         format_dict = dict(
             report_number=report_number,
@@ -52,6 +89,7 @@ class ChartReport(Report):
             ("""{%% graph "%(name)s" "count%(report_number)s" %(options)s %%}"""
                 % format_dict)
         )
+#-------------------------------------------------------------------------------
 
 class SqlReport(ChartReport):
     def _get_cursor(self, db_name):
@@ -109,51 +147,24 @@ class SqlReport(ChartReport):
             context_vars['aggregation'][:-2], 
             context_vars['series_range'])  
 
-#----------------------------------------------------------------------------
 
-class AverageUsageByMachine(SqlReport):
-    """
-    Get Houdini average usage by machine. Column Chart.
-    """
-    def name(self):
-        return "average_usage_by_machine"
+#-------------------------------------------------------------------------------
 
-    def title(self):
-        return "Average Usage by Machine (in hours)"
+class OrmReport(ChartReport):    
+    
+    def get_orm_data_for_report(self,query_set, time_field, series_range, 
+                            aggregation = None, func = None):
+        """
+        Function to get data for reports, using django orm for the queries.
+        
+        This function will receive the queryset, the name of the time field to
+        be passed to the time series function, the series range, the aggregation 
+        and the function to be passed for aggregation in the time series.    
+        """
+        
+        return time_series.time_series(query_set, time_field, 
+                                       series_range, func, aggregation)
+    
 
-    def get_data(self, series_range, aggregation):
-        string_query = """
-             select {% aggregated_date "day" aggregation %} AS mydate, 
-                    avg(total_seconds)
-             from (
-                 select machine_config_id,
-                 str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
-                    as day,
-                 sum(number_of_seconds) as total_seconds
-                 from houdini_stats_uptime
-                 where {% where_between "date" start_date end_date %}
-                 group by machine_config_id, day
-             ) as TempTable
-             group by mydate
-             order by mydate"""
 
-        # Transform the result from seconds into the proper time unit.
-        return time_series.seconds_to_time_unit_series(
-            self.get_sql_data_for_report(string_query, 'stats', locals()), 
-            "hours")
-
-    def chart_columns(self):
-        return """
-       {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
-       {% col "number" "# of hours" %}{{ val }}{% endcol %}
-"""
-
-    def chart_options(self):
-        # TODO: Add report types, and determine default options from that type.
-        # TODO: Allow each class to contribute to the options template.
-        return '"opt_count_wide_column"'
-
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
 

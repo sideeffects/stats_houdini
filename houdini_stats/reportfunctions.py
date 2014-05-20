@@ -103,6 +103,7 @@ def get_sql_data_for_report(string_query, db_name, context_vars,
                                               context_vars['aggregation'][:-2], 
                                               context_vars['series_range'])  
 
+
 #-------------------------------------------------------------------------------
 def get_orm_data_for_report(query_set, time_field, series_range, 
                             aggregation = None, func = None):
@@ -120,43 +121,44 @@ def get_orm_data_for_report(query_set, time_field, series_range,
 #===============================================================================
 
 # Houdini Uptime related reports
-
-def average_session_length(series_range, aggregation):
-    """
-    Get Houdini average session length. Column Chart.
-    """
-    
-    series = get_orm_data_for_report(Uptime.objects.all(), 'date', series_range, 
-                            aggregation, func=Avg("number_of_seconds"))
-    
-    return time_series.choose_unit_from_multiple_time_units_series(
-           time_series.compute_time_serie(series, 
-                                          utils.seconds_to_multiple_time_units),
-                                                                     "hours") 
+# Converted
+# def average_session_length(series_range, aggregation):
+#     """
+#     Get Houdini average session length. Column Chart.
+#     """
+#     
+#     series = get_orm_data_for_report(Uptime.objects.all(), 'date', series_range, 
+#                             aggregation, func=Avg("number_of_seconds"))
+#     
+#     return time_series.choose_unit_from_multiple_time_units_series(
+#            time_series.compute_time_serie(series, 
+#                                           utils.seconds_to_multiple_time_units),
+#                                                                      "hours") 
     
 #-------------------------------------------------------------------------------
-def average_usage_by_machine(series_range, aggregation):
-    """
-    Get Houdini average usage by machine. Column Chart.
-    """
-    
-    string_query = """
-         select {% aggregated_date "day" aggregation %} AS mydate, 
-                avg(total_seconds)
-         from (
-             select machine_config_id,
-             str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-             sum(number_of_seconds) as total_seconds
-             from houdini_stats_uptime
-             where {% where_between "date" start_date end_date %}
-             group by machine_config_id, day
-         ) as TempTable
-         group by mydate
-         order by mydate"""
-    
-    return time_series.seconds_to_time_unit_series(
-        get_sql_data_for_report(string_query, 'stats', locals()), 
-        "hours")
+# Converted
+# def average_usage_by_machine(series_range, aggregation):
+#     """
+#     Get Houdini average usage by machine. Column Chart.
+#     """
+#     
+#     string_query = """
+#          select {% aggregated_date "day" aggregation %} AS mydate, 
+#                 avg(total_seconds)
+#          from (
+#              select machine_config_id,
+#              str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
+#              sum(number_of_seconds) as total_seconds
+#              from houdini_stats_uptime
+#              where {% where_between "date" start_date end_date %}
+#              group by machine_config_id, day
+#          ) as TempTable
+#          group by mydate
+#          order by mydate"""
+#     
+#     return time_series.seconds_to_time_unit_series(
+#         get_sql_data_for_report(string_query, 'stats', locals()), 
+#         "hours")
 
 #===============================================================================
 # Houdini Tools Usage related reports
@@ -190,50 +192,52 @@ def most_popular_tools(series_range, aggregation, creation_mode="(1,2,3)"):
 #===============================================================================
 # Houdini Crashes related reports
 
-def get_avg_num_of_crashes_by_same_machine_per_day(series_range, 
-                                                      aggregation):
-    """
-    Get Average number of crashes by the same machine per day.
-    """    
+#Converted
 
-    string_query = """
-         select {% aggregated_date "day" aggregation %} AS mydate, 
-                avg(total_records)
-         from (
-             select machine_config_id,
-             str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-             count(machine_config_id) as total_records
-             from houdini_stats_houdinicrash
-             where {% where_between "date" start_date end_date %}
-             group by machine_config_id, day
-         ) as TempTable
-         group by mydate
-         order by mydate"""
-    
-    return get_sql_data_for_report(string_query,'stats', locals())  
-
-#-------------------------------------------------------------------------------
-
-def get_num_of_machines_sending_crashes_per_day(series_range, aggregation):
-    """
-    Get number of machines sending crashes per day.
-    """    
-
-    string_query = """
-         select {% aggregated_date "day" aggregation %} AS mydate, 
-                sum(total_records)
-         from (
-             select machine_config_id,
-             str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-             count( DISTINCT machine_config_id ) AS total_records
-             from houdini_stats_houdinicrash
-             where {% where_between "date" start_date end_date %}
-             group by machine_config_id
-         ) as TempTable
-         group by mydate
-         order by mydate"""
-    
-    return get_sql_data_for_report(string_query,'stats', locals())  
+# def get_avg_num_of_crashes_by_same_machine_per_day(series_range, 
+#                                                       aggregation):
+#     """
+#     Get Average number of crashes by the same machine per day.
+#     """    
+# 
+#     string_query = """
+#          select {% aggregated_date "day" aggregation %} AS mydate, 
+#                 avg(total_records)
+#          from (
+#              select machine_config_id,
+#              str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
+#              count(machine_config_id) as total_records
+#              from houdini_stats_houdinicrash
+#              where {% where_between "date" start_date end_date %}
+#              group by machine_config_id, day
+#          ) as TempTable
+#          group by mydate
+#          order by mydate"""
+#     
+#     return get_sql_data_for_report(string_query,'stats', locals())  
+# 
+# #-------------------------------------------------------------------------------
+# 
+# def get_num_of_machines_sending_crashes_per_day(series_range, aggregation):
+#     """
+#     Get number of machines sending crashes per day.
+#     """    
+# 
+#     string_query = """
+#          select {% aggregated_date "day" aggregation %} AS mydate, 
+#                 sum(total_records)
+#          from (
+#              select machine_config_id,
+#              str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
+#              count( DISTINCT machine_config_id ) AS total_records
+#              from houdini_stats_houdinicrash
+#              where {% where_between "date" start_date end_date %}
+#              group by machine_config_id
+#          ) as TempTable
+#          group by mydate
+#          order by mydate"""
+#     
+#     return get_sql_data_for_report(string_query,'stats', locals())  
 
 #-------------------------------------------------------------------------------
 
@@ -445,85 +449,86 @@ def usage_by_hou_version_or_build(all=True, build=False, is_apprentice=False):
 
 #===============================================================================
 # General reports
+# Converted
 
-def get_new_machines_over_time(series_range, aggregation):
-    """
-    Get new machines over time.
-    """    
-    
-    # Observation: When aggregating different dates the query don't take into 
-    # account that the machine configs might have been inserted to the DB in an 
-    # earlier period of time and counts machine configs that might have
-    # been inserted earlier, since the distinct operator just do the lookup
-    # in the given time range.  
-    
-    string_query = """
-        select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
-               count(machines_count)
-        from(  
-            select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'),
-                                                                '%%Y-%%m-%%d')) 
-                   as min_creation_date,
-                   count(distinct machine_id) as machines_count 
-            from houdini_stats_machineconfig
-            where {% where_between "creation_date" start_date end_date %}
-            group by machine_id
-            order by min_creation_date)
-        as TempTable
-        group by mydate
-        order by mydate"""
-        
-    return get_sql_data_for_report(string_query,'stats', locals())
-    
-#-------------------------------------------------------------------------------
-        
-def get_num_of_machines_sending_stats_per_day(series_range, 
-                                                      aggregation):
-    """
-    Get how many machines are sending stats each day.
-    """
-
-    string_query = """
-            select mydate, count( distinct machine )
-            from (
-            select {% aggregated_date "u.date" aggregation %} AS mydate, 
-                   mc.machine_id AS machine
-            from houdini_stats_uptime u, houdini_stats_machineconfig mc
-            where mc.id = u.machine_config_id
-            and {% where_between "u.date" start_date end_date %}
-            ORDER BY u.date
-            ) as tempTable
-            GROUP BY mydate
-            ORDER BY mydate  
-            """
-    return get_sql_data_for_report(string_query,'stats', locals())
-
-#-------------------------------------------------------------------------------
-        
-def get_avg_num_of_individual_successful_conn_per_day(series_range, 
-                                                      aggregation):
-    """
-    Get Average number of individual successful connections per day.
-    """    
-    #TO IMPROVE (YB): Take into account the connections that resulted into 
-    # crashes, which means take the crashes table into account too, to compute 
-    # the results for the average (Maybe doing a merge using Panda?). 
-    
-    string_query = """
-         select {% aggregated_date "day" aggregation %} AS mydate, 
-                avg(total_records)
-         from (
-             select machine_config_id,
-             str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-             count(machine_config_id) as total_records
-             from houdini_stats_uptime
-             where {% where_between "date" start_date end_date %}
-             group by machine_config_id, day
-         ) as TempTable
-         group by mydate
-         order by mydate"""
-    
-    return get_sql_data_for_report(string_query,'stats', locals())        
+# def get_new_machines_over_time(series_range, aggregation):
+#     """
+#     Get new machines over time.
+#     """    
+#     
+#     # Observation: When aggregating different dates the query don't take into 
+#     # account that the machine configs might have been inserted to the DB in an 
+#     # earlier period of time and counts machine configs that might have
+#     # been inserted earlier, since the distinct operator just do the lookup
+#     # in the given time range.  
+#     
+#     string_query = """
+#         select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
+#                count(machines_count)
+#         from(  
+#             select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'),
+#                                                                 '%%Y-%%m-%%d')) 
+#                    as min_creation_date,
+#                    count(distinct machine_id) as machines_count 
+#             from houdini_stats_machineconfig
+#             where {% where_between "creation_date" start_date end_date %}
+#             group by machine_id
+#             order by min_creation_date)
+#         as TempTable
+#         group by mydate
+#         order by mydate"""
+#         
+#     return get_sql_data_for_report(string_query,'stats', locals())
+#     
+# #-------------------------------------------------------------------------------
+#         
+# def get_num_of_machines_sending_stats_per_day(series_range, 
+#                                                       aggregation):
+#     """
+#     Get how many machines are sending stats each day.
+#     """
+# 
+#     string_query = """
+#             select mydate, count( distinct machine )
+#             from (
+#             select {% aggregated_date "u.date" aggregation %} AS mydate, 
+#                    mc.machine_id AS machine
+#             from houdini_stats_uptime u, houdini_stats_machineconfig mc
+#             where mc.id = u.machine_config_id
+#             and {% where_between "u.date" start_date end_date %}
+#             ORDER BY u.date
+#             ) as tempTable
+#             GROUP BY mydate
+#             ORDER BY mydate  
+#             """
+#     return get_sql_data_for_report(string_query,'stats', locals())
+# 
+# #-------------------------------------------------------------------------------
+#         
+# def get_avg_num_of_individual_successful_conn_per_day(series_range, 
+#                                                       aggregation):
+#     """
+#     Get Average number of individual successful connections per day.
+#     """    
+#     #TO IMPROVE (YB): Take into account the connections that resulted into 
+#     # crashes, which means take the crashes table into account too, to compute 
+#     # the results for the average (Maybe doing a merge using Panda?). 
+#     
+#     string_query = """
+#          select {% aggregated_date "day" aggregation %} AS mydate, 
+#                 avg(total_records)
+#          from (
+#              select machine_config_id,
+#              str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
+#              count(machine_config_id) as total_records
+#              from houdini_stats_uptime
+#              where {% where_between "date" start_date end_date %}
+#              group by machine_config_id, day
+#          ) as TempTable
+#          group by mydate
+#          order by mydate"""
+#     
+#     return get_sql_data_for_report(string_query,'stats', locals())        
         
 #===============================================================================
 # Surveys Database reports
