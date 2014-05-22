@@ -25,17 +25,23 @@ top_menu_options = OrderedDict([
                 "AverageUsageByMachine"
             ]),
             ("crashes", "Crashes",[
-               'NumCrashesOverTime',
-               'NumOfMachinesSendingCrashesOverTime',
-               'AvgNumCrashesFromSameMachine']
-               # "hou_reports"
-            ),
-            ("tools_usage", "Shelf & Tab menu Tools",
-                "hou_reports"
-            ),
-            ("versions_and_builds", "Versions and builds",
-                "hou_reports"
-            ),
+                'NumCrashesOverTime',
+                'NumOfMachinesSendingCrashesOverTime',
+                'AvgNumCrashesFromSameMachine',
+                'CrashesByOS',
+                'CrashesByProduct'
+            ]),
+            ("tools_usage", "Shelf & Tab menu Tools", [
+                'MostPopularTools',
+                'MostPopularToolsShelf',
+                'MostPopularToolsViewer',
+                'MostPopularToolsNetwork'
+            ]),
+            ("versions_and_builds", "Versions and builds",[
+                'VersionsAndBuilds',
+                'VersionsAndBuildsApprentice',
+                'VersionsAndBuildsCommercial'              
+            ]),
         ],
         "groups": ['staff', 'r&d'],
     }),

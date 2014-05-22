@@ -163,30 +163,30 @@ def get_orm_data_for_report(query_set, time_field, series_range,
 #===============================================================================
 # Houdini Tools Usage related reports
 
-def most_popular_tools(series_range, aggregation, creation_mode="(1,2,3)"):
-    """
-    Most popular houdini tools. Column Chart.
-    """
-    
-    tool_usage_count = 1
-
-    string_query = """
-          select tool_name, tool_count 
-           from (
-              select sum(count) as tool_count, tool_name, tool_creation_mode
-                from houdini_stats_houdinitoolusage
-                where {% where_between "date" start_date end_date %}
-                group by tool_name 
-                order by tool_count
-           ) as TempTable
-           where tool_count >=  {{ tool_usage_count }} and 
-           tool_creation_mode in {{ creation_mode }} 
-           order by tool_count desc
-           limit 20
-           """
-    
-    return get_sql_data_for_report(string_query, 'stats', locals(), 
-                                   fill_zeros=False)
+# def most_popular_tools(series_range, aggregation, creation_mode="(1,2,3)"):
+#     """
+#     Most popular houdini tools. Column Chart.
+#     """
+#     
+#     tool_usage_count = 1
+# 
+#     string_query = """
+#           select tool_name, tool_count 
+#            from (
+#               select sum(count) as tool_count, tool_name, tool_creation_mode
+#                 from houdini_stats_houdinitoolusage
+#                 where {% where_between "date" start_date end_date %}
+#                 group by tool_name 
+#                 order by tool_count
+#            ) as TempTable
+#            where tool_count >=  {{ tool_usage_count }} and 
+#            tool_creation_mode in {{ creation_mode }} 
+#            order by tool_count desc
+#            limit 20
+#            """
+#     
+#     return get_sql_data_for_report(string_query, 'stats', locals(), 
+#                                    fill_zeros=False)
 
 
 #===============================================================================
@@ -241,210 +241,174 @@ def most_popular_tools(series_range, aggregation, creation_mode="(1,2,3)"):
 
 #-------------------------------------------------------------------------------
 
-def _get_hou_crashes_by_os_trans(full_os_name_and_counts_list):
-    """
-    This function does a data transformation.
-    
-    Receiving a list form (example):
-    [(u'linux-x86_64-gcc4.4', 57L), 
-    (u'linux-x86_64-gcc4.6', 38L), (u'linux-x86_64-gcc4.7', 18L), 
-    (u'darwin-x86_64-clang5.1-MacOSX10.9', 16L), 
-    (u'darwin-x86_64-clang4.1-MacOSX10.8', 2L), 
-    (u'windows-i686-cl17', 1L)]
-
-    Return a list of a more general level, and adding the OS with the same type,
-    for example:
-    
-    [(u'Linux', 113L), 
-    (u'Mac', 18L), 
-    (u'Windows', 1L)]
-    """
-    
-    linux_counts = 0
-    mac_counts = 0
-    win_counts= 0
-     
-    for os_name, count in full_os_name_and_counts_list:
-        if 'linux' in os_name:
-            linux_counts+=count
-        elif 'darwin' in os_name:
-            mac_counts+=count
-        elif 'windows' in os_name:
-            win_counts+=count         
-             
-    return [('Linux', linux_counts),
-            ('Mac OS', mac_counts),
-            ( 'Windows', win_counts)]      
-    
-#-------------------------------------------------------------------------------
-
-def get_hou_crashes_by_os(series_range, aggregation):
-    """
-    Get houdini crashes by os. PieChart report.
-    """
-    
-    string_query = """
-        SELECT os, count_by_os 
-        FROM(  
-        SELECT from_days( min( to_days( date ) ) ) AS min_date, 
-               mc.operating_system AS os, count( * ) AS count_by_os
-        FROM houdini_stats_houdinicrash AS c, houdini_stats_machineconfig AS mc
-        WHERE c.machine_config_id = mc.id 
-              AND {% where_between "date" start_date end_date %}
-        GROUP BY os
-        ORDER BY min_date)
-        as TempTable
-        ORDER BY count_by_os desc
-        """
-    
-    full_os_names_and_counts = get_sql_data_for_report(string_query,'stats',
-                                                   locals(), fill_zeros = False)
-    # Apply transformation to the data
-    general_os_names_and_counts = _get_hou_crashes_by_os_trans(
-                                                        full_os_names_and_counts)
-    
-    return general_os_names_and_counts, full_os_names_and_counts  
+# def _get_hou_crashes_by_os_trans(full_os_name_and_counts_list):
+#     """
+#     This function does a data transformation.
+#     
+#     Receiving a list form (example):
+#     [(u'linux-x86_64-gcc4.4', 57L), 
+#     (u'linux-x86_64-gcc4.6', 38L), (u'linux-x86_64-gcc4.7', 18L), 
+#     (u'darwin-x86_64-clang5.1-MacOSX10.9', 16L), 
+#     (u'darwin-x86_64-clang4.1-MacOSX10.8', 2L), 
+#     (u'windows-i686-cl17', 1L)]
+# 
+#     Return a list of a more general level, and adding the OS with the same type,
+#     for example:
+#     
+#     [(u'Linux', 113L), 
+#     (u'Mac', 18L), 
+#     (u'Windows', 1L)]
+#     """
+#     
+#     linux_counts = 0
+#     mac_counts = 0
+#     win_counts= 0
+#      
+#     for os_name, count in full_os_name_and_counts_list:
+#         if 'linux' in os_name:
+#             linux_counts+=count
+#         elif 'darwin' in os_name:
+#             mac_counts+=count
+#         elif 'windows' in os_name:
+#             win_counts+=count         
+#              
+#     return [('Linux', linux_counts),
+#             ('Mac OS', mac_counts),
+#             ( 'Windows', win_counts)]      
+#     
+# #-------------------------------------------------------------------------------
+# 
+# def get_hou_crashes_by_os(series_range, aggregation):
+#     """
+#     Get houdini crashes by os. PieChart report.
+#     """
+#     
+#     string_query = """
+#         SELECT os, count_by_os 
+#         FROM(  
+#         SELECT from_days( min( to_days( date ) ) ) AS min_date, 
+#                mc.operating_system AS os, count( * ) AS count_by_os
+#         FROM houdini_stats_houdinicrash AS c, houdini_stats_machineconfig AS mc
+#         WHERE c.machine_config_id = mc.id 
+#               AND {% where_between "date" start_date end_date %}
+#         GROUP BY os
+#         ORDER BY min_date)
+#         as TempTable
+#         ORDER BY count_by_os desc
+#         """
+#     
+#     full_os_names_and_counts = get_sql_data_for_report(string_query,'stats',
+#                                                    locals(), fill_zeros = False)
+#     # Apply transformation to the data
+#     general_os_names_and_counts = _get_hou_crashes_by_os_trans(
+#                                                         full_os_names_and_counts)
+#     
+#     return general_os_names_and_counts, full_os_names_and_counts  
  
 #-------------------------------------------------------------------------------
+# 
+# def _get_hou_crashes_by_product_trans(crashes_by_product_list):
+#     """
+#     This function does a data transformation.
+#     
+#     Receiving a list in the form (example):
+#     
+#     [(u'Houdini-0', 138L), 
+#      (u'Hbatch-0', 2L), 
+#      (u'Houdini-1', 2L),
+#      (u'Hescape-0', 1L), 
+#      (u'Mplay-0', 1L)]
+#   
+#     In the data, in the tuple, the first element represents the Houdini product
+#     name, the suffix '-0', or '0-1' is there to identify if the product is
+#     apprentice or not. The second element in the tuple is the counts of crashes
+#     registered in DB for this specific product.
+#     
+#     Return a list were the suffix '-1' will be substituted by 'Apprentice'
+#     and the suffix '-0' will be eliminated, returning a list of the form: 
+#     
+#     [(u'Houdini', 138L), 
+#      (u'Hbatch', 2L), 
+#      (u'Houdini Apprentice', 2L),
+#      (u'Hescape', 1L), 
+#      (u'Mplay', 1L)]
+#     """
+#     import re
+#     REPLACEMENTS = dict([('-1', ' Apprentice'), ('-0', '')])
+#                      
+#     def replacer(m):
+#         return REPLACEMENTS[m.group(0)]
+# 
+#     r = re.compile('|'.join(REPLACEMENTS.keys()))
+#     return [(r.sub(replacer, tup[0]), tup[1]) for tup in crashes_by_product_list]  
+#     
+# #-------------------------------------------------------------------------------    
+# 
+# def get_hou_crashes_by_product(series_range, aggregation):
+#     """
+#     Get houdini crashes by product (Houdini Commercial, Houdini Apprentice,
+#     Hbatch, etc). PieChart report.
+#     """
+#     
+#     string_query = """
+#             SELECT concat_ws( '-', mc.product, mc.is_apprentice), count( * ) as counts
+#             FROM houdini_stats_houdinicrash AS c, 
+#                  houdini_stats_machineconfig AS mc
+#             WHERE c.machine_config_id = mc.id
+#                   AND {% where_between "date" start_date end_date %}
+#             GROUP BY mc.product, mc.is_apprentice
+#             ORDER BY counts desc
+#         """
+#     
+#     crashes_by_product_list = get_sql_data_for_report(string_query,'stats', 
+#                                                   locals(), fill_zeros = False)
+#     
+#     return _get_hou_crashes_by_product_trans(crashes_by_product_list)
 
-def _get_hou_crashes_by_product_trans(crashes_by_product_list):
-    """
-    This function does a data transformation.
-    
-    Receiving a list in the form (example):
-    
-    [(u'Houdini-0', 138L), 
-     (u'Hbatch-0', 2L), 
-     (u'Houdini-1', 2L),
-     (u'Hescape-0', 1L), 
-     (u'Mplay-0', 1L)]
-  
-    In the data, in the tuple, the first element represents the Houdini product
-    name, the suffix '-0', or '0-1' is there to identify if the product is
-    apprentice or not. The second element in the tuple is the counts of crashes
-    registered in DB for this specific product.
-    
-    Return a list were the suffix '-1' will be substituted by 'Apprentice'
-    and the suffix '-0' will be eliminated, returning a list of the form: 
-    
-    [(u'Houdini', 138L), 
-     (u'Hbatch', 2L), 
-     (u'Houdini Apprentice', 2L),
-     (u'Hescape', 1L), 
-     (u'Mplay', 1L)]
-    """
-    import re
-    REPLACEMENTS = dict([('-1', ' Apprentice'), ('-0', '')])
-                     
-    def replacer(m):
-        return REPLACEMENTS[m.group(0)]
 
-    r = re.compile('|'.join(REPLACEMENTS.keys()))
-    return [(r.sub(replacer, tup[0]), tup[1]) for tup in crashes_by_product_list]  
-    
-#-------------------------------------------------------------------------------    
-
-def get_hou_crashes_by_product(series_range, aggregation):
-    """
-    Get houdini crashes by product (Houdini Commercial, Houdini Apprentice,
-    Hbatch, etc). PieChart report.
-    """
-    
-    string_query = """
-            SELECT concat_ws( '-', mc.product, mc.is_apprentice), count( * ) as counts
-            FROM houdini_stats_houdinicrash AS c, 
-                 houdini_stats_machineconfig AS mc
-            WHERE c.machine_config_id = mc.id
-                  AND {% where_between "date" start_date end_date %}
-            GROUP BY mc.product, mc.is_apprentice
-            ORDER BY counts desc
-        """
-    
-    crashes_by_product_list = get_sql_data_for_report(string_query,'stats', 
-                                                  locals(), fill_zeros = False)
-    
-    return _get_hou_crashes_by_product_trans(crashes_by_product_list)
-
-
-#-------------------------------------------------------------------------------    
-
-# Not complete
-def _get_hou_crashes_by_version_trans(crashes_by_hou_build_list):
-    """
-    Function to transform and from the list of crashes by houdini builds get 
-    the crashes by houdini versions
-    """
-    return true
-
-#-------------------------------------------------------------------------------
-# Not complete
-def get_hou_crashes_by_versions_and_builds(series_range, aggregation):
-    """
-    Get houdini crashes by versions and builds. 
-    """
-    
-    string_query = """
-            SELECT concat_ws( '.', mc.houdini_major_version, 
-                   mc.houdini_minor_version, mc.houdini_build_number ) 
-                   AS hou_version_build, count( * ) as counts
-            FROM houdini_stats_houdinicrash AS c, 
-                 houdini_stats_machineconfig AS mc
-            WHERE c.machine_config_id = mc.id
-                  AND {% where_between "date" start_date end_date %}
-            GROUP BY hou_version_build
-            ORDER BY counts DESC 
-            """
-            
-    crashes_by_version_list = get_sql_data_for_report(string_query,'stats', 
-                                                  locals(), fill_zeros = False)
-    
-    #print crashes_by_version_list
-     
-    return True
-    
 #===============================================================================
 # Houdini Versions and Builds related reports
 
 #TODO(YB) : improve the way this report is implemented
-def usage_by_hou_version_or_build(all=True, build=False, is_apprentice=False):
-    """
-    Usage by Houdini version or builds. Aggregating or not by product.
-    """
-    
-    dict_values_app = defaultdict(int)
-    
-    mc_query_set = ""
-    if all:
-        mc_query_set =  MachineConfig.objects.exclude(houdini_major_version=0,
-                                                       product="")
-    else:
-        mc_query_set = MachineConfig.objects.filter(is_apprentice=
-                                                    is_apprentice).exclude(
-                                                        houdini_major_version=0,
-                                                        product="")
-    # Data transformations    
-    for machine_config in mc_query_set:
-        # Build houdini version
-        houdini_version = str(machine_config.houdini_major_version) +  "."+ \
-                          str(machine_config.houdini_minor_version) 
-        # Add build if needed
-        if build: 
-            houdini_version += "." + machine_config.houdini_build_number
-            
-        suffix = "Houdini "     
-        combination = suffix + houdini_version
-        
-        if is_apprentice and machine_config.is_apprentice:
-            # Build combination houdini product and houdini version
-            combination = "Apprentice" + " " + houdini_version 
-            if not suffix in machine_config.product:
-                combination = suffix + combination
-            dict_values_app[combination] += 1
-        else:
-            dict_values_app[combination] += 1
-   
-    return [[houdini, count] for houdini, count in
-                                     dict_values_app.iteritems()]
+# def usage_by_hou_version_or_build(all=True, build=False, is_apprentice=False):
+#     """
+#     Usage by Houdini version or builds. Aggregating or not by product.
+#     """
+#     
+#     dict_values_app = defaultdict(int)
+#     
+#     mc_query_set = ""
+#     if all:
+#         mc_query_set =  MachineConfig.objects.exclude(houdini_major_version=0,
+#                                                        product="")
+#     else:
+#         mc_query_set = MachineConfig.objects.filter(is_apprentice=
+#                                                     is_apprentice).exclude(
+#                                                         houdini_major_version=0,
+#                                                         product="")
+#     # Data transformations    
+#     for machine_config in mc_query_set:
+#         # Build houdini version
+#         houdini_version = str(machine_config.houdini_major_version) +  "."+ \
+#                           str(machine_config.houdini_minor_version) 
+#         # Add build if needed
+#         if build: 
+#             houdini_version += "." + machine_config.houdini_build_number
+#             
+#         suffix = "Houdini "     
+#         combination = suffix + houdini_version
+#         
+#         if is_apprentice and machine_config.is_apprentice:
+#             # Build combination houdini product and houdini version
+#             combination = "Apprentice" + " " + houdini_version 
+#             if not suffix in machine_config.product:
+#                 combination = suffix + combination
+#             dict_values_app[combination] += 1
+#         else:
+#             dict_values_app[combination] += 1
+#    
+#     return [[houdini, count] for houdini, count in
+#                                      dict_values_app.iteritems()]
 
 
 #===============================================================================

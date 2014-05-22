@@ -1,104 +1,19 @@
 from django.db import connections
 from django.template import Context, Template
 
+from cachedqueries import cacheable
 import time_series
 
 #===============================================================================
 
-registered_report_classes = []
-            
-class ReportMetaclass(type):
-    def __new__(cls, name, bases, dct):
-        result_class = type.__new__(cls, name, bases, dct)
-        registered_report_classes.append(result_class)
-        return result_class
-
-#-------------------------------------------------------------------------------
-
-def find_report_class(name):
-    return [cls for cls in registered_report_classes
-        if cls.__name__ == name][0]
-
-#-------------------------------------------------------------------------------
-        
-class Report(object):
-    __metaclass__ = ReportMetaclass
-      
-    def name(self):
-        pass
-#-------------------------------------------------------------------------------
-
-class ChartReport(Report):
-    def title(self):
-        pass
-
-    def get_data(self, series_range, aggregation):
-        pass
-
-    def chart_columns(self):
-        pass
-
-    def chart_options(self):
-        return ""
-
-    def supports_aggregation(self):
-        return True
-
-    def show_date_picker(self):
-        return True
-
-    def minimum_start_date(self):
-        return None
- 
-    def generate_template_placeholder_code(self, report_count=1):
-        """
-        Generate the template placeholder to draw the chart.
-        The param report_count will specify how many reports will be draw under 
-        the same div. By default we always have just one report under place
-        holder.
-        """        
-        
-        # Work in progress
-#         report_title = '''<div class="graph-title">''' + self.title() + '''</div>
-#         <br>'''
-#        
-#         report_placeholder = ''' <div id="''' + self.name() + '''
-#         " class="wide graph"></div> <br> '''
-#         
-#         #if report_count > 1:
-#         #    for i in range(1, report
-        
-        return '''
-    <div class="graph-title">''' + self.title() + '''</div>
-    <br>
-    <div id="''' + self.name() + '''" class="wide graph"></div>
-    <br>
-    '''
-
-    def generate_template_graph_drawing(self, report_number, report_count=1):
-        # TODO: Clean this up!
-        format_dict = dict(
-            report_number=report_number,
-            name=self.name(),
-            options=self.chart_options())
-        return (
-            ("""{%% data report_data.%(name)s "count%(report_number)s" %%}\n"""
-                % format_dict) +
-            self.chart_columns() + "\n" +
-            "{% enddata %}\n" +
-            ("""{%% graph "%(name)s" "count%(report_number)s" %(options)s %%}"""
-                % format_dict)
-        )
-#-------------------------------------------------------------------------------
-
-class SqlReport(ChartReport):
-    def _get_cursor(self, db_name):
+def _get_cursor(db_name):
         """Given a db name returns a cursor."""
         return connections[db_name].cursor()
 
-    def get_sql_data_for_report(
-            self, string_query, db_name, context_vars, 
-            fill_zeros=True, fill_empty_string=False):
+@cacheable
+def get_sql_data_for_report(
+        string_query, db_name, context_vars, 
+        fill_zeros=True, fill_empty_string=False):
         """
         Generic function to get data for reports, doing sql queries using a
         cursor.
@@ -125,10 +40,12 @@ class SqlReport(ChartReport):
         context_vars["start_date"] = context_vars['series_range'][0] 
         context_vars["end_date"] = context_vars['series_range'][1]
         
-        cursor = self._get_cursor(db_name)
+        cursor = _get_cursor(db_name)
         tpl_header =  "{% load reports_tags %} "
              
         tpl = Template(tpl_header + string_query)
+        
+        print tpl.render(Context(context_vars))
         cursor.execute(tpl.render(Context(context_vars)), [])
         
         series = [(row[0], row[1]) for row in cursor.fetchall()]
@@ -146,13 +63,11 @@ class SqlReport(ChartReport):
             series,
             context_vars['aggregation'][:-2], 
             context_vars['series_range'])  
-
-
+        
 #-------------------------------------------------------------------------------
 
-class OrmReport(ChartReport):    
-    
-    def get_orm_data_for_report(self,query_set, time_field, series_range, 
+@cacheable
+def get_orm_data_for_report(query_set, time_field, series_range, 
                             aggregation = None, func = None):
         """
         Function to get data for reports, using django orm for the queries.
@@ -164,6 +79,140 @@ class OrmReport(ChartReport):
         
         return time_series.time_series(query_set, time_field, 
                                        series_range, func, aggregation)
+    
+#===============================================================================
+
+registered_report_classes = []
+            
+class ReportMetaclass(type):
+    def __new__(cls, name, bases, dct):
+        result_class = type.__new__(cls, name, bases, dct)
+        registered_report_classes.append(result_class)
+        return result_class
+
+#-------------------------------------------------------------------------------
+
+def find_report_class(name):
+    return [cls for cls in registered_report_classes
+        if cls.__name__ == name][0]
+
+#-------------------------------------------------------------------------------
+        
+class Report(object):
+    __metaclass__ = ReportMetaclass
+      
+    def name(self):
+        """
+        Each report in the same page must have a unique name.
+        """
+        pass
+#-------------------------------------------------------------------------------
+
+class ChartReport(Report):
+    def title(self):
+        pass
+
+    def get_data(self, series_range, aggregation):
+        pass
+    
+    def chart_columns(self):
+        pass
+
+    def chart_options(self):
+        # TODO: Add report types, and determine default options from that type.
+        # TODO: Allow each class to contribute to the options template.
+        return ""
+    
+    def chart_count(self):
+        """
+        How many charts to be drawn under the same placeholder.
+        For pie charts we can have more than one chart.
+        """
+        return 1  
+    
+    def supports_aggregation(self):
+        return True
+
+    def show_date_picker(self):
+        return True
+
+    def minimum_start_date(self):
+        return None
+ 
+    def generate_template_placeholder_code(self):
+        """
+        Generate the template placeholder to draw the chart.
+        Usually we have just one report under placeholder, but there are cases
+        in the pie charts that we draw more than one pie chart under the same
+        placeholder.
+        """        
+        report_title = '''
+        <div class="graph-title">''' + self.title() + '''</div>
+        <br>'''
+        
+        # How many charts to paint under the same placeholder
+        chart_count = self.chart_count() 
+        
+        if chart_count==1:
+            report_placeholder = ''' 
+            <div id="''' + self.name() + '''" class="wide graph"></div> 
+            <br> '''
+        else:
+            report_placeholder = ''' 
+            <div>
+            '''
+            # Draw more than one report inline, under the same report tittle
+            for i in range(1, chart_count+1):
+                report_placeholder += '''
+                <div id="''' + self.name() + str(i) + '''" style="display: inline-block">
+                </div> 
+                '''
+            report_placeholder +='''
+            </div>
+            '''   
+        return report_title + report_placeholder
+
+    def generate_template_graph_drawing(self):
+        """
+        Generate the graph drawing template placeholder to draw the chart.
+        Usually we have just one report to draw, but there are cases
+        in the pie charts that we want to paint more than one pie chart under 
+        the same placeholder.
+        """  
+        
+        # How many charts to be painted
+        chart_count = self.chart_count() 
+        
+        format_dict = dict(
+            name=self.name(),
+            options=self.chart_options())
+        
+        template_string = ""
+        if chart_count==1:
+            template_string =  (
+                ("""{%% data report_data.%(name)s "%(name)s" %%}\n"""
+                    % format_dict) +
+                self.chart_columns() + "\n" +
+                "{% enddata %}\n" +
+                ("""{%% graph "%(name)s" "%(name)s" %(options)s %%}"""
+                    % format_dict)
+            )
+        else:
+            for i in range(1, chart_count+1):
+                format_dict['index'] = i-1
+                format_dict['count'] = i
+                template_string += (
+                ("""{%% data report_data.%(name)s.%(index)d "%(name)s%(count)d" %%}\n"""
+                    % format_dict) +
+                self.chart_columns() + "\n" +
+                "{% enddata %}\n" +
+                ("""{%% graph "%(name)s%(count)d" "%(name)s%(count)d" %(options)s %%}"""
+                    % format_dict)
+                 ) + "\n" 
+        return template_string 
+        
+#-------------------------------------------------------------------------------
+
     
 
 

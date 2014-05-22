@@ -7,7 +7,7 @@ def find_or_execute_query(query_function, *args, **kwargs):
     pass to that function, execute that function and return its results.
     However, if the function has been executed with those parameters before
     and the results are cached, return the cached results instead of actually
-    excuting the function.
+    executing the function.
     """
     # To keep the server from consuming lots of memory from cached queries,
     # we limit the number of cached results per query function.

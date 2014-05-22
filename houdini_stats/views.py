@@ -356,13 +356,14 @@ def find_template_path(template_file_name):
     return None
 
 def render_chart_template(reports, report_data):
+    """
+    Render the template for the charts
+    """
     chart_placeholders = ""
+    chart_drawing = ""
     for report in reports:
         chart_placeholders += report.generate_template_placeholder_code()
-
-    chart_drawing = ""
-    for report_number, report in enumerate(reports):
-        chart_drawing += report.generate_template_graph_drawing(report_number)
+        chart_drawing += report.generate_template_graph_drawing()
 
     return render_template_from_string(
         """
