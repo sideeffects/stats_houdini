@@ -141,8 +141,14 @@ class API(object):
 
     @login_not_required
     def send_license_failure(self, request, user_info, failure_info):
-        print "user info (fail): ", user_info
-        print "failure info: ", failure_info
+        print "user info (fail):", user_info
+        print "failure info:", failure_info
+        return json_http_response(True) 
+
+    @login_not_required
+    def send_apprentice_activation(self, request, user_info, activation_info):
+        print "user info (Apprentice activation):", user_info
+        print "activation info:", activation_info
         return json_http_response(True) 
                 
 #-------------------------------------------------------------------------------
