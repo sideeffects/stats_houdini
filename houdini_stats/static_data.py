@@ -12,9 +12,10 @@ top_menu_options = OrderedDict([
         "menu_url_prefix": "houdini",
         "menu_name": "Houdini",
         "menu_options": [
-            ("downloads", "Houdini Downloads",
-                "hou_reports"
-            ),
+            ("downloads", "Houdini Downloads", [
+                "HoudiniDownloadsOverTime",
+                "CommercialVsApprenticeDownloadsInPercentages" 
+            ]),
             ("usage", "Usage", [
                 "NewMachinesOverTime",
                 "MachinesActivelySendingStats",
@@ -25,22 +26,22 @@ top_menu_options = OrderedDict([
                 "AverageUsageByMachine"
             ]),
             ("crashes", "Crashes",[
-                'NumCrashesOverTime',
-                'NumOfMachinesSendingCrashesOverTime',
-                'AvgNumCrashesFromSameMachine',
-                'CrashesByOS',
-                'CrashesByProduct'
+                "NumCrashesOverTime",
+                "NumOfMachinesSendingCrashesOverTime",
+                "AvgNumCrashesFromSameMachine",
+                "CrashesByOS",
+                "CrashesByProduct"
             ]),
             ("tools_usage", "Shelf & Tab menu Tools", [
-                'MostPopularTools',
-                'MostPopularToolsShelf',
-                'MostPopularToolsViewer',
-                'MostPopularToolsNetwork'
+                "MostPopularTools",
+                "MostPopularToolsShelf",
+                "MostPopularToolsViewer",
+                "MostPopularToolsNetwork"
             ]),
             ("versions_and_builds", "Versions and builds",[
-                'VersionsAndBuilds',
-                'VersionsAndBuildsApprentice',
-                'VersionsAndBuildsCommercial'              
+                "VersionsAndBuilds",
+                "VersionsAndBuildsApprentice",
+                "VersionsAndBuildsCommercial"              
             ]),
         ],
         "groups": ['staff', 'r&d'],
@@ -88,9 +89,9 @@ top_menu_options = OrderedDict([
 
 def menu_option_names_to_titles(menu_option_infos):
     """Build a dictionary mapping menu option names to titles."""
-    return {
-        menu_option_info[0]: menu_option_info[1]
-        for menu_option_info in menu_option_infos}
+    
+    return dict((menu_option_info[0], menu_option_info[1])
+        for menu_option_info in menu_option_infos)
 
 def menu_option_names(menu_option_infos):
     """Return a sequence of just the menu option names."""

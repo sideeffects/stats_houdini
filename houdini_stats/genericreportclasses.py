@@ -45,7 +45,7 @@ def get_sql_data_for_report(
              
         tpl = Template(tpl_header + string_query)
         
-        print tpl.render(Context(context_vars))
+        #print tpl.render(Context(context_vars))
         cursor.execute(tpl.render(Context(context_vars)), [])
         
         series = [(row[0], row[1]) for row in cursor.fetchall()]
@@ -79,6 +79,26 @@ def get_orm_data_for_report(query_set, time_field, series_range,
         
         return time_series.time_series(query_set, time_field, 
                                        series_range, func, aggregation)
+
+#-------------------------------------------------------------------------------
+@cacheable
+def get_events_in_range(series_range, aggregation, fill_empty_string = True):
+    """
+    Get all the events in the give time period. Return the results as a time
+    serie [date, event_name]
+    """
+    
+    string_query = """
+        select {% aggregated_date "date" aggregation %} AS mydate, 
+               group_concat(title separator ', ') AS my_title
+        from houdini_stats_event
+        where {% where_between "date" start_date end_date %}
+        group by mydate
+        order by mydate"""
+    
+    return get_sql_data_for_report(string_query,'stats', locals(),
+                                   fill_zeros = False, 
+                                   fill_empty_string = fill_empty_string)
     
 #===============================================================================
 
@@ -130,6 +150,9 @@ class ChartReport(Report):
         """
         return 1  
     
+    def chart_aditional_message(self):
+        return "" 
+    
     def supports_aggregation(self):
         return True
 
@@ -137,7 +160,8 @@ class ChartReport(Report):
         return True
 
     def minimum_start_date(self):
-        return None
+        import settings
+        return settings.REPORTS_START_DATE
  
     def generate_template_placeholder_code(self):
         """
@@ -146,6 +170,7 @@ class ChartReport(Report):
         in the pie charts that we draw more than one pie chart under the same
         placeholder.
         """        
+        
         report_title = '''
         <div class="graph-title">''' + self.title() + '''</div>
         <br>'''
@@ -170,7 +195,7 @@ class ChartReport(Report):
             report_placeholder +='''
             </div>
             '''   
-        return report_title + report_placeholder
+        return self.chart_aditional_message() + report_title + report_placeholder
 
     def generate_template_graph_drawing(self):
         """

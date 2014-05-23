@@ -26,6 +26,7 @@ import settings
 import reportfunctions
 import genericreportclasses
 import reports.houdini
+import reports.downloads
 
 #===============================================================================
 
@@ -346,6 +347,7 @@ def generic_report_view(request, menu_name, dropdown_option):
             'charts': charts,
         }),
         request)
+#-------------------------------------------------------------------------------
 
 def find_template_path(template_file_name):
     for template_dir in settings.TEMPLATE_DIRS:
@@ -354,6 +356,7 @@ def find_template_path(template_file_name):
             return template_path
 
     return None
+#-------------------------------------------------------------------------------
 
 def render_chart_template(reports, report_data):
     """
@@ -367,6 +370,7 @@ def render_chart_template(reports, report_data):
 
     return render_template_from_string(
         """
+        {% load reports_tags %}
         {% load googlecharts %}
 
         """ + chart_placeholders + """
@@ -381,143 +385,12 @@ def render_chart_template(reports, report_data):
             report_data=report_data,
             date_format=DATE_FORMAT,
         ))
+#-------------------------------------------------------------------------------
 
 def render_template_from_string(string, context_vars):
     return Template(string).render(Context(context_vars))
 
-@require_http_methods(["GET", "POST"])
-@login_required
-@user_access(['staff','r&d'])
-def hou_reports_view(request, dropdown_option_key):
-    """
-    Analytics from data we collect from inside Houdini.
-    """
-    
-    # Max number of rows we are going to get by query
-    limit = 20
-
-    series = {}
-    series_range, aggregation = get_common_vars_for_charts(request)
-    pies = {}
-    url_to_reverse = {}
-    show_date_picker = True
-    show_agg_widget = True
-
-    # Events serie 
-    events_to_annotate = reportfunctions.get_events_in_range(series_range, aggregation)
-    
-    if not dropdown_option_key:
-        dropdown_option_key = "downloads"
-        
-    if dropdown_option_key == "downloads":
-        
-        all_downloads = reportfunctions.get_all_houdini_downloads(series_range, 
-                                                                    aggregation)
-        apprentice_downloads = reportfunctions.get_houdini_apprentice_downloads(
-                                                      series_range, aggregation)
-        commercial_downloads = reportfunctions.get_houdini_commercial_downloads(
-                                                      series_range, aggregation) 
-        
-        series["software_downloads"] = reportfunctions.get_merge_houdini_downloads(
-                                all_downloads, apprentice_downloads, 
-                                commercial_downloads, events_to_annotate) 
-        
-        series["percentages"] = reportfunctions.get_percentage_two_series_one_total(
-                      all_downloads, apprentice_downloads, commercial_downloads)
-       
-    if not dropdown_option_key == "downloads":
-        # We started collecting meaningful data from Houdini at a different
-        # date thats why we pass an additional param to the function.
-        series_range, aggregation = get_common_vars_for_charts(
-            request, minimum_start_date=settings.HOUDINI_REPORTS_START_DATE)
-    if dropdown_option_key == "usage":
-        series['new_machines_over_time'] = reportfunctions.get_new_machines_over_time(
-            series_range, aggregation)
-        series['machines_sending_stats_per_day'] = \
-            reportfunctions.get_num_of_machines_sending_stats_per_day(
-                series_range, aggregation)
-        series['avg_of_individual_successful_conn_per_day'] = \
-            reportfunctions.get_avg_num_of_individual_successful_conn_per_day(
-                series_range, aggregation)
-            
-    if dropdown_option_key == "uptime":
-        series['hou_average_session_length'] = (
-            reportfunctions.average_session_length(series_range, aggregation))
-        series['hou_average_usage_by_machine'] = (
-            reportfunctions.average_usage_by_machine(series_range, aggregation))
-    
-    if dropdown_option_key == "crashes":
-        series['hou_crashes_over_time'] = (
-            reportfunctions.get_orm_data_for_report(HoudiniCrash.objects.all(),
-                'date', series_range, aggregation))
-        series['hou_num_of_machines_sending_crashes_per_day']=\
-            reportfunctions.get_num_of_machines_sending_crashes_per_day(
-                series_range, aggregation)
-        series['hou_avg_crashes_by_same_machine']=\
-            reportfunctions.get_avg_num_of_crashes_by_same_machine_per_day(
-                series_range, aggregation)
-        pies['hou_crashes_by_os'], pies['hou_crashes_by_os_detailed']=\
-            reportfunctions.get_hou_crashes_by_os(series_range, aggregation)
-                      
-        pies['hou_crashes_by_product']= reportfunctions.get_hou_crashes_by_product(
-            series_range, aggregation)
-         
-    if dropdown_option_key == "tools_usage":
-        show_date_picker = True
-        show_agg_widget = False
-        series['hou_most_popular_tools'] = (
-            reportfunctions.most_popular_tools(series_range, aggregation))
-        series['hou_most_popular_tools_shelf'] = (
-            reportfunctions.most_popular_tools(series_range, aggregation, "(1)"))
-        series['hou_most_popular_tools_viewer'] = (
-            reportfunctions.most_popular_tools(series_range, aggregation, "(2)"))
-        series['hou_most_popular_tools_network'] = (
-            reportfunctions.most_popular_tools(series_range, aggregation, "(3)"))
-        
-    if dropdown_option_key == "versions_and_builds":
-        show_date_picker = False
-        show_agg_widget = False
-
-        # Pie Charts
-        pies['houdini_versions'] = reportfunctions.usage_by_hou_version_or_build()
-        pies['houdini_builds'] = reportfunctions.usage_by_hou_version_or_build(
-            build=True)
-        pies['houdini_versions_apprentice'] = (
-            reportfunctions.usage_by_hou_version_or_build(
-                all=False,
-                is_apprentice=True))
-        pies['houdini_builds_apprentice'] =  (
-            reportfunctions.usage_by_hou_version_or_build(
-                all=False,
-                build=True,
-                is_apprentice=True))
-        pies['houdini_versions_commercial'] = (
-            reportfunctions.usage_by_hou_version_or_build(
-                all=False))
-        pies['houdini_builds_commercial'] = (
-            reportfunctions.usage_by_hou_version_or_build(
-                all=False,
-                build=True))
-
-
-    return render_response(
-        "hou_reports.html",
-        _add_common_context_params(request, series_range, aggregation, {
-            'series': series,
-            'pies': pies,
-            'url': reverse(
-                "hou_reports",
-                kwargs={"dropdown_option_key": dropdown_option_key}),
-            'dropdown_option_key': dropdown_option_key,
-            'show_date_picker': show_date_picker,
-            'show_agg_widget': show_agg_widget,
-            'active_menu': static_data.top_menu_options['houdini']['menu_name'],
-            'active_menu_option_info':
-                _get_active_menu_option_info('houdini', dropdown_option_key),
-        }),
-        request)
-
-#------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
 @user_access(['staff','r&d'])

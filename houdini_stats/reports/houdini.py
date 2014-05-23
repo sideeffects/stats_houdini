@@ -10,7 +10,17 @@ import houdini_stats.time_series
 #===============================================================================
 # Houdini Usage Report Classes
 
-class NewMachinesOverTime(ChartReport):
+class HoudiniStatsReport(ChartReport):
+    """
+    Class to represent all reports with data obtained from inside Houdini.
+    """
+    
+    def minimum_start_date(self):
+        import settings
+        return settings.HOUDINI_REPORTS_START_DATE
+#-------------------------------------------------------------------------------
+    
+class NewMachinesOverTime(HoudiniStatsReport):
     """
     New machines subscribed to Stats over time. Area Chart.
     """  
@@ -44,6 +54,9 @@ class NewMachinesOverTime(ChartReport):
 
         return get_sql_data_for_report(string_query,'stats', locals())
     
+    def chart_aditional_message(self):
+        return "{% include 'hou_reports_message.html' %}" 
+    
     def chart_columns(self):
         return """
         {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
@@ -53,13 +66,9 @@ class NewMachinesOverTime(ChartReport):
     def chart_options(self):
         return '"opt_count_area_wide"'
 
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
-
 #-------------------------------------------------------------------------------
 
-class MachinesActivelySendingStats(ChartReport):
+class MachinesActivelySendingStats(HoudiniStatsReport):
     """
     How many machines are actively sending stats. Area Chart.
     """
@@ -94,13 +103,9 @@ class MachinesActivelySendingStats(ChartReport):
     def chart_options(self):
         return '"opt_count_area_wide"'
 
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
-
 #-------------------------------------------------------------------------------
 
-class AvgNumConnectionsFromSameMachine(ChartReport):
+class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
     """
     Average number of individual successful connections from the same machine.
     Column Chart.
@@ -142,14 +147,10 @@ class AvgNumConnectionsFromSameMachine(ChartReport):
     def chart_options(self):
         return '"opt_count_wide_column"'
 
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE   
-
 #===============================================================================
 # Houdini Uptime Report Classes
 
-class AverageSessionLength(ChartReport):
+class AverageSessionLength(HoudiniStatsReport):
     """
     Houdini average session length. Column Chart.
     """
@@ -175,17 +176,16 @@ class AverageSessionLength(ChartReport):
        {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
        {% col "number" "# of hours" %}{{ val }}{% endcol %}
        """
-
+    
+    def chart_aditional_message(self):
+        return "{% include 'hou_reports_message.html' %}" 
+    
     def chart_options(self):
         return '"opt_count_wide_column"'
 
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
-
 #------------------------------------------------------------------------------- 
    
-class AverageUsageByMachine(ChartReport):
+class AverageUsageByMachine(HoudiniStatsReport):
     """
     Houdini average usage by machine. Column Chart.
     """
@@ -225,14 +225,10 @@ class AverageUsageByMachine(ChartReport):
     def chart_options(self):
         return '"opt_count_wide_column"'
 
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
-
 #===============================================================================
 # Houdini Crashes Report Classes
 
-class NumCrashesOverTime(ChartReport):
+class NumCrashesOverTime(HoudiniStatsReport):
     """
     Houdini crashes over time. Line Chart.
     """
@@ -247,6 +243,9 @@ class NumCrashesOverTime(ChartReport):
         return get_orm_data_for_report(HoudiniCrash.objects.all(),
                    'date', series_range, aggregation)
 
+    def chart_aditional_message(self):
+        return "{% include 'hou_reports_message.html' %}" 
+    
     def chart_columns(self):
         return """
         {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
@@ -256,13 +255,9 @@ class NumCrashesOverTime(ChartReport):
     def chart_options(self):
         return '"opt_count_area_wide"'
 
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
-
 #-------------------------------------------------------------------------------
 
-class NumOfMachinesSendingCrashesOverTime(ChartReport):
+class NumOfMachinesSendingCrashesOverTime(HoudiniStatsReport):
     """
     Number of indididual machines sending crashes over time. Column Chart.
     """    
@@ -298,13 +293,9 @@ class NumOfMachinesSendingCrashesOverTime(ChartReport):
     def chart_options(self):
         return '"opt_count_wide_column"'
 
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
-
 #-------------------------------------------------------------------------------
 
-class AvgNumCrashesFromSameMachine(ChartReport):
+class AvgNumCrashesFromSameMachine(HoudiniStatsReport):
     """
     Average number of crashes emitted from the same machine. Column Chart.
     """    
@@ -340,13 +331,9 @@ class AvgNumCrashesFromSameMachine(ChartReport):
     def chart_options(self):
         return '"opt_count_wide_columnGreen"'
 
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
-
 #-------------------------------------------------------------------------------
 
-class CrashesByOS(ChartReport):
+class CrashesByOS(HoudiniStatsReport):
     """
     Houdini crashes by os. PieChart report.
     """    
@@ -428,14 +415,9 @@ class CrashesByOS(ChartReport):
     def chart_count(self):
         return 2
 
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
-
-      
 #-------------------------------------------------------------------------------
 
-class CrashesByProduct(ChartReport):
+class CrashesByProduct(HoudiniStatsReport):
     """
     Houdini crashes by product (Houdini Commercial, Houdini Apprentice,
     Hbatch, etc). PieChart report.
@@ -509,14 +491,10 @@ class CrashesByProduct(ChartReport):
     def chart_options(self):
         return '"out_options"'
     
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
-    
 #===============================================================================
 # Houdini Tools Usage related reports
 
-class MostPopularTools(ChartReport):
+class MostPopularTools(HoudiniStatsReport):
     """
     Most popular houdini tools. Column Chart.
     """  
@@ -525,6 +503,9 @@ class MostPopularTools(ChartReport):
 
     def title(self):
         return "Most Popular Houdini Tools"
+    
+    def supports_aggregation(self):
+        return False
     
     def tool_usage_count(self):
         """
@@ -561,6 +542,9 @@ class MostPopularTools(ChartReport):
         return get_sql_data_for_report(string_query, 'stats', locals(), 
                    fill_zeros=False)
     
+    def chart_aditional_message(self):
+        return "{% include 'hou_reports_message.html' %}" 
+    
     def chart_columns(self):
         return """
         {% col "string" "Houdini Tool" %}"{{ val }}"{% endcol %}
@@ -569,10 +553,6 @@ class MostPopularTools(ChartReport):
 
     def chart_options(self):
         return '"opt_count_wide_column"'
-
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
 
 #-------------------------------------------------------------------------------
 
@@ -594,6 +574,9 @@ class MostPopularToolsShelf(MostPopularTools):
 
     def chart_options(self):
         return '"opt_count_wide_columnGreen"'
+    
+    def chart_aditional_message(self):
+        return "" 
 
 #-------------------------------------------------------------------------------
 
@@ -616,6 +599,9 @@ class MostPopularToolsViewer(MostPopularTools):
     def chart_options(self):
         return '"opt_count_wide_columnYellow"'    
     
+    def chart_aditional_message(self):
+        return "" 
+    
 #-------------------------------------------------------------------------------
 
 class MostPopularToolsNetwork(MostPopularTools):
@@ -637,11 +623,13 @@ class MostPopularToolsNetwork(MostPopularTools):
     def chart_options(self):
         return '"opt_count_wide_columnPurple"' 
     
+    def chart_aditional_message(self):
+        return "" 
     
 #===============================================================================
 # Houdini Versions and Builds related reports
 
-class VersionsAndBuilds(ChartReport):
+class VersionsAndBuilds(HoudiniStatsReport):
     """
     Houdini versions and builds. Pie Charts.
     """  
@@ -650,6 +638,12 @@ class VersionsAndBuilds(ChartReport):
 
     def title(self):
         return "Houdini Versions and Builds"
+    
+    def supports_aggregation(self):
+        return False
+
+    def show_date_picker(self):
+        return False
     
     def query_set(self):        
         return MachineConfig.objects.exclude(houdini_major_version=0, 
@@ -705,6 +699,9 @@ class VersionsAndBuilds(ChartReport):
         """
         return "Houdini"
     
+    def chart_aditional_message(self):
+        return "{% include 'hou_reports_message.html' %}" 
+    
     def chart_columns(self):
         return """
         {% col "string" "Name" %}"{{ val }}"{% endcol %}
@@ -716,11 +713,7 @@ class VersionsAndBuilds(ChartReport):
     
     def chart_count(self):
         return 2
-
-    def minimum_start_date(self):
-        import settings
-        return settings.HOUDINI_REPORTS_START_DATE
-
+    
 #------------------------------------------------------------------------------- 
    
 class VersionsAndBuildsApprentice(VersionsAndBuilds):
@@ -739,6 +732,9 @@ class VersionsAndBuildsApprentice(VersionsAndBuilds):
     
     def chart_leyend_text(self):
         return "Houdini Apprentice"
+    
+    def chart_aditional_message(self):
+        return "" 
 
 #-------------------------------------------------------------------------------  
   
@@ -758,6 +754,9 @@ class VersionsAndBuildsCommercial(VersionsAndBuilds):
     
     def chart_leyend_text(self):
         return "Houdini FX"    
+    
+    def chart_aditional_message(self):
+        return "" 
     
         
 

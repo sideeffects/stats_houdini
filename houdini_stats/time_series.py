@@ -184,3 +184,21 @@ def seconds_to_time_unit_series(time_series, time_unit):
                                   compute_time_serie(time_series, 
                                   utils.seconds_to_multiple_time_units), 
                                   time_unit) 
+#-------------------------------------------------------------------------------
+
+def get_percentage_from_total(total_serie, fraction_serie):
+    """
+    Get which percentage is each element of a serie from the same element 
+    (same date) on another serie.
+    """      
+    return compute_time_series(
+               [fraction_serie, total_serie], utils.get_percent)    
+    
+#-------------------------------------------------------------------------------
+ 
+def get_difference_between_series(series1, series2):
+    """
+    Get the difference between the numbers in two time series. Column Chart.
+    """      
+    return compute_time_series(
+        [series1, series2], utils.get_difference)        
