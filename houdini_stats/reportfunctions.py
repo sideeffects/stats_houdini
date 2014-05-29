@@ -463,127 +463,6 @@ def openid_providers_breakdown(series_range, aggregation):
 #===============================================================================
 # Houdini Licenses and downloads related reports
 
-def apprentice_new_activations_over_time(series_range, aggregation):
-    """
-    Get Apprentice Activations over time. Line Chart.
-    """
-    
-    nc_custid = 2711
-    
-    string_query = """
-        select {% aggregated_date "activation_date" aggregation %} AS mydate, 
-               count(*) as num_activated
-        from (
-            select from_days(min(to_days(Keystrings.CreateDate))) as 
-                       activation_date 
-                from Servers, Keystrings
-                where Servers.CustID='{{ nc_custid }}'
-                and Servers.ServerID=Keystrings.ServerID
-                and Keystrings.KType='LICENSE'
-                group by Servers.ServerID
-        ) as TempTable
-        where {% where_between "activation_date" start_date end_date %}
-        group by mydate  
-        order by mydate  
-       """
-        
-    return get_sql_data_for_report(string_query,'licensedb', locals())    
-
-#-------------------------------------------------------------------------------
-
-def apprentice_total_activations_over_time(series_range, aggregation):
-    """
-    Get Apprentice Activations over time. Line Chart.
-    """
-    
-    nc_custid = 2711
-    
-    string_query = """
-        select {% aggregated_date "activation_date" aggregation %} AS mydate, 
-               count(*) as num_activated
-        from (
-            select cast(cast(CreateDate as date) as datetime) as 
-                       activation_date 
-                from Servers, Keystrings
-                where Servers.CustID='{{ nc_custid }}'
-                and Servers.ServerID=Keystrings.ServerID
-                and Keystrings.KType='LICENSE'
-                group by Servers.ServerID, activation_date 
-        ) as TempTable
-        where {% where_between "activation_date" start_date end_date %}
-        group by mydate  
-        order by mydate  
-       """
-        
-    return get_sql_data_for_report(string_query,'licensedb', locals())     
-#-------------------------------------------------------------------------------
-
-def get_apprentice_hd_licenses_over_time(series_range, aggregation):
-    """
-    Get Apprentice HD Licenses generated over time. Line Chart.
-    """
-    
-    # Not queriying entitlements
-    string_query = """
-        select {% aggregated_date "CreateDate" aggregation %} AS mydate, 
-               sum(KTokens) as num_licenses
-        from Keystrings
-        where Product = 'HOUDINI-APPRENTICE-HD' and Disabled = 'N'
-            and KType = 'LICENSE'
-            and (LicType = 'PURCHASED' or LicType = 'SUBSCRIPTION')
-            and {% where_between "CreateDate" start_date end_date %}
-        group by mydate  
-        order by mydate  
-       """
-        
-    return get_sql_data_for_report(string_query,'licensedb', locals())   
-    
-#-------------------------------------------------------------------------------
-
-def _get_cumulative_values(initial_total, tuples):
-    """
-    Get cumulative values. 
-    """
-    
-    if len(tuples) == 0:
-        return tuples
-
-    result = []
-    total = initial_total
-    for date, value in tuples:
-        total += value
-        result.append([date, total])
-
-    return result
-
-#-------------------------------------------------------------------------------
-
-def get_apprentice_hd_licenses_cumulative(hd_licenses_series, range_start_date):
-    """
-    Get Apprentice HD Licenses cumulative over time.
-    """
-    
-    cursor = connections['licensedb'].cursor()
-    
-    cursor.execute("""
-        select sum(KTokens) as num_licenses
-        from Keystrings
-        where Product = 'HOUDINI-APPRENTICE-HD' and Disabled = 'N'
-            and KType = 'LICENSE'
-            and (LicType = 'PURCHASED' or LicType = 'SUBSCRIPTION')
-            and CreateDate <= date_format('{0}', '%%Y-%%c-%%d %%H:%%i:%%S')
-        """.format(range_start_date.strftime("%Y-%m-%d %H:%M:%S"))
-                                     
-        )  
-    
-    cumulative_val = cursor.fetchall()[0][0]
-    if cumulative_val is None:
-        cumulative_val = 0
-        
-    return _get_cumulative_values(cumulative_val, hd_licenses_series)
-
-#-------------------------------------------------------------------------------
-
 def get_apprentice_activations_by_geo(series_range, aggregation):
     """
     Get Apprentice HD Licenses by Geography. Ip address.
@@ -609,101 +488,30 @@ def get_apprentice_activations_by_geo(series_range, aggregation):
     
     return lat_longs
 
-#-------------------------------------------------------------------------------
-def _get_data_for_houdini_download_reports(series_range, aggregation, 
-                                          sql_where_statement='',
-                                          sql_join_statement=''):
+   
+def get_apprentice_total_activations(series_range, aggregation):
     """
-    Get data for download reports, total downloads, commercial and apprentice
-    will use this same function.
+    Get Apprentice Activations over time.
     """
+    
+    nc_custid = 2711
     
     string_query = """
-         select {% aggregated_date 'downloads.dls_time' aggregation %} AS mydate, 
-                count(downloads.id)
-         from dls_houdini_downloads AS downloads
-         {{ sql_join_statement }}
-         where {% where_between 'downloads.dls_time' start_date end_date %}  
-         {{ sql_where_statement }}
-         group by mydate  
-         order by mydate
-        """
-    
-    return get_sql_data_for_report(string_query,'mambo', locals()) 
- 
-#------------------------------------------------------------------------------- 
-def get_all_houdini_downloads(series_range, aggregation):
-    """
-    Get all downloads
-    """
-    return _get_data_for_houdini_download_reports(series_range, aggregation)
-
-#-------------------------------------------------------------------------------  
-
-def get_houdini_apprentice_downloads(series_range, aggregation):
-    """
-    Get apprentice downloads
-    """
-    sql_join_statement = """
-                  inner join dls_apprentice_users AS apprentice 
-                  ON downloads.apprentice_user_id = apprentice.id
-                  """ 
-    sql_where_statement = """
-            and downloads.apprentice_user_id IS NOT NULL
-            and user_id = -1   
-            """                          
-    return _get_data_for_houdini_download_reports(series_range, aggregation,
-                                       sql_where_statement, sql_join_statement) 
-    
-#------------------------------------------------------------------------------- 
-def get_houdini_commercial_downloads(series_range, aggregation):
-    """
-    Get commercial downloads
-    """
-    
-    sql_where_statement = """and downloads.apprentice_user_id IS NULL 
-                             and user_id != -1"""  
-    return _get_data_for_houdini_download_reports(series_range, 
-                                               aggregation, sql_where_statement)
-
-#-------------------------------------------------------------------------------    
-def get_merge_houdini_downloads(all_downloads, apprentice_downloads, 
-                                      commercial_downloads, events_to_annotate):
-    """
-    Get a time series with a merfe of all the houdini downloads, and the event
-    to anootate. These stats are houdini downloads through the website per day. 
-    """
-    return time_series.merge_time_series([all_downloads, events_to_annotate, 
-                              commercial_downloads, apprentice_downloads])
-                                                                                    
-#-------------------------------------------------------------------------------
-def get_percentage_of_total(total_serie, fraction_serie):
-    """
-    Get which percentage is each element of a serie from the same element 
-    (same date) on another serie. Column Chart.
-    """      
-    return time_series.compute_time_series(
-        [fraction_serie, total_serie], utils.get_percent)  
-
-#-------------------------------------------------------------------------------
-def get_difference_between_series(series1, series2):
-    """
-    Get the difference between the numbers in two time series. Column Chart.
-    """      
-    return time_series.compute_time_series(
-        [series1, series2], utils.get_difference)  
-    
-#-------------------------------------------------------------------------------    
-def get_percentage_two_series_one_total(series_total, series1, series2):
-    
-    series1_percentages = get_percentage_of_total(series_total, 
-                                                      series1)
-    series2_percentages = get_percentage_of_total(series_total, 
-                                                      series2)
-    
-    return time_series.merge_time_series([series1_percentages, 
-                                          series2_percentages])
-
-   
-    
+        select {% aggregated_date "activation_date" aggregation %} AS mydate, 
+               count(*) as num_activated
+        from (
+            select cast(cast(CreateDate as date) as datetime) as 
+                       activation_date 
+                from Servers, Keystrings
+                where Servers.CustID='{{ nc_custid }}'
+                and Servers.ServerID=Keystrings.ServerID
+                and Keystrings.KType='LICENSE'
+                group by Servers.ServerID, activation_date 
+        ) as TempTable
+        where {% where_between "activation_date" start_date end_date %}
+        group by mydate  
+        order by mydate  
+       """
+        
+    return get_sql_data_for_report(string_query,'licensedb', locals())     
     

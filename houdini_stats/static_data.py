@@ -50,12 +50,15 @@ top_menu_options = OrderedDict([
         "menu_url_prefix": "apprentice",
         "menu_name": "Apprentice",
         "menu_options": [
-            ("apprentice_activations", "Apprentice Activations",
-                "hou_apprentice"
-            ),
-            ("apprentice_hd", "Apprentice HD",
-                "hou_apprentice"
-            ),
+            ("apprentice_activations", "Apprentice Activations",[
+                "ApprenticeActivationsVsDownloads",
+                "ApprenticeActivationsAndReactivationsPercentages",
+                "PercentagesApprenticeNewActivationsFromApprenticeDownloads"
+            ]),
+            ("apprentice_hd", "Apprentice HD",[
+                "ApprenticeHdLicensesOverTime",
+                "ApprenticeHdCumulativeLicensesOverTime"
+            ]),
             ("apprentice_heatmap", "Apprentice Activations Heatmap",
                 "hou_apprentice"
             ),
@@ -66,8 +69,10 @@ top_menu_options = OrderedDict([
         "menu_url_prefix": "surveys",
         "menu_name": "Surveys",
         "menu_options": [
-            ("sidefx_labs", "labs.sidefx.com survey",
-                "hou_surveys"
+            ("sidefx_labs", "labs.sidefx.com survey",[
+                "BreakdownMayaUnityCounts",
+                "BreakdownMayaUnityOverTime"]
+                #"hou_surveys"
             ),
             ("apprentice_followup","Apprentice survey",
                 "hou_surveys"
@@ -86,28 +91,35 @@ top_menu_options = OrderedDict([
         "groups":['staff', 'r&d'],
     }),
 ])
+#-------------------------------------------------------------------------
 
 def menu_option_names_to_titles(menu_option_infos):
     """Build a dictionary mapping menu option names to titles."""
     
     return dict((menu_option_info[0], menu_option_info[1])
         for menu_option_info in menu_option_infos)
+#-------------------------------------------------------------------------
 
 def menu_option_names(menu_option_infos):
     """Return a sequence of just the menu option names."""
     return [
         menu_option_info[0]
         for menu_option_info in menu_option_infos]
+#-------------------------------------------------------------------------
 
 def menu_option_view_or_report_classes(menu_option_info):
     # Each menu option info will be of this format:
     #     (name, title, report_class_sequence or view_name)
     return menu_option_info[2]
 
+#-------------------------------------------------------------------------
+
 def report_classes_for_menu_option(menu, option_name):
     menu_option_info = find_menu_option_info(
         top_menu_options[menu]["menu_options"], option_name)
     return menu_option_view_or_report_classes(menu_option_info)
+
+#-------------------------------------------------------------------------
 
 def build_top_menu_options_next_prevs():
     "Get a dictionary with all the menu options nexts and previous."
@@ -125,20 +137,11 @@ def build_top_menu_options_next_prevs():
 
     return top_menu_options_nexts_prevs
 
+#-------------------------------------------------------------------------
+
 def find_menu_option_info(menu_option_infos, option_name):
     return [menu_option_info for menu_option_info in menu_option_infos
         if menu_option_info[0] == option_name][0]
 
-#-------------------------------------------------------------------------
 
-report_layout = [
-    ["houdini", "Houdini", ["staff", "r&d"], [
-        ["downloads", "Houdini Downloads"], [
-            "NumberOfHoudiniDownloads",
-            "CommercialVsApprenticeDownloads",
-        ]],
-        ["usage", "Usage", ["staff", "r&d"], [
-            "BlahBlah",
-        ]],
-    ]
-]
+

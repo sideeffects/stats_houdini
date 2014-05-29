@@ -195,6 +195,20 @@ def get_percentage_from_total(total_serie, fraction_serie):
                [fraction_serie, total_serie], utils.get_percent)    
     
 #-------------------------------------------------------------------------------
+
+def merge_percentage_two_series_one_total(series_total, series1, series2):
+    """
+    Merge percetages of two series from one total serie.
+    """
+    
+    series1_percentages = get_percentage_from_total(series_total, 
+                                                      series1)
+    series2_percentages = get_percentage_from_total(series_total, 
+                                                      series2)
+    
+    return merge_time_series([series1_percentages, 
+                                          series2_percentages]) 
+#-------------------------------------------------------------------------------
  
 def get_difference_between_series(series1, series2):
     """

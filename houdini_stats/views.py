@@ -27,6 +27,9 @@ import reportfunctions
 import genericreportclasses
 import reports.houdini
 import reports.downloads
+import reports.apprentice
+import reports.surveys
+import time_series
 
 #===============================================================================
 
@@ -307,6 +310,11 @@ def generic_report_view(request, menu_name, dropdown_option):
     series_range, aggregation = get_common_vars_for_charts(
         request, minimum_start_date=settings.HOUDINI_REPORTS_START_DATE)
 
+    # Making sure at least the first option will always be selected
+    if dropdown_option=='':
+        dropdown_option = static_data.top_menu_options[menu_name]\
+                                                         ["menu_options"][0][0]
+        
     # TODO: Determine the proper group names for the intersection of the
     # reports
     validate_user_is_in_group(request, ['staff', 'r&d'])
@@ -400,63 +408,10 @@ def hou_apprentice_view(request, dropdown_option_key):
     series = {}
     series_range, aggregation = get_common_vars_for_charts(request)
     
-    show_agg_widget = True
+    show_agg_widget = False
     
-    # Events serie 
-    events_to_annotate = reportfunctions.get_events_in_range(series_range, aggregation)
-
-    if not dropdown_option_key:
-        dropdown_option_key = "apprentice_activations"
-
-    if dropdown_option_key == "apprentice_activations":
-        apprentice_downloads = reportfunctions.get_houdini_apprentice_downloads(
-            series_range, aggregation)
-        
-        apprentice_activations_new = (
-            reportfunctions.apprentice_new_activations_over_time(
-                series_range, aggregation))
-        
-        apprentice_activations_total = (
-            reportfunctions.apprentice_total_activations_over_time(
-                series_range, aggregation))
-        
-        # Difference between apprentice activations total and the new
-        # new activations
-        apprentice_reactivations = reportfunctions.get_difference_between_series(
-            apprentice_activations_total, 
-            apprentice_activations_new)
-        
-        series['apprentice_lic_over_time'] = merge_time_series([
-            apprentice_activations_total, 
-            events_to_annotate,
-            apprentice_activations_new,
-            apprentice_reactivations,
-            apprentice_downloads,
-        ])
-        
-        series['apprentice_percentages_new_from_downloads'] = (
-            reportfunctions.get_percentage_of_total(
-                apprentice_downloads, apprentice_activations_new))
-        
-        series["apprentice_act_percentages"] = (
-            reportfunctions.get_percentage_two_series_one_total(
-                apprentice_activations_total,
-                apprentice_activations_new, 
-                apprentice_reactivations))
-    
-    if dropdown_option_key == "apprentice_hd":
-        apprentice_hd_licenses = reportfunctions.get_apprentice_hd_licenses_over_time(
-            series_range, aggregation)
-        
-        series['apprentice_hd_lic'] = merge_time_series(
-            [apprentice_hd_licenses, events_to_annotate]) 
-        series['apprentice_hd_lic_cumu'] = (
-            reportfunctions.get_apprentice_hd_licenses_cumulative(
-                apprentice_hd_licenses, series_range[0]))
-    
-    if dropdown_option_key == "apprentice_heatmap":
-        show_agg_widget = False
-            
+    print "here"
+                
     return render_response(
         "apprentice_reports.html",
         _add_common_context_params(
@@ -464,8 +419,6 @@ def hou_apprentice_view(request, dropdown_option_key):
             series_range,
             aggregation,
             {
-                'series': series,
-                'events': events_to_annotate,
                 'active_licenses': True,
                 'url': reverse(
                     "hou_apprentice",
@@ -479,6 +432,30 @@ def hou_apprentice_view(request, dropdown_option_key):
             }),
             request)    
 
+#-----------------------------------------------------------------------------
+@require_http_methods(["GET", "POST"])
+@login_required
+@user_access(['staff','r&d'])
+def hou_heatmap_view(request, option):
+    """
+    View to visualize Heatmaps.
+    """
+    series = {}
+    series_range, aggregation = get_common_vars_for_charts(request)
+    
+    lat_longs = []
+    
+    print "HERE 2"
+    
+    if option == "apprentice_heatmap":
+        lat_longs = reportfunctions.get_apprentice_activations_by_geo(series_range, 
+                                                              aggregation)
+    return render_response(
+        "heatmap.html", {
+            "lat_longs": lat_longs,
+        },
+        request)    
+
 #------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
@@ -489,30 +466,17 @@ def hou_surveys_view(request, dropdown_option_key):
     """
     series = {}
 
-    if not dropdown_option_key:
-        dropdown_option_key = "sidefx_labs"
-
     series_range, aggregation = get_common_vars_for_charts(request)
     count_total =0
-
-    if dropdown_option_key == "sidefx_labs":
-        hou_engine_reports_data = reportfunctions.hou_engine_maya_unity_breakdown(
-            series_range, aggregation)
-        count_total = hou_engine_reports_data["count_total"]
-
-        series['user_answers_maya_unity_count'] = (
-            hou_engine_reports_data["user_answers_count"])
-        series['user_answers_maya_unity_over_time'] = (
-            hou_engine_reports_data["user_answers_over_time"])
 
     if dropdown_option_key == "apprentice_followup":
         # For apprentice activations and vs count of users who replied survey
         user_counts = reportfunctions.apprentice_replied_survey_counts(
             series_range, aggregation)
 
-        apprentice_activations = reportfunctions.apprentice_total_activations_over_time(
+        apprentice_activations = reportfunctions.get_apprentice_total_activations(
             series_range, aggregation)
-        series['survey_counts_percentages'] = reportfunctions.get_percentage_of_total(
+        series['survey_counts_percentages'] = time_series.get_percentage_from_total(
             apprentice_activations, user_counts)
 
         merge_time_series([user_counts, apprentice_activations])
@@ -593,7 +557,6 @@ def hou_forum_view(request, dropdown_option_key):
                 'events': events_to_annotate,
                 'total_forum': total_forum,
                 'total_openid': total_openid,
-                'active_forum': True,
                 'url': reverse(
                     "hou_forum",
                     kwargs={"dropdown_option_key": dropdown_option_key}),
@@ -606,28 +569,6 @@ def hou_forum_view(request, dropdown_option_key):
             }),
             request)
 
-#-----------------------------------------------------------------------------
-@require_http_methods(["GET", "POST"])
-@login_required
-@user_access(['staff','r&d'])
-def hou_heatmap_view(request, option):
-    """
-    View to visualize Heatmaps.
-    """
-    series = {}
-    series_range, aggregation = get_common_vars_for_charts(request)
-    
-    lat_longs = []
-    
-    if option == "apprentice_heatmap":
-        lat_longs = reportfunctions.get_apprentice_activations_by_geo(series_range, 
-                                                              aggregation)
-    return render_response(
-        "heatmap.html", {
-            "lat_longs": lat_longs,
-        },
-        request)    
-    
 #-------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required

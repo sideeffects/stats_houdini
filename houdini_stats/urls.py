@@ -20,27 +20,25 @@ if settings.IS_QUERY_SERVER:
         url(r'^logout/$', 'logout_view', name='logout'),
 
         # Remove these URLs as reports get switched over to the new style.
-        url(r'^apprentice/(?P<dropdown_option_key>apprentice_activations)$',
-            'hou_apprentice_view'),
-        url(r'^apprentice/(?P<dropdown_option_key>apprentice_view)$',
-            'hou_apprentice_view'),
+       
         url(r'^apprentice/(?P<dropdown_option_key>apprentice_heatmap)$',
             'hou_apprentice_view'),
-        url(r'^surveys/(?P<dropdown_option_key>sidefx_labs)$',
-            'hou_surveys_view'),
+        #url(r'^surveys/(?P<dropdown_option_key>sidefx_labs)$',
+        #    'hou_surveys_view'),
         url(r'^surveys/(?P<dropdown_option_key>apprentice_followup)$',
             'hou_surveys_view'),
         url(r'^forum/(?P<dropdown_option_key>login_registration)$',
             'hou_forum_view'),
-
+       
+        # Url for heatmaps
+        url(r'^heatmap/(?P<option>.*)$',
+            'hou_heatmap_view', name='heatmap'),
+   
         # This is the generic view for new-style reports.
         url(r'^(?P<menu_name>.*)/(?P<dropdown_option>.*)$',
             'generic_report_view', name='generic_report'),
 
         # Custom views:
-        url(r'^heatmap/(?P<option>.*)$',
-            'hou_heatmap_view', name='heatmap'),
-
         # Remove this once all of the above "apprentice/" URLs are removed.
         url(r'^apprentice/(?P<dropdown_option_key>.*)$',
             'hou_apprentice_view', name='hou_apprentice'),                    

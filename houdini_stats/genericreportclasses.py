@@ -151,7 +151,24 @@ class ChartReport(Report):
         return 1  
     
     def chart_aditional_message(self):
+        """
+        For messages that need to go before the chart title.
+        """
         return "" 
+    
+    def chart_aditional_information_above(self):
+        """
+        For extra information that we need to add above the chart, but below 
+        the chart title.
+        """
+        return "" 
+    
+    def chart_aditional_information_below(self):
+        """
+        For extra information that we need to add below the chart, at the
+        bottom of it.
+        """
+        return ""  
     
     def supports_aggregation(self):
         return True
@@ -195,7 +212,9 @@ class ChartReport(Report):
             report_placeholder +='''
             </div>
             '''   
-        return self.chart_aditional_message() + report_title + report_placeholder
+        return self.chart_aditional_message() + report_title + \
+            self.chart_aditional_information_above() + report_placeholder + \
+            self.chart_aditional_information_below()
 
     def generate_template_graph_drawing(self):
         """
@@ -238,6 +257,15 @@ class ChartReport(Report):
         
 #-------------------------------------------------------------------------------
 
+class HeatMap(Report):
+    def title(self):
+        pass
+
+    def get_data(self, series_range, aggregation):
+        pass
+    
+    
+        
     
 
 
