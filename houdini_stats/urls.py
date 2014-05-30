@@ -20,12 +20,8 @@ if settings.IS_QUERY_SERVER:
         url(r'^logout/$', 'logout_view', name='logout'),
 
         # Remove these URLs as reports get switched over to the new style.
-       
         url(r'^apprentice/(?P<dropdown_option_key>apprentice_heatmap)$',
             'hou_apprentice_view'),
-        
-        url(r'^forum/(?P<dropdown_option_key>login_registration)$',
-            'hou_forum_view'),
        
         # Url for heatmaps
         url(r'^heatmap/(?P<option>.*)$',
@@ -39,8 +35,6 @@ if settings.IS_QUERY_SERVER:
         # Remove this once all of the above "apprentice/" URLs are removed.
         url(r'^apprentice/(?P<dropdown_option_key>.*)$',
             'hou_apprentice_view', name='hou_apprentice'),                    
-        # Remove this once all of the above "forum/" URLs are removed.
-        url(r'^forum/(?P<dropdown_option_key>.*)$',
-            'hou_forum_view', name='hou_forum'),
+
     )
 

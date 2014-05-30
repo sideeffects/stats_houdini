@@ -18,6 +18,7 @@ import functools
 import sys
 
 from time_series import fill_missing_dates_with_zeros, merge_time_series
+import time_series
 from houdini_stats.models import *
 from utils import *
 # TODO: Rename static_data to report_organization
@@ -29,7 +30,8 @@ import reports.houdini
 import reports.downloads
 import reports.apprentice
 import reports.surveys
-import time_series
+import reports.sidefx_website
+
 
 #===============================================================================
 
@@ -455,55 +457,6 @@ def hou_heatmap_view(request, option):
         },
         request)    
 
-#-----------------------------------------------------------------------------
-@require_http_methods(["GET", "POST"])
-@login_required
-@user_access(['staff','r&d'])
-def hou_forum_view(request, dropdown_option_key):
-    """
-    Houdini forum reports.
-    """
-    series = {}
-    series_range, aggregation = get_common_vars_for_charts(request)
-    events_to_annotate = reportfunctions.get_events_in_range(series_range, aggregation,
-                                                     fill_empty_string = False)
-
-    if not dropdown_option_key:
-        dropdown_option_key = "login_registration"
-
-    total_forum = 0
-    total_openid = 0
-
-    if dropdown_option_key == "login_registration":
-        series["users_forum_openid"] = (
-            reportfunctions.get_active_users_forum_and_openid(
-                series_range, aggregation, events_to_annotate))
-
-        breakdown, total_forum, total_openid = (
-            reportfunctions.openid_providers_breakdown(
-                series_range, aggregation))
-        series['open_id_breakdown'] = breakdown
-
-    return render_response(
-        "forum_reports.html",
-        _add_common_context_params(
-            request, series_range, aggregation,
-            {
-                'series': series,
-                'events': events_to_annotate,
-                'total_forum': total_forum,
-                'total_openid': total_openid,
-                'url': reverse(
-                    "hou_forum",
-                    kwargs={"dropdown_option_key": dropdown_option_key}),
-                'show_date_picker': True,
-                'show_agg_widget': True,
-                'active_menu':
-                    static_data.top_menu_options['sidefx.com']['menu_name'],
-                'active_menu_option_info': _get_active_menu_option_info(
-                    'sidefx.com', dropdown_option_key),
-            }),
-            request)
 
 #-------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])

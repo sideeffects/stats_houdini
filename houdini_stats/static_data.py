@@ -81,12 +81,13 @@ top_menu_options = OrderedDict([
         "groups":['staff', 'r&d'],
     }),
     ("sidefx.com", {
-        "menu_url_prefix": "forum",
+        "menu_url_prefix": "sidefx.com",
         "menu_name": "Website",
         "menu_options": [
-            ("login_registration", "Login & Registration",
-                "hou_forum"
-            ),
+            ("login_registration", "Login & Registration",[
+                "NewUserRegistrationsOverTime",
+                "BreakdownRegistrationsMethods"
+            ]),
         ],
         "groups":['staff', 'r&d'],
     }),
