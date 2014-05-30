@@ -125,6 +125,15 @@ class API(object):
                     # TODO(YB): Implement save flags and save logs  
         return json_http_response(True)
 
+    
+    @login_not_required
+    def send_machine_config_and_stats(self, request, 
+                                      machine_config_and_stats_json):
+        
+        print "Machine config and stats data: ", machine_config_and_stats_json
+        
+        return json_http_response(True)  
+    
     @login_not_required
     def send_crash(self, request, user_info, crashlog):
         """

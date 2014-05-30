@@ -71,12 +71,12 @@ top_menu_options = OrderedDict([
         "menu_options": [
             ("sidefx_labs", "labs.sidefx.com survey",[
                 "BreakdownMayaUnityCounts",
-                "BreakdownMayaUnityOverTime"]
-                #"hou_surveys"
-            ),
-            ("apprentice_followup","Apprentice survey",
-                "hou_surveys"
-            ),
+                "BreakdownMayaUnityOverTime"
+            ]),
+            ("apprentice_followup","Apprentice survey",[
+                "PercentageUsersWhoRepliedApprenticeSurvey",
+                "ApprenticeFollowUpSurvey"
+             ]),
         ],
         "groups":['staff', 'r&d'],
     }),

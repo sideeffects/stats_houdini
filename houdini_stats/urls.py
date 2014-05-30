@@ -23,10 +23,7 @@ if settings.IS_QUERY_SERVER:
        
         url(r'^apprentice/(?P<dropdown_option_key>apprentice_heatmap)$',
             'hou_apprentice_view'),
-        #url(r'^surveys/(?P<dropdown_option_key>sidefx_labs)$',
-        #    'hou_surveys_view'),
-        url(r'^surveys/(?P<dropdown_option_key>apprentice_followup)$',
-            'hou_surveys_view'),
+        
         url(r'^forum/(?P<dropdown_option_key>login_registration)$',
             'hou_forum_view'),
        
@@ -42,9 +39,6 @@ if settings.IS_QUERY_SERVER:
         # Remove this once all of the above "apprentice/" URLs are removed.
         url(r'^apprentice/(?P<dropdown_option_key>.*)$',
             'hou_apprentice_view', name='hou_apprentice'),                    
-        # Remove this once all of the above "surveys/" URLs are removed.
-        url(r'^surveys/(?P<dropdown_option_key>.*)$',
-            'hou_surveys_view', name='hou_surveys'),
         # Remove this once all of the above "forum/" URLs are removed.
         url(r'^forum/(?P<dropdown_option_key>.*)$',
             'hou_forum_view', name='hou_forum'),

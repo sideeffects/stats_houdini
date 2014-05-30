@@ -339,7 +339,6 @@ def generic_report_view(request, menu_name, dropdown_option):
     return render_response(
         "generic_chart.html",
         _add_common_context_params(request, series_range, aggregation, {
-            'report_data': report_data,
             'url': reverse(
                 "generic_report",
                 kwargs=dict(
@@ -455,69 +454,6 @@ def hou_heatmap_view(request, option):
             "lat_longs": lat_longs,
         },
         request)    
-
-#------------------------------------------------------------------------------
-@require_http_methods(["GET", "POST"])
-@login_required
-@user_access(['staff','r&d'])
-def hou_surveys_view(request, dropdown_option_key):
-    """
-    Houdini surveys reports.
-    """
-    series = {}
-
-    series_range, aggregation = get_common_vars_for_charts(request)
-    count_total =0
-
-    if dropdown_option_key == "apprentice_followup":
-        # For apprentice activations and vs count of users who replied survey
-        user_counts = reportfunctions.apprentice_replied_survey_counts(
-            series_range, aggregation)
-
-        apprentice_activations = reportfunctions.get_apprentice_total_activations(
-            series_range, aggregation)
-        series['survey_counts_percentages'] = time_series.get_percentage_from_total(
-            apprentice_activations, user_counts)
-
-        merge_time_series([user_counts, apprentice_activations])
-
-        # For apprentice survey pie charts
-        questions_tuples, questions_and_total_counts, user_answers = (
-            reportfunctions.apprentice_followup_survey(series_range, aggregation))
-
-        # This contains the questions text and total count
-        series["questions_and_total_counts"] = questions_and_total_counts
-        # Passing the questions tuples in the series dictionary too
-        series["questions_tuples"] = questions_tuples
-
-        # Each set of answers will be passed as a serie key from range
-        # (answer_1 to answer_5) because of the way google charts process the
-        # data passed.
-        for k, v in user_answers.items():
-            series["answer_" + str(k)] = v
-
-    return render_response(
-        "surveys_reports.html",
-        _add_common_context_params(
-            request,
-            series_range,
-            aggregation,
-            {
-                'series': series,
-                'active_surveys': True,
-                'url': reverse(
-                    "hou_surveys",
-                    kwargs={"dropdown_option_key": dropdown_option_key}),
-                'count_total': count_total,
-                'dropdown_option_key': dropdown_option_key,
-                'show_date_picker': True,
-                'show_agg_widget': True,
-                'active_menu':
-                    static_data.top_menu_options['surveys']['menu_name'],
-                'active_menu_option_info': _get_active_menu_option_info(
-                    'surveys', dropdown_option_key),
-            }),
-            request)
 
 #-----------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])

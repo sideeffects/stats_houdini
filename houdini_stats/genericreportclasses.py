@@ -141,7 +141,7 @@ class ChartReport(Report):
     def chart_options(self):
         # TODO: Add report types, and determine default options from that type.
         # TODO: Allow each class to contribute to the options template.
-        return ""
+        pass
     
     def chart_count(self):
         """
