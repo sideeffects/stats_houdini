@@ -121,6 +121,12 @@ def find_report_class(name):
 class Report(object):
     __metaclass__ = ReportMetaclass
     
+    def get_base_class(self):
+        return (self.__class__.__base__).__name__
+    
+    def get_class_name(self):
+        return self.__class__.__name__
+    
     def name(self):
         """
         Each report in the same page must have a unique name.
@@ -283,12 +289,12 @@ class HeatMapReport(Report):
     def generate_template_graph_drawing(self):
         """
         Generate the generic template code to be used for all heatmaps that
-        inherit from that class
+        inherit from this class.
         """    
         return '''
              <iframe height="600px" width="100%" frameborder="0"
                scrolling="no" 
-               src="{% url "heatmap" "''' +str(self.__class__.__name__)+ '''" %}
+               src="{% url "heatmap" "''' +str(self.get_class_name())+ '''" %}
                  {{get_request_string}}">
              </iframe>
              <br>
