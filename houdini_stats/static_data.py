@@ -59,9 +59,9 @@ top_menu_options = OrderedDict([
                 "ApprenticeHdLicensesOverTime",
                 "ApprenticeHdCumulativeLicensesOverTime"
             ]),
-            ("apprentice_heatmap", "Apprentice Activations Heatmap",
-                "hou_apprentice"
-            ),
+            ("apprentice_heatmap", "Apprentice Activations Heatmap",[
+                "ApprenticeActivationsHeatmap"
+            ]),
         ],
         "groups":['staff', 'r&d'],
     }),

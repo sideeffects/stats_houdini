@@ -317,3 +317,41 @@ class ApprenticeHdCumulativeLicensesOverTime(ChartReport):
     def chart_options(self):
         return '"opt_count_area_wide"'    
 
+#------------------------------------------------------------------------------- 
+
+class ApprenticeActivationsHeatmap(HeatMapReport):
+    """
+    Apprentice Activations. Heatmap.
+    """  
+    def name(self):
+        return "apprentice_activations_heatmap"
+
+    def title(self):
+        return "Apprentice Activations (including reactivations) Heatmap"
+
+    def get_data(self, series_range, aggregation):
+                
+        string_query = """
+        select cast(cast(Keystrings.CreateDate AS date) AS datetime) AS mydate, IPAddress
+        from NCHistory, Keystrings, Servers
+        where NCHistory.KSID=Keystrings.KSID
+            and Keystrings.ServerID=Servers.ServerID
+            and {% where_between "Keystrings.CreateDate" start_date end_date %} 
+        group by Servers.ServerID, mydate
+        """
+        ip_addresses = get_sql_data_for_report(string_query,'licensedb', locals())
+        
+        return  self._get_lat_long_trans(ip_addresses)
+    
+    def _get_lat_long_trans(self, ip_addresses):
+        """
+        From the ip addressed by date, get the latitudes and longitudes.
+        """
+       
+        lat_longs =  []
+        for ip_address in ip_addresses:
+            lat_long = houdini_stats.utils.get_lat_and_long(ip_address[1])
+            if lat_long is not None:
+                lat_longs.append(lat_long)
+        return lat_longs
+    

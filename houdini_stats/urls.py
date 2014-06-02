@@ -19,22 +19,13 @@ if settings.IS_QUERY_SERVER:
         url(r'^login$', 'login_view', name='login'),
         url(r'^logout/$', 'logout_view', name='logout'),
 
-        # Remove these URLs as reports get switched over to the new style.
-        url(r'^apprentice/(?P<dropdown_option_key>apprentice_heatmap)$',
-            'hou_apprentice_view'),
-       
         # Url for heatmaps
-        url(r'^heatmap/(?P<option>.*)$',
-            'hou_heatmap_view', name='heatmap'),
+        url(r'^heatmap/(?P<report_class_name>.*)$',
+            'generic_heatmap_report_view', name='heatmap'),
    
         # This is the generic view for new-style reports.
         url(r'^(?P<menu_name>.*)/(?P<dropdown_option>.*)$',
             'generic_report_view', name='generic_report'),
-
-        # Custom views:
-        # Remove this once all of the above "apprentice/" URLs are removed.
-        url(r'^apprentice/(?P<dropdown_option_key>.*)$',
-            'hou_apprentice_view', name='hou_apprentice'),                    
 
     )
 

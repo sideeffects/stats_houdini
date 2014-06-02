@@ -120,20 +120,40 @@ def find_report_class(name):
         
 class Report(object):
     __metaclass__ = ReportMetaclass
-      
+    
     def name(self):
         """
         Each report in the same page must have a unique name.
         """
         pass
-#-------------------------------------------------------------------------------
-
-class ChartReport(Report):
+    
     def title(self):
         pass
+    
+    def is_heatmap(self):
+        return False
 
     def get_data(self, series_range, aggregation):
         pass
+
+    def supports_aggregation(self):
+        return True
+
+    def show_date_picker(self):
+        return True
+
+    def minimum_start_date(self):
+        import settings
+        return settings.REPORTS_START_DATE
+
+    def generate_template_placeholder_code(self):
+        pass
+    
+    def generate_template_graph_drawing(self):
+        pass
+#-------------------------------------------------------------------------------
+
+class ChartReport(Report):
     
     def chart_columns(self):
         pass
@@ -170,16 +190,6 @@ class ChartReport(Report):
         """
         return ""  
     
-    def supports_aggregation(self):
-        return True
-
-    def show_date_picker(self):
-        return True
-
-    def minimum_start_date(self):
-        import settings
-        return settings.REPORTS_START_DATE
- 
     def generate_template_placeholder_code(self):
         """
         Generate the template placeholder to draw the chart.
@@ -257,15 +267,32 @@ class ChartReport(Report):
         
 #-------------------------------------------------------------------------------
 
-class HeatMap(Report):
-    def title(self):
-        pass
-
-    def get_data(self, series_range, aggregation):
-        pass
+class HeatMapReport(Report):
     
+    def is_heatmap(self):
+        return True
     
+    def supports_aggregation(self):
+        return False
+    
+    def generate_template_placeholder_code(self):
         
+        return ''' <div class="graph-title"> ''' + self.title() + ''' </div>
+               <br>
+               '''
+    def generate_template_graph_drawing(self):
+        """
+        Generate the generic template code to be used for all heatmaps that
+        inherit from that class
+        """    
+        return '''
+             <iframe height="600px" width="100%" frameborder="0"
+               scrolling="no" 
+               src="{% url "heatmap" "''' +str(self.__class__.__name__)+ '''" %}
+                 {{get_request_string}}">
+             </iframe>
+             <br>
+             '''
     
 
 

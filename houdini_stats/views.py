@@ -24,7 +24,6 @@ from utils import *
 # TODO: Rename static_data to report_organization
 import static_data
 import settings
-import reportfunctions
 import genericreportclasses
 import reports.houdini
 import reports.downloads
@@ -309,8 +308,7 @@ def index_view(request):
 @require_http_methods(["GET", "POST"])
 @login_required
 def generic_report_view(request, menu_name, dropdown_option):
-    series_range, aggregation = get_common_vars_for_charts(
-        request, minimum_start_date=settings.HOUDINI_REPORTS_START_DATE)
+    series_range, aggregation = get_common_vars_for_charts(request)
 
     # Making sure at least the first option will always be selected
     if dropdown_option=='':
@@ -325,6 +323,7 @@ def generic_report_view(request, menu_name, dropdown_option):
     # report.
     report_class_names = static_data.report_classes_for_menu_option(
         menu_name, dropdown_option)
+    
     report_classes = [
         genericreportclasses.find_report_class(report_class_name)
         for report_class_name in report_class_names]
@@ -333,7 +332,10 @@ def generic_report_view(request, menu_name, dropdown_option):
     # Run the queries for each report.
     report_data = {}
     for report in reports:
-        report_data[report.name()] = report.get_data(series_range, aggregation)
+        # If report is heatmap we dont get that data her but later on
+        # when the heatmap view is called
+        if not report.is_heatmap():
+            report_data[report.name()] = report.get_data(series_range, aggregation)
 
     # Generate the html for the charts.
     charts = render_chart_template(reports, report_data)
@@ -376,18 +378,26 @@ def render_chart_template(reports, report_data):
     for report in reports:
         chart_placeholders += report.generate_template_placeholder_code()
         chart_drawing += report.generate_template_graph_drawing()
-
+    
+    template_string = """
+                        {% load reports_tags %}
+                        {% load googlecharts %}
+                
+                        """ + chart_placeholders + """
+                        {% googlecharts %}
+                            {% include 'googlecharts_options.html' %}
+                            """ + chart_drawing + """
+                        {% endgooglecharts %}
+                        """
+    # Check of there is a heatmap in the set of reports
+    is_heatmap =  any(report.is_heatmap() for report in reports)
+    
+    if is_heatmap:
+        # If the report is a heatmap we dont need to include googlecharts
+        template_string = chart_placeholders + chart_drawing
+    
     return render_template_from_string(
-        """
-        {% load reports_tags %}
-        {% load googlecharts %}
-
-        """ + chart_placeholders + """
-        {% googlecharts %}
-            {% include 'googlecharts_options.html' %}
-            """ + chart_drawing + """
-        {% endgooglecharts %}
-        """,
+        template_string,
         dict(
             chart_placeholders=chart_placeholders,
             chart_drawing=chart_drawing,
@@ -400,64 +410,24 @@ def render_template_from_string(string, context_vars):
     return Template(string).render(Context(context_vars))
 
 #-------------------------------------------------------------------------------
-@require_http_methods(["GET", "POST"])
-@login_required
-@user_access(['staff','r&d'])
-def hou_apprentice_view(request, dropdown_option_key):
-    """Houdini Apprentice."""
-    
-    series = {}
-    series_range, aggregation = get_common_vars_for_charts(request)
-    
-    show_agg_widget = False
-    
-    print "here"
-                
-    return render_response(
-        "apprentice_reports.html",
-        _add_common_context_params(
-            request,
-            series_range,
-            aggregation,
-            {
-                'active_licenses': True,
-                'url': reverse(
-                    "hou_apprentice",
-                    kwargs={"dropdown_option_key": dropdown_option_key}),
-                'show_date_picker': True,
-                'show_agg_widget': show_agg_widget,
-                'active_menu':
-                    static_data.top_menu_options['apprentice']['menu_name'],
-                'active_menu_option_info': _get_active_menu_option_info(
-                'apprentice', dropdown_option_key),
-            }),
-            request)    
 
-#-----------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
 @user_access(['staff','r&d'])
-def hou_heatmap_view(request, option):
+def generic_heatmap_report_view(request, report_class_name):
     """
     View to visualize Heatmaps.
     """
-    series = {}
     series_range, aggregation = get_common_vars_for_charts(request)
+    report_class = genericreportclasses.find_report_class(report_class_name)()
     
-    lat_longs = []
-    
-    print "HERE 2"
-    
-    if option == "apprentice_heatmap":
-        lat_longs = reportfunctions.get_apprentice_activations_by_geo(series_range, 
-                                                              aggregation)
     return render_response(
-        "heatmap.html", {
-            "lat_longs": lat_longs,
-        },
-        request)    
+         "heatmap.html", {
+         "lat_longs": report_class.get_data(series_range, aggregation),
+         },
+         request)    
 
-
+   
 #-------------------------------------------------------------------------------
 @require_http_methods(["GET", "POST"])
 @login_required
