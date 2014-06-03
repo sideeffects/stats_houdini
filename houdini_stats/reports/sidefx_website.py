@@ -17,20 +17,28 @@ def _get_active_users_by_method_per_day(series_range, aggregation, openid=False)
     Function used from get_active_users_forum_and_openid report.
     """
     
-    to_compare = "= u.id"
+    # If we are looking for the users who logged in with forum, they will be
+    # in the most users table, but not on the mos_user_id table. We do a left
+    # join
+    join_sintax = """LEFT JOIN oid_user_to_mos_user oid 
+                     ON u.id = oid.mos_user_id
+                     WHERE oid.mos_user_id is NULL AND """
     if openid:
-        to_compare = "IS NULL"
+        # We do an inner join, the users which ids are in mos_users and in
+        # oid_user_to_mos_user
+        join_sintax = """INNER JOIN oid_user_to_mos_user oid 
+                         ON u.id= oid.mos_user_id 
+                         WHERE """
         
     string_query = """
           select {% aggregated_date "registerDate" aggregation %} AS mydate, 
                  COUNT(u.id) AS user_count
           FROM mos_users u
-          JOIN oid_user_to_mos_user a ON a.mos_user_id = u.id
-          WHERE u.id != -1
+          {{join_sintax }}
+          u.id != -1
           AND u.user_active =1
           AND {% where_between "registerDate" start_date end_date %}     
           AND u.registerDate!= "0000-00-00 00:00:00"      
-          AND a.mos_user_id {{ to_compare }}
           GROUP BY mydate
           ORDER BY mydate
           """
@@ -47,7 +55,7 @@ PROVIDERS = {
                         "count": 0},
              "gmail": {"provider": "https://www.google.com/accounts/",
                            "count": 0},
-             "yahoo": {"provider": "https://www.google.com/accounts/", 
+             "yahoo": {"provider": "https://open.login.yahooapis.com/openid/", 
                        "count": 0},
              "windowslive": {"provider": "https://profile.live.com/", 
                              "count": 0},
@@ -66,11 +74,11 @@ def _get_all_openid_providers(series_range, aggregation):
              SELECT {% aggregated_date "u.registerDate" aggregation %} AS mydate,
                     provider_url 
              FROM oid_user_to_mos_user a
-             LEFT JOIN mos_users u ON u.id = a.mos_user_id 
+             INNER JOIN mos_users u ON a.mos_user_id = u.id  
              WHERE 
-             {% where_between "u.registerDate" start_date end_date %}  
+             u.id = a.mos_user_id
+             AND {% where_between "u.registerDate" start_date end_date %}  
              AND u.registerDate!= "0000-00-00 00:00:00"      
-             AND u.id = a.mos_user_id
              """
      
     return get_sql_data_for_report(string_query, 'mambo', locals(), 
