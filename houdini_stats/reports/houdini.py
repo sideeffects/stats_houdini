@@ -1,11 +1,11 @@
-from houdini_stats.genericreportclasses import *
-from houdini_stats.models import *
+from stats_main.genericreportclasses import *
+import stats_main.utils             
+import stats_main.time_series 
 
 from django.db.models import Avg, Sum, Count
 from collections import defaultdict
+from houdini_stats.models import *
 
-import houdini_stats.utils             
-import houdini_stats.time_series 
 
 #===============================================================================
 # Houdini Usage Report Classes
@@ -168,7 +168,7 @@ class AverageSessionLength(HoudiniStatsReport):
         # Transform the result from seconds into the proper time unit.
         return time_series.choose_unit_from_multiple_time_units_series(
            time_series.compute_time_serie(
-               series,houdini_stats.utils.seconds_to_multiple_time_units), 
+               series, stats_main.utils.seconds_to_multiple_time_units), 
                                                                       "hours") 
 
     def chart_columns(self):
