@@ -1,5 +1,4 @@
 from houdini_stats.genericreportclasses import *
-from houdini_stats.models import *
 from downloads import *
 
 import houdini_stats.utils             

@@ -5,7 +5,15 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-# TODO: Rename static_data to report_organization
+
+REPORT_MODULES =(
+    'reports.houdini',
+    'reports.downloads',
+    'reports.apprentice',
+    'reports.surveys',
+    'reports.sidefx_website',
+    'reports.orbolt_reports'
+)
 
 top_menu_options = OrderedDict([
     ("houdini", {
@@ -82,7 +90,7 @@ top_menu_options = OrderedDict([
     }),
     ("sidefx.com", {
         "menu_url_prefix": "sidefx.com",
-        "menu_name": "Website",
+        "menu_name": "Sidefx.com",
         "menu_options": [
             ("login_registration", "Login & Registration",[
                 "NewUserRegistrationsOverTime",
@@ -91,36 +99,82 @@ top_menu_options = OrderedDict([
         ],
         "groups":['staff', 'r&d'],
     }),
+                                
+   ("orbolt", {
+        "menu_url_prefix": "orbolt",
+        "menu_name": "Orbolt",
+        "menu_options": [
+            ("overview", "Overview",[
+                "RevenueOverTime",
+                "PurchasesOverTime",
+                "NewUploadsOverTime",
+                "NewVersionsOfExistingAssets",
+                "NewUsersOverTime",
+                "OSAndBrowserCombinations",
+                "PercentageLicensesByCommercialAndApprentice"
+            ]),
+            ("licenses", "Licenses",[
+                "LicensesOverTime",
+                "PercentagesLicensesAssetNotDownloaded",
+                "LicensesOverTimeByOs",
+                "PercentagesLicensesAssetNotDownloadedByOs",
+                "LicensesOverTimeMacOs",
+                "PercentagesLicensesAssetNotDownloadedMacOs",
+                "LicensesOverTimeWindows",
+                "PercentagesLicensesAssetNotDownloadedWindows",
+                "LicensesOverTimeLinux",
+                "PercentagesLicensesAssetNotDownloadedLinux"
+            ]),            
+            ("licenses_heatmap", "Licenses Heatmap",[
+                "AssetLicensesHeatmap"
+            ]),
+            ("top_assets", "Top Assets",[
+                "TopDownloadedAssets",
+                "TopViewedAssets",
+                "TopPaidAssets",
+                "TopGrossingAssets"
+            ]),
+            ("trials", "Trials",[
+                "TrialLicensesOverview",
+                "TrialLicensesForPaidAssets",
+                "TrialLicensesUpgrades"                
+            ]),             
+        ],
+        "groups":['staff', 'r&d'],
+    }),                             
 ])
-#-------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------
 
 def menu_option_names_to_titles(menu_option_infos):
     """Build a dictionary mapping menu option names to titles."""
     
     return dict((menu_option_info[0], menu_option_info[1])
         for menu_option_info in menu_option_infos)
-#-------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------
 
 def menu_option_names(menu_option_infos):
     """Return a sequence of just the menu option names."""
     return [
         menu_option_info[0]
         for menu_option_info in menu_option_infos]
-#-------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------
 
 def menu_option_view_or_report_classes(menu_option_info):
     # Each menu option info will be of this format:
     #     (name, title, report_class_sequence or view_name)
     return menu_option_info[2]
 
-#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 def report_classes_for_menu_option(menu, option_name):
     menu_option_info = find_menu_option_info(
         top_menu_options[menu]["menu_options"], option_name)
     return menu_option_view_or_report_classes(menu_option_info)
 
-#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 def build_top_menu_options_next_prevs():
     "Get a dictionary with all the menu options nexts and previous."
@@ -138,7 +192,7 @@ def build_top_menu_options_next_prevs():
 
     return top_menu_options_nexts_prevs
 
-#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 def find_menu_option_info(menu_option_infos, option_name):
     return [menu_option_info for menu_option_info in menu_option_infos

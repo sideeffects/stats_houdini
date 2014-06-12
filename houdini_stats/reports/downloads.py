@@ -1,5 +1,4 @@
 from houdini_stats.genericreportclasses import *
-from houdini_stats.models import *
 
 import houdini_stats.utils             
 import houdini_stats.time_series
