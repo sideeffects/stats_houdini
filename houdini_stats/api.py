@@ -127,13 +127,13 @@ class API(object):
 
     
     @login_not_required
-    def send_machine_config_and_stats(self, request, 
-                                      machine_config_and_stats_json):
-        
-        print "Machine config and stats data: ", machine_config_and_stats_json
-        
-        return json_http_response(True)  
-    
+    def send_machine_config_and_stats(
+            self, request, machine_config_and_stats_json):
+        return self.send_stats(
+            request,
+            machine_config_and_stats_json["machine_config"],
+            machine_config_and_stats_json["stats"])
+
     @login_not_required
     def send_crash(self, request, user_info, crashlog):
         """
