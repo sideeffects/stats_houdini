@@ -99,8 +99,6 @@ class API(object):
         # Get json content
         json_content = json.loads(machine_config_and_stats_json['json_content'])
         
-        print json_content 
-        
         return self.send_stats_main(
             request, machine_config_and_stats_json['stat_log_version'],
             json_content['machine_config'], json_content['stats'])
