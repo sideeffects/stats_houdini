@@ -4,6 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
 from datetime import datetime
 from utils import *
+from stats_main.utils import get_ip_address  
 
 import json
 import datetime
@@ -81,19 +82,37 @@ class API(object):
         return handler(request, *args, **kwargs)
 
     @login_not_required
-    def send_stats(self, request, user_info, stats):
+    def send_stats(self, request, machine_config_info, stats):
         """
         Save user stats
         """
+        return self.send_stats_main(
+            request,
+            stats["stat_log_version"],
+            machine_config_info,
+            json.loads(stats["json_content"]))
+
+    @login_not_required
+    def send_machine_config_and_stats(
+            self, request, machine_config_and_stats_json):
         
+        # Get json content
+        json_content = json.loads(machine_config_and_stats_json['json_content'])
+        
+        print json_content 
+        
+        return self.send_stats_main(
+            request, machine_config_and_stats_json['stat_log_version'],
+            json_content['machine_config'], json_content['stats'])
+        
+    def send_stats_main(self, request, stat_log_version, machine_config_info, stats):
         # Get stats log version
-        stat_log_version = json.loads(stats['stat_log_version'])
         
         # We will just save the logs which version is 2 or higher
         if stat_log_version >=2:
             # Get json content. Contains start_time and end_time and counts for the 
             # Houdini tools usage
-            json_data = json.loads(stats['json_content'])
+            json_data = stats
                 
             # Get total seconds
             data_log_date =  datetime.datetime.fromtimestamp(json_data["start_time"])
@@ -102,7 +121,7 @@ class API(object):
                 if json_data.has_key("idle_time") else 0 
                 
             # Get or save machine config
-            machine_config = get_or_save_machine_config(user_info,
+            machine_config = get_or_save_machine_config(machine_config_info,
                 get_ip_address(request), data_log_date)
                 
             # The logs without log id wont be saved
@@ -120,27 +139,20 @@ class API(object):
                     save_counts(machine_config, json_data["counts"], data_log_date)
                        
                     # Put everything inside json
-                    save_data_log_to_file(data_log_date, user_info['config_hash'],
+                    save_data_log_to_file(data_log_date, 
+                                          machine_config_info['config_hash'],
                                           json_data)
                     # TODO(YB): Implement save flags and save logs  
         return json_http_response(True)
 
     
     @login_not_required
-    def send_machine_config_and_stats(
-            self, request, machine_config_and_stats_json):
-        return self.send_stats(
-            request,
-            machine_config_and_stats_json["machine_config"],
-            machine_config_and_stats_json["stats"])
-
-    @login_not_required
-    def send_crash(self, request, user_info, crashlog):
+    def send_crash(self, request, machine_config_info, crashlog):
         """
         Save houdini crashes
         """
         # Get or save machine config
-        machine_config = get_or_save_machine_config(user_info,
+        machine_config = get_or_save_machine_config(machine_config_info,
                                                     get_ip_address(request),
                                                     datetime.datetime.now())
         # Save the crash
@@ -149,14 +161,15 @@ class API(object):
         return json_http_response(True)
 
     @login_not_required
-    def send_license_failure(self, request, user_info, failure_info):
-        print "user info (fail):", user_info
+    def send_license_failure(self, request, machine_config_info, failure_info):
+        print "machine config info (fail):", machine_config_info
         print "failure info:", failure_info
         return json_http_response(True) 
 
     @login_not_required
-    def send_apprentice_activation(self, request, user_info, activation_info):
-        print "user info (Apprentice activation):", user_info
+    def send_apprentice_activation(self, request, machine_config_info, 
+                                   activation_info):
+        print "machine config info (Apprentice activation):", machine_config_info
         print "activation info:", activation_info
         return json_http_response(True) 
                 
