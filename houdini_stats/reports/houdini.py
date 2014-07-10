@@ -5,7 +5,7 @@ import stats_main.time_series
 from django.db.models import Avg, Sum, Count
 from collections import defaultdict
 from houdini_stats.models import *
-
+from stats_main.models import *
 
 #===============================================================================
 # Houdini Usage Report Classes
@@ -44,7 +44,7 @@ class NewMachinesOverTime(HoudiniStatsReport):
                                                                 '%%Y-%%m-%%d')) 
                    as min_creation_date,
                    count(distinct machine_id) as machines_count 
-            from houdini_stats_machineconfig
+            from stats_main_machineconfig
             where {% where_between "creation_date" start_date end_date %}
             group by machine_id
             order by min_creation_date)
@@ -84,8 +84,8 @@ class MachinesActivelySendingStats(HoudiniStatsReport):
             from (
             select {% aggregated_date "u.date" aggregation %} AS mydate, 
                    mc.machine_id AS machine
-            from houdini_stats_uptime u, houdini_stats_machineconfig mc
-            where mc.id = u.machine_config_id
+            from houdini_stats_uptime u, stats_main_machineconfig mc
+            where mc.id = u.stats_machine_config_id
             and {% where_between "u.date" start_date end_date %}
             ORDER BY u.date
             ) as tempTable
@@ -125,13 +125,13 @@ class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
              select {% aggregated_date "day" aggregation %} AS mydate, 
                     avg(total_records)
              from (
-                 select machine_config_id,
+                 select stats_machine_config_id,
                  str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') 
                  as day,
-                 count(machine_config_id) as total_records
+                 count(stats_machine_config_id) as total_records
                  from houdini_stats_uptime
                  where {% where_between "date" start_date end_date %}
-                 group by machine_config_id, day
+                 group by stats_machine_config_id, day
              ) as TempTable
              group by mydate
              order by mydate"""
@@ -200,13 +200,13 @@ class AverageUsageByMachine(HoudiniStatsReport):
              select {% aggregated_date "day" aggregation %} AS mydate, 
                     avg(total_seconds)
              from (
-                 select machine_config_id,
+                 select stats_machine_config_id,
                  str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
                     as day,
                  sum(number_of_seconds) as total_seconds
                  from houdini_stats_uptime
                  where {% where_between "date" start_date end_date %}
-                 group by machine_config_id, day
+                 group by stats_machine_config_id, day
              ) as TempTable
              group by mydate
              order by mydate"""
@@ -272,12 +272,12 @@ class NumOfMachinesSendingCrashesOverTime(HoudiniStatsReport):
          select {% aggregated_date "day" aggregation %} AS mydate, 
                 sum(total_records)
          from (
-             select machine_config_id,
+             select stats_machine_config_id,
              str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-             count( DISTINCT machine_config_id ) AS total_records
+             count( DISTINCT stats_machine_config_id ) AS total_records
              from houdini_stats_houdinicrash
              where {% where_between "date" start_date end_date %}
-             group by machine_config_id
+             group by stats_machine_config_id
          ) as TempTable
          group by mydate
          order by mydate"""
@@ -310,12 +310,12 @@ class AvgNumCrashesFromSameMachine(HoudiniStatsReport):
          select {% aggregated_date "day" aggregation %} AS mydate, 
                 avg(total_records)
          from (
-             select machine_config_id,
+             select stats_machine_config_id,
              str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-             count(machine_config_id) as total_records
+             count(stats_machine_config_id) as total_records
              from houdini_stats_houdinicrash
              where {% where_between "date" start_date end_date %}
-             group by machine_config_id, day
+             group by stats_machine_config_id, day
          ) as TempTable
          group by mydate
          order by mydate"""
@@ -349,9 +349,9 @@ class CrashesByOS(HoudiniStatsReport):
             FROM(  
             SELECT from_days( min( to_days( date ) ) ) AS min_date, 
                    mc.operating_system AS os, count( * ) AS count_by_os
-            FROM houdini_stats_houdinicrash AS c, houdini_stats_machineconfig 
+            FROM houdini_stats_houdinicrash AS c, stats_main_machineconfig 
                  AS mc
-            WHERE c.machine_config_id = mc.id 
+            WHERE c.stats_machine_config_id = mc.id 
                   AND {% where_between "date" start_date end_date %}
             GROUP BY os
             ORDER BY min_date)
@@ -431,13 +431,14 @@ class CrashesByProduct(HoudiniStatsReport):
     def get_data(self, series_range, aggregation): 
         
         string_query = """
-            SELECT concat_ws( '-', mc.product, mc.is_apprentice), 
+            SELECT concat_ws( '-', hmc.product, hmc.is_apprentice), 
             count( * ) as counts
             FROM houdini_stats_houdinicrash AS c, 
-                 houdini_stats_machineconfig AS mc
-            WHERE c.machine_config_id = mc.id
+                 stats_main_machineconfig AS mc,
+                 houdini_stats_houdinimachineconfig AS hmc
+            WHERE c.stats_machine_config_id = hmc.machine_config_id
                   AND {% where_between "date" start_date end_date %}
-            GROUP BY mc.product, mc.is_apprentice
+            GROUP BY hmc.product, hmc.is_apprentice
             ORDER BY counts desc
         """
     
@@ -645,9 +646,13 @@ class VersionsAndBuilds(HoudiniStatsReport):
     def show_date_picker(self):
         return False
     
-    def query_set(self):        
-        return MachineConfig.objects.exclude(houdini_major_version=0, 
-                                             product="") 
+    def query_set(self):
+        
+        return MachineConfig.objects.exclude(get_extra_fields__houdini_major_version=0, 
+                                            get_extra_fields__product="") 
+        
+        #return HoudiniMachineConfig.objects.exclude(houdini_major_version=0, 
+        #                                       product="") 
     
     def get_data(self, series_range, aggregation):
         
@@ -668,15 +673,15 @@ class VersionsAndBuilds(HoudiniStatsReport):
         for machine_config in machines_queryset:
             
             # Fill houdini version dict
-            houdini_version = str(machine_config.houdini_major_version) + "."+\
-                          str(machine_config.houdini_minor_version) 
+            houdini_version = str(machine_config.get_extra_fields.houdini_major_version) + "."+\
+                          str(machine_config.get_extra_fields.houdini_minor_version) 
             chart_hou_version_text = self.chart_leyend_text() + " " +\
                                          houdini_version
             dict_hou_version_counts[chart_hou_version_text] += 1
                           
             # Fill houdini version builds dict
             houdini_version_build = houdini_version + "." +\
-                                     machine_config.houdini_build_number
+                                     machine_config.get_extra_fields.houdini_build_number
             chart_hou_version_build_text = self.chart_leyend_text() + " " +\
                                                houdini_version_build
             dict_hou_version_builds_counts[chart_hou_version_build_text] += 1
@@ -727,8 +732,10 @@ class VersionsAndBuildsApprentice(VersionsAndBuilds):
         return "Houdini Apprentice Versions and Builds"
     
     def query_set(self):        
-        return MachineConfig.objects.filter(is_apprentice=True).exclude(
-                  houdini_major_version=0, product="")
+        return MachineConfig.objects.filter(
+                   get_extra_fields__is_apprentice=True).exclude(
+                   get_extra_fields__houdini_major_version=0, 
+                   get_extra_fields__product="")
     
     def chart_leyend_text(self):
         return "Houdini Apprentice"
@@ -749,8 +756,10 @@ class VersionsAndBuildsCommercial(VersionsAndBuilds):
         return "Houdini Commercial Versions and Builds"
     
     def query_set(self):        
-        return MachineConfig.objects.filter(is_apprentice=False).exclude(
-                  houdini_major_version=0, product="")
+        return MachineConfig.objects.filter(
+                  get_extra_fields__is_apprentice=False).exclude(
+                  get_extra_fields__houdini_major_version=0, 
+                  get_extra_fields__product="")
     
     def chart_leyend_text(self):
         return "Houdini FX"    

@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
 from houdini_stats.models import *
+from stats_main.models import *
 
 #-------------------------------------------------------------------------------
 
@@ -16,46 +17,17 @@ def admin_site_register(managed_class):
 
 ##==============================================================================
 
-@admin_site_register(Machine)
-class MachineAdmin(admin.ModelAdmin):
-    """
-    Control how the admin site displays hardware ids.
-    """
-    list_filter = ("hardware_id",)
-    list_display = list_filter 
-    list_display_links =("hardware_id",)
-    list_per_page = 20
-
-#-------------------------------------------------------------------------------
-
-@admin_site_register(MachineConfig)
-class MachineConfigAdmin(admin.ModelAdmin):
-    """
-    Control how the admin site displays machine configurations.
-    """
-    list_filter = ("config_hash", "machine", "creation_date", 
-                   "houdini_major_version", "houdini_minor_version", 
-                   "product", "is_apprentice", "operating_system", 
-                   "graphics_card")
-    list_display = list_filter 
-    list_display_links =("config_hash", "machine", "creation_date", 
-                         "product")
-    list_per_page = 20
-    ordering = ["-creation_date"]
-
-#-------------------------------------------------------------------------------
-
-@admin_site_register(LogId)
-class LogIdAdmin(admin.ModelAdmin):
-    """
-    Control how the admin site displays Log Ids.
-    """
-    list_filter = ("log_id", "machine_config", "logging_date")
-    list_display = list_filter 
-    list_display_links =list_filter
-    
-    list_per_page = 20
-    ordering = ["-logging_date"]
+class HoudiniMachineConfigInline(admin.StackedInline):
+     """
+     Houdini Machine Config extension.
+     """
+     model = HoudiniMachineConfig
+      
+class HoudiniMachineConfigAdmin(admin.ModelAdmin):
+    inlines = [HoudiniMachineConfigInline]
+ 
+admin.site.unregister(MachineConfig)     
+admin.site.register(MachineConfig, HoudiniMachineConfigAdmin)
 
 #-------------------------------------------------------------------------------
 
@@ -64,7 +36,7 @@ class HoudiniCrashAdmin(admin.ModelAdmin):
     """
     Control how the admin site displays Houdini crashes.
     """
-    list_filter = ("machine_config", "date")
+    list_filter = ("stats_machine_config", "date")
     list_display = list_filter 
     list_display_links = list_filter
     list_per_page = 20
@@ -77,7 +49,7 @@ class HoudiniToolUsageAdmin(admin.ModelAdmin):
     """
     Control how the admin site displays tool usages in Houdini.
     """
-    list_filter = ("machine_config", "date", "tool_name", "tool_creation_location",
+    list_filter = ("stats_machine_config", "date", "tool_name", "tool_creation_location",
                    "tool_creation_mode", "is_builtin", "is_asset", "count")
     
     list_display = list_filter    
@@ -92,7 +64,7 @@ class HoudiniUsageCountAdmin(admin.ModelAdmin):
     """
     Control how the admin site displays usage counts.
     """
-    list_filter = ("key", "machine_config", "date", "count")
+    list_filter = ("key", "stats_machine_config", "date", "count")
     list_display = list_filter 
     list_display_links =list_filter
     
@@ -105,27 +77,10 @@ class UptimeAdmin(admin.ModelAdmin):
     """
     Control how the admin site displays uptimes for Houdini usage.
     """
-    list_filter = ("machine_config", "number_of_seconds", "date")
+    list_filter = ("stats_machine_config", "number_of_seconds", "date")
     
     list_display = list_filter 
     
     list_display_links = list_filter
     list_per_page = 20
     ordering = ["-date"]
-
-  
-#-------------------------------------------------------------------------------
-
-@admin_site_register(Event)
-class EventAdmin(admin.ModelAdmin):
-    """
-    Control how the admin site displays events.
-    """
-    list_filter = ("title", "date", "show")
-    
-    list_display = list_filter 
-    
-    list_display_links = list_filter
-    list_per_page = 20
-    ordering = ["-date"]    
-
