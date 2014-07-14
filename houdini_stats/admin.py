@@ -23,11 +23,19 @@ class HoudiniMachineConfigInline(admin.StackedInline):
      """
      model = HoudiniMachineConfig
       
-class HoudiniMachineConfigAdmin(admin.ModelAdmin):
+class MachineConfigAdmin(admin.ModelAdmin):
     inlines = [HoudiniMachineConfigInline]
+    
+    list_filter = ("config_hash", "machine", "creation_date",
+                   "operating_system", "graphics_card")
+    list_display = list_filter 
+    list_display_links =("config_hash", "machine", "creation_date")
+    list_per_page = 20
+    
+    ordering = ["-creation_date"]
  
 admin.site.unregister(MachineConfig)     
-admin.site.register(MachineConfig, HoudiniMachineConfigAdmin)
+admin.site.register(MachineConfig, MachineConfigAdmin)
 
 #-------------------------------------------------------------------------------
 
