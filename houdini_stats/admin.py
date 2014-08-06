@@ -92,3 +92,48 @@ class UptimeAdmin(admin.ModelAdmin):
     list_display_links = list_filter
     list_per_page = 20
     ordering = ["-date"]
+
+#-------------------------------------------------------------------------------
+@admin_site_register(HoudiniSumAndCount)
+class HoudiniSumAndCountAdmin(admin.ModelAdmin):
+    """
+    Control how the admin site displays sums and counts.
+    """
+    list_filter = ("stats_machine_config", "sum", "count", "date")
+    
+    list_display = list_filter 
+    
+    list_display_links = list_filter
+    list_per_page = 20
+    ordering = ["-date"]   
+    
+    
+#-------------------------------------------------------------------------------
+@admin_site_register(HoudiniFlag)
+class HoudiniFlagAdmin(admin.ModelAdmin):
+    """
+    Control how the admin site displays flags.
+    """
+    list_filter = ("stats_machine_config", "key", "date")
+    
+    list_display = list_filter 
+    
+    list_display_links = list_filter
+    list_per_page = 20
+    ordering = ["-date"]     
+
+#-------------------------------------------------------------------------------
+@admin_site_register(HoudiniLog)
+class HoudiniLogAdmin(admin.ModelAdmin):
+    """
+    Control how the admin site displays logs.
+    """
+    list_filter = ("stats_machine_config", "key", "timestamp", "log_entry" , 
+                   "date")
+    
+    list_display = list_filter 
+    
+    list_display_links = list_filter
+    list_per_page = 20
+    ordering = ["-date"]        
+

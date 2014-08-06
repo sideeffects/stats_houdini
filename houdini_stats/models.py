@@ -163,10 +163,10 @@ class HoudiniUsageCount(models.Model):
     """
     Model to represent houdini usage keys different from the tools.
     """
-
+    
     stats_machine_config = models.ForeignKey(
         'stats_main.MachineConfig',
-        help_text='''The machine config associated with the crash.''',
+        help_text='''The machine config associated with the counts.''',
     )
     
     date = models.DateTimeField(
@@ -191,18 +191,58 @@ class HoudiniUsageCount(models.Model):
         # How to order results when doing queries:
         ordering = ('date','count')    
         db_name = 'stats'        
-    
 
 #-------------------------------------------------------------------------------
 
-class HoudiniUsageFlag(models.Model):
+class HoudiniSumAndCount(models.Model):
     """
-    Model to represent houdini usage flags.
+    Model to represent sums and counts.
+    """
+    
+    stats_machine_config = models.ForeignKey(
+        'stats_main.MachineConfig',
+        help_text='''The machine config associated with the sum and count.''',
+    )
+    
+    date = models.DateTimeField(
+        help_text='''Date to record the sum and count.'''
+    )
+        
+    key = models.CharField(
+        help_text='''The key.''',
+        max_length=100
+    )
+            
+    sum = models.DecimalField(
+        decimal_places=6,
+        max_digits=10,
+        help_text='''Sum.''',
+    )
+    
+    count = models.PositiveIntegerField(
+        default=0,
+        help_text='''Count.'''
+    )
+        
+    def __unicode__(self):
+        return "HoudiniSumAndCount(%s, %s)" % \
+            (self.key, self.stats_machine_config.config_hash)
+
+    class Meta:
+        # How to order results when doing queries:
+        ordering = ('date',)    
+        db_name = 'stats'        
+        
+#-------------------------------------------------------------------------------
+
+class HoudiniFlag(models.Model):
+    """
+    Model to represent houdini flags.
     """
 
     stats_machine_config = models.ForeignKey(
         'stats_main.MachineConfig',
-        help_text='''The machine config associated with the crash.''',
+        help_text='''The machine config associated with the flag.''',
     )
     
     date = models.DateTimeField(
@@ -213,9 +253,9 @@ class HoudiniUsageFlag(models.Model):
         help_text='''The key.''',
         max_length=100
     )
-            
+    
     def __unicode__(self):
-        return "HoudiniUsageFlags(%s, %s)" % \
+        return "HoudiniFlags(%s, %s)" % \
             (self.key, self.stats_machine_config.config_hash)
 
     class Meta:
@@ -226,14 +266,14 @@ class HoudiniUsageFlag(models.Model):
 
 #-------------------------------------------------------------------------------
 
-class HoudiniUsageLog(models.Model):
+class HoudiniLog(models.Model):
     """
-    Model to represent houdini usage logs.
+    Model to represent houdini logs.
     """
     
     stats_machine_config = models.ForeignKey(
         'stats_main.MachineConfig',
-        help_text='''The machine config associated with the crash.''',
+        help_text='''The machine config associated with the log.''',
     )
     
     date = models.DateTimeField(
@@ -245,13 +285,19 @@ class HoudiniUsageLog(models.Model):
         max_length=100
     )
     
-    message = models.TextField(
-        help_text='''Message for the log.''',
-        default=''
+    timestamp = models.DecimalField(
+        decimal_places=6,
+        max_digits=10,
+        help_text='''Timestamp.''',
     )
-            
+    
+    log_entry = models.CharField(
+        help_text='''Log Entry.''',
+        max_length=100
+    )
+    
     def __unicode__(self):
-        return "HoudiniUsageLog(%s, %s)" % \
+        return "HoudiniLog(%s, %s)" % \
             (self.key, self.stats_machine_config.config_hash)
 
     class Meta:
