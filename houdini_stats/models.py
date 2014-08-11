@@ -213,9 +213,7 @@ class HoudiniSumAndCount(models.Model):
         max_length=100
     )
             
-    sum = models.DecimalField(
-        decimal_places=6,
-        max_digits=10,
+    sum = models.FloatField(
         help_text='''Sum.''',
     )
     
@@ -285,9 +283,7 @@ class HoudiniLog(models.Model):
         max_length=100
     )
     
-    timestamp = models.DecimalField(
-        decimal_places=6,
-        max_digits=10,
+    timestamp = models.FloatField(
         help_text='''Timestamp.''',
     )
     
@@ -337,4 +333,40 @@ class Uptime(models.Model):
     class Meta:
         # How to order results when doing queries:
         ordering = ('date','number_of_seconds')    
-        db_name = 'stats'    
+        db_name = 'stats'   
+        
+
+#-------------------------------------------------------------------------------
+
+class HoudiniPersistentStats(models.Model):
+    """
+    Model to represent houdini persistent stats.
+    """
+    
+    stats_machine_config = models.ForeignKey(
+        'stats_main.MachineConfig',
+        help_text='''The machine config associated with the persistent stats.''',
+    )
+    
+    date = models.DateTimeField(
+        help_text='''Date to record the log.'''
+    )
+        
+    key = models.CharField(
+        help_text='''The key.''',
+        max_length=100
+    )
+    
+    value = models.CharField(
+        help_text='''The key.''',
+        max_length=100
+    )
+
+    def __unicode__(self):
+        return "HoudiniPersistentStats(%s, %s)" % \
+            (self.key, self.stats_machine_config.config_hash)
+
+    class Meta:
+        # How to order results when doing queries:
+        ordering = ('date',)    
+        db_name = 'stats'                     
