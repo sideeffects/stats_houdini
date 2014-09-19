@@ -84,9 +84,6 @@ class NewMachinesOverTime(HoudiniStatsReport):
         return time_series.merge_time_series([sesi_machines_sending_stats, 
                                               non_sesi_machine_sending_stats])
     
-    def chart_aditional_message(self):
-        return "{% include 'hou_reports_message.html' %}" 
-    
     def chart_columns(self):
         return """
         {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
@@ -237,9 +234,6 @@ class AverageSessionLength(HoudiniStatsReport):
        {% col "number" "# of hours" %}{{ val }}{% endcol %}
        """
     
-    def chart_aditional_message(self):
-        return "{% include 'hou_reports_message.html' %}" 
-    
     def chart_options(self):
         return '"opt_count_wide_column"'
 
@@ -367,9 +361,6 @@ class NumCrashesOverTime(HoudiniStatsReport):
         return get_orm_data_for_report(HoudiniCrash.objects.all(),
                    'date', series_range, aggregation)
 
-    def chart_aditional_message(self):
-        return "{% include 'hou_reports_message.html' %}" 
-    
     def chart_columns(self):
         return """
         {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
@@ -667,9 +658,6 @@ class MostPopularTools(HoudiniStatsReport):
         return get_sql_data_for_report(string_query, 'stats', locals(), 
                    fill_zeros=False)
     
-    def chart_aditional_message(self):
-        return "{% include 'hou_reports_message.html' %}" 
-    
     def chart_columns(self):
         return """
         {% col "string" "Houdini Tool" %}"{{ val }}"{% endcol %}
@@ -827,9 +815,6 @@ class VersionsAndBuilds(HoudiniStatsReport):
         builds.
         """
         return "Houdini"
-    
-    def chart_aditional_message(self):
-        return "{% include 'hou_reports_message.html' %}" 
     
     def chart_columns(self):
         return """
