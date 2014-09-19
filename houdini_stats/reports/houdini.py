@@ -39,7 +39,11 @@ class NewMachinesOverTime(HoudiniStatsReport):
         # DB in an earlier period of time and counts machine configs that might 
         # have been inserted earlier, since the distinct operator just do the 
         # lookup in the given time range. 
-        string_query = """
+        
+        ip_pattern1 = "192.168.%%" 
+        ip_pattern2 = "10.1.%%" 
+        
+        sesi_machines_sending_stats = get_sql_data_for_report("""
         select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
                count(machines_count)
         from(  
@@ -49,13 +53,36 @@ class NewMachinesOverTime(HoudiniStatsReport):
                    count(distinct machine_id) as machines_count 
             from stats_main_machineconfig
             where {% where_between "creation_date" start_date end_date %}
+            and (ip_address like '{{ ip_pattern1 }}'
+            or ip_address like '{{ ip_pattern2 }}') 
             group by machine_id
             order by min_creation_date)
         as TempTable
         group by mydate
-        order by mydate"""
+        order by mydate""",
+        'stats', locals())
+        
+        non_sesi_machine_sending_stats = get_sql_data_for_report("""
+        select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
+               count(machines_count)
+        from(  
+            select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'),
+                                                                '%%Y-%%m-%%d')) 
+                   as min_creation_date,
+                   count(distinct machine_id) as machines_count 
+            from stats_main_machineconfig
+            where {% where_between "creation_date" start_date end_date %}
+            and ip_address not like '{{ ip_pattern1 }}'
+            and ip_address not like '{{ ip_pattern2 }}' 
+            group by machine_id
+            order by min_creation_date)
+        as TempTable
+        group by mydate
+        order by mydate""",
+        'stats', locals())
 
-        return get_sql_data_for_report(string_query,'stats', locals())
+        return time_series.merge_time_series([sesi_machines_sending_stats, 
+                                              non_sesi_machine_sending_stats])
     
     def chart_aditional_message(self):
         return "{% include 'hou_reports_message.html' %}" 
@@ -63,11 +90,12 @@ class NewMachinesOverTime(HoudiniStatsReport):
     def chart_columns(self):
         return """
         {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
-        {% col "number" "# of new machines" %}{{ val }}{% endcol %}
+        {% col "number" "# of internal machines " %}{{ val }}{% endcol %}
+        {% col "number" "# of external machines " %}{{ val }}{% endcol %}
        """
-
+    
     def chart_options(self):
-        return '"opt_count_area_wide"'
+        return '"opt_count_with_legend"'
 
 #-------------------------------------------------------------------------------
 
@@ -82,29 +110,58 @@ class MachinesActivelySendingStats(HoudiniStatsReport):
         return "Number of Machines Actively Sending Stats"
 
     def get_data(self, series_range, aggregation):
-        string_query = """
-            select mydate, count( distinct machine )
-            from (
-            select {% aggregated_date "u.date" aggregation %} AS mydate, 
+        
+        ip_pattern1 = "192.168.%%" 
+        ip_pattern2 = "10.1.%%" 
+        
+        sesi_machines_sending_stats = get_sql_data_for_report(
+                """
+                select mydate, count( distinct machine )
+                from (
+                select {% aggregated_date "u.date" aggregation %} AS mydate, 
                    mc.machine_id AS machine
-            from houdini_stats_uptime u, stats_main_machineconfig mc
-            where mc.id = u.stats_machine_config_id
-            and {% where_between "u.date" start_date end_date %}
-            ORDER BY u.date
-            ) as tempTable
-            GROUP BY mydate
-            ORDER BY mydate  
-            """
-        return get_sql_data_for_report(string_query,'stats', locals())
+                from houdini_stats_uptime u, stats_main_machineconfig mc
+                where mc.id = u.stats_machine_config_id
+                and {% where_between "u.date" start_date end_date %}
+                and (mc.ip_address like '{{ ip_pattern1 }}'
+                or mc.ip_address like '{{ ip_pattern2 }}') 
+                ORDER BY u.date
+                ) as tempTable
+                GROUP BY mydate
+                ORDER BY mydate  
+               """ ,
+               'stats', locals())
+        
+        non_sesi_machine_sending_stats = get_sql_data_for_report(
+                """
+                select mydate, count( distinct machine )
+                from (
+                select {% aggregated_date "u.date" aggregation %} AS mydate, 
+                   mc.machine_id AS machine
+                from houdini_stats_uptime u, stats_main_machineconfig mc
+                where mc.id = u.stats_machine_config_id
+                and {% where_between "u.date" start_date end_date %}
+                and mc.ip_address not like '{{ ip_pattern1 }}'
+                and mc.ip_address not like '{{ ip_pattern2 }}' 
+                ORDER BY u.date
+                ) as tempTable
+                GROUP BY mydate
+                ORDER BY mydate  
+               """ ,
+               'stats', locals())
+ 
+        return time_series.merge_time_series([sesi_machines_sending_stats, 
+                                              non_sesi_machine_sending_stats])
     
     def chart_columns(self):
         return """
         {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
-        {% col "number" "# of machines " %}{{ val }}{% endcol %}
+        {% col "number" "# of internal machines " %}{{ val }}{% endcol %}
+        {% col "number" "# of external machines " %}{{ val }}{% endcol %}
        """
-
+    
     def chart_options(self):
-        return '"opt_count_area_wide"'
+        return '"opt_count_with_legend"'
 
 #-------------------------------------------------------------------------------
 
@@ -226,7 +283,7 @@ class AverageUsageByMachine(HoudiniStatsReport):
        """
 
     def chart_options(self):
-        return '"opt_count_wide_column"'
+        return '"opt_count_wide_columnYellow"'
 
 #-------------------------------------------------------------------------------
 
@@ -290,7 +347,7 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
             """
 
     def chart_options(self):
-        return '"opt_count_wide_column"'
+        return '"opt_count_wide_columnGreen"'
 
 #===============================================================================
 # Houdini Crashes Report Classes
