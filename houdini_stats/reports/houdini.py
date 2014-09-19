@@ -1,9 +1,12 @@
+from django.db.models import Avg, Sum, Count
+import django.db
+from collections import defaultdict
+import petl
+
 from stats_main.genericreportclasses import *
 import stats_main.utils             
 import stats_main.time_series 
 
-from django.db.models import Avg, Sum, Count
-from collections import defaultdict
 from houdini_stats.models import *
 from stats_main.models import *
 
@@ -32,7 +35,7 @@ class NewMachinesOverTime(HoudiniStatsReport):
 
     def get_data(self, series_range, aggregation):
         # Observation: When aggregating different dates the query don't take  
-        # into account that the machine configs might have been inserted to the  
+        # into account that the machine configs might have been inserted to the
         # DB in an earlier period of time and counts machine configs that might 
         # have been inserted earlier, since the distinct operator just do the 
         # lookup in the given time range. 
@@ -158,7 +161,7 @@ class AverageSessionLength(HoudiniStatsReport):
         return "average_session_lenght"
 
     def title(self):
-        return "Average Session Lenght (in hours)"
+        return "Average Session Length (in hours)"
 
     def get_data(self, series_range, aggregation):
         
@@ -183,7 +186,7 @@ class AverageSessionLength(HoudiniStatsReport):
     def chart_options(self):
         return '"opt_count_wide_column"'
 
-#------------------------------------------------------------------------------- 
+#-------------------------------------------------------------------------------
    
 class AverageUsageByMachine(HoudiniStatsReport):
     """
@@ -225,6 +228,69 @@ class AverageUsageByMachine(HoudiniStatsReport):
     def chart_options(self):
         return '"opt_count_wide_column"'
 
+#-------------------------------------------------------------------------------
+
+class BreakdownOfApprenticeUsage(HoudiniStatsReport):
+    """
+    Breakdown of users who subscribed to Maya or Unity plugin. Column Chart.
+    """  
+    def name(self):
+        return "breakdown_of_apprentice_usage"
+
+    def title(self):
+        return "Breakdown of Time in Houdini by Apprentice Users"
+    
+    def get_data(self, series_range, aggregation):
+        # TODO: Filter by date range.
+        string_query = """
+            select
+                stats_main_machineconfig.machine_id as m_id,
+                cast(min(date) as date) as first_date,
+                cast(max(date) as date) as last_date,
+                sum(number_of_seconds - idle_time) / 60 as non_idle_minutes,
+                count(*) as num_sessions
+            from
+                houdini_stats_uptime,
+                stats_main_machineconfig,
+                houdini_stats_houdinimachineconfig
+            where stats_machine_config_id=stats_main_machineconfig.id
+            and stats_machine_config_id=houdini_stats_houdinimachineconfig.machine_config_id
+            and is_apprentice=1
+            and product="Houdini"
+            and ip_address not like "192.168.%%"
+            and ip_address not like "10.1.%%"
+            group by m_id
+            order by first_date;
+        """
+        bin_size_in_minutes = 2
+        max_minutes = 240
+
+        string_query = expand_templated_query(string_query, locals())
+
+        connection = django.db.connections["stats"]
+        table1 = petl.fromdb(connection, string_query, [])
+        table2 = petl.rangeaggregate(
+            table1, "non_idle_minutes", bin_size_in_minutes, len, minv=0)
+
+        result = []
+        for minutes, value in table2[1:]:
+            if minutes[0] <= max_minutes and minutes[1] > max_minutes:
+                result.append(["%s+" % minutes[0], value])
+            elif minutes[0] > max_minutes:
+                result[-1][1] += value
+            else:
+                result.append(("%s - %s" % (minutes[0], minutes[1]), value))
+        return result
+
+    def chart_columns(self):
+        return """
+            {% col "string" "# minutes" %}"{{ val }}"{% endcol %}
+            {% col "number" "# users" %}{{ val }}{% endcol %}
+            """
+
+    def chart_options(self):
+        return '"opt_count_wide_column"'
+
 #===============================================================================
 # Houdini Crashes Report Classes
 
@@ -253,7 +319,7 @@ class NumCrashesOverTime(HoudiniStatsReport):
        """
 
     def chart_options(self):
-        return '"opt_count_area_wide"'
+        return '"opt_count_wide_column"'
 
 #-------------------------------------------------------------------------------
 
