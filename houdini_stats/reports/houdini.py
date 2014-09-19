@@ -238,15 +238,15 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
         return "breakdown_of_apprentice_usage"
 
     def title(self):
-        return "Breakdown of Time in Houdini by Apprentice Users"
-    
+        return "Histogram of Time in Houdini by Apprentice Users"
+
     def get_data(self, series_range, aggregation):
         # TODO: Filter by date range.
         string_query = """
             select
                 stats_main_machineconfig.machine_id as m_id,
-                cast(min(date) as date) as first_date,
-                cast(max(date) as date) as last_date,
+                min(date) as first_date,
+                max(date) as last_date,
                 sum(number_of_seconds - idle_time) / 60 as non_idle_minutes,
                 count(*) as num_sessions
             from
@@ -260,6 +260,7 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
             and ip_address not like "192.168.%%"
             and ip_address not like "10.1.%%"
             group by m_id
+            having {% where_between "first_date" start_date end_date %}
             order by first_date;
         """
         bin_size_in_minutes = 2
