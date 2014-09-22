@@ -178,32 +178,87 @@ class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
         # crashes, which means take the crashes table into account too, to compute 
         # the results for the average (Maybe doing a merge using Panda?). 
         
-        string_query = """
-             select {% aggregated_date "day" aggregation %} AS mydate, 
+        ip_pattern1 = "192.168.%%" 
+        ip_pattern2 = "10.1.%%" 
+        
+        sesi_machines_sending_stats = get_sql_data_for_report(
+            """
+            select {% aggregated_date "day" aggregation %} AS mydate, 
                     avg(total_records)
-             from (
-                 select stats_machine_config_id,
-                 str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') 
+            from (
+                 select u.stats_machine_config_id,
+                 str_to_date(date_format(u.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') 
                  as day,
-                 count(stats_machine_config_id) as total_records
-                 from houdini_stats_uptime
-                 where {% where_between "date" start_date end_date %}
-                 group by stats_machine_config_id, day
+                 count(u.stats_machine_config_id) as total_records
+                 from houdini_stats_uptime u, stats_main_machineconfig mc
+                 where mc.id = u.stats_machine_config_id
+                 and {% where_between "u.date" start_date end_date %}
+                 and (mc.ip_address like '{{ ip_pattern1 }}'
+                 or mc.ip_address like '{{ ip_pattern2 }}') 
+                 group by u.stats_machine_config_id, day
              ) as TempTable
              group by mydate
-             order by mydate"""
+             order by mydate
+             """,
+             'stats', locals())
         
-        return get_sql_data_for_report(string_query,'stats', locals())      
+        non_sesi_machine_sending_stats = get_sql_data_for_report(
+            """
+            select {% aggregated_date "day" aggregation %} AS mydate, 
+                    avg(total_records)
+            from (
+                 select u.stats_machine_config_id,
+                 str_to_date(date_format(u.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') 
+                 as day,
+                 count(u.stats_machine_config_id) as total_records
+                 from houdini_stats_uptime u, stats_main_machineconfig mc
+                 where mc.id = u.stats_machine_config_id
+                 and {% where_between "u.date" start_date end_date %}
+                 and mc.ip_address not like '{{ ip_pattern1 }}'
+                 and mc.ip_address not like '{{ ip_pattern2 }}' 
+                 group by u.stats_machine_config_id, day
+            ) as TempTable
+            group by mydate
+            order by mydate
+            """,
+            'stats', locals())
+ 
+        return time_series.merge_time_series([non_sesi_machine_sending_stats, 
+                                              sesi_machines_sending_stats])
+#         
+#         string_query = """
+#              select {% aggregated_date "day" aggregation %} AS mydate, 
+#                     avg(total_records)
+#              from (
+#                  select stats_machine_config_id,
+#                  str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') 
+#                  as day,
+#                  count(stats_machine_config_id) as total_records
+#                  from houdini_stats_uptime
+#                  where {% where_between "date" start_date end_date %}
+#                  group by stats_machine_config_id, day
+#              ) as TempTable
+#              group by mydate
+#              order by mydate"""
+#         
+#         return get_sql_data_for_report(string_query,'stats', locals())      
+#   
         
     def chart_columns(self):
         return """
          {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
-         {% col "number" "Avg # of connections" %}{{ val }}{% endcol %}
+         {% col "number" "Avg # of connections from external machines " %}
+            {{ val }}
+         {% endcol %}
+         {% col "number" "Avg # of connections from internal machines " %}
+            {{ val }}
+         {% endcol %}
+         
        """
 
     def chart_options(self):
         return '"opt_count_wide_column"'
-
+    
 #===============================================================================
 # Houdini Uptime Report Classes
 
