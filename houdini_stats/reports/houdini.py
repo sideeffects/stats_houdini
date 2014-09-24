@@ -81,14 +81,18 @@ class NewMachinesOverTime(HoudiniStatsReport):
         order by mydate""",
         'stats', locals())
 
-        return time_series.merge_time_series([sesi_machines_sending_stats, 
-                                              non_sesi_machine_sending_stats])
+        return time_series.merge_time_series([non_sesi_machine_sending_stats,
+                                 get_events_in_range(series_range, aggregation),  
+                                 sesi_machines_sending_stats])
     
     def chart_columns(self):
         return """
-        {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
+        {% col "string" "Date" %}
+              {% show_annotation_title events val %} 
+        {% endcol %}
+        {% col "number" "# of external machines " %}{{ val }}{% endcol %}    
+        {% col "string" "" "annotation" %}"{{ val }}"{% endcol %}
         {% col "number" "# of internal machines " %}{{ val }}{% endcol %}
-        {% col "number" "# of external machines " %}{{ val }}{% endcol %}
        """
     
     def chart_options(self):
@@ -147,14 +151,14 @@ class MachinesActivelySendingStats(HoudiniStatsReport):
                """ ,
                'stats', locals())
  
-        return time_series.merge_time_series([sesi_machines_sending_stats, 
-                                              non_sesi_machine_sending_stats])
+        return time_series.merge_time_series([non_sesi_machine_sending_stats, 
+                                              sesi_machines_sending_stats])
     
     def chart_columns(self):
         return """
         {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
-        {% col "number" "# of internal machines " %}{{ val }}{% endcol %}
         {% col "number" "# of external machines " %}{{ val }}{% endcol %}
+        {% col "number" "# of internal machines " %}{{ val }}{% endcol %}
        """
     
     def chart_options(self):
@@ -223,8 +227,8 @@ class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
             """,
             'stats', locals())
  
-        return time_series.merge_time_series([non_sesi_machine_sending_stats, 
-                                              sesi_machines_sending_stats])
+        return time_series.merge_time_series([sesi_machines_sending_stats, 
+                                              non_sesi_machine_sending_stats])
 #         
 #         string_query = """
 #              select {% aggregated_date "day" aggregation %} AS mydate, 
@@ -247,13 +251,12 @@ class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
     def chart_columns(self):
         return """
          {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
-         {% col "number" "Avg # of connections from external machines " %}
-            {{ val }}
-         {% endcol %}
          {% col "number" "Avg # of connections from internal machines " %}
             {{ val }}
          {% endcol %}
-         
+         {% col "number" "Avg # of connections from external machines " %}
+            {{ val }}
+         {% endcol %}
        """
 
     def chart_options(self):
