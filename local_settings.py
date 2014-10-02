@@ -10,6 +10,11 @@ menu_and_report_options = OrderedDict([
     ("houdini", {
         "menu_url_prefix": "houdini",
         "menu_name": "Houdini",
+        "menu_image": "houdini.png",
+        "menu_description": '''Graphs and reports from data being collected from 
+                               inside Houdini. Some of the analytics in this set 
+                               include session information, houdini crashes, 
+                               must popular houdini tools and more.''',
         "menu_options": [
             ("usage", "Usage", [
                 "NewMachinesOverTime",
