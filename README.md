@@ -3,6 +3,9 @@ stats_houdini
 
 Houdini-specific statistics data collection and reporting system, as an add-on to stats_core
 
+With the stats_houdini package you will be able to visualize the data collected from inside Houdini as part of the [Houdini Anonymous Usage Statistics](http://www.sidefx.com/index.php?option=com_content&task=view&id=2686) project. By default the data collected from inside Houdini will be sent to our servers, but you can send the data collected to your own servers by setting the environment variable HOUDINI_STATS_API_URL to point to your server; somenthing like http://www.servername.com/stats/api.  
+
+
 The stats_houdini package comes with a default horizontal menu and a set of already made reports. But you can easily extend or modify the menus and add reports if you want. 
 
 
