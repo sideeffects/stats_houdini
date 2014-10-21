@@ -1,3 +1,5 @@
+from settings import * 
+
 STATS_APPLICATIONS += (
     "houdini_stats",
 )
