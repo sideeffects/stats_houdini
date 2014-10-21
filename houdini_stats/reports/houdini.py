@@ -347,7 +347,7 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
         return "breakdown_of_apprentice_usage"
 
     def title(self):
-        return "Histogram of Time in Houdini by Apprentice Users"
+        return "Histogram of Minutes in Houdini by Apprentice Users"
 
     def get_data(self, series_range, aggregation):
         # TODO: Filter by date range.
