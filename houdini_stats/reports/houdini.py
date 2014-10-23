@@ -270,26 +270,37 @@ class AverageSessionLength(HoudiniStatsReport):
     Houdini average session length. Column Chart.
     """
     def name(self):
-        return "average_session_lenght"
+        return "average_session_length"
 
     def title(self):
-        return "Average Session Length (in hours)"
+        return "Average Session Length (in minutes)"
 
     def get_data(self, series_range, aggregation):
         
-        series = get_orm_data_for_report(Uptime.objects.all(), 'date', 
-                     series_range, aggregation, func=Avg("number_of_seconds"))
+        string_query = """
+             select {% aggregated_date "day" aggregation %} AS mydate, 
+                    avg(total_uptime_seconds)
+             from (
+                 select stats_machine_config_id,
+                 str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
+                    as day,
+                 (number_of_seconds - idle_time) as total_uptime_seconds
+                 from houdini_stats_uptime
+                 where {% where_between "date" start_date end_date %}
+                 group by day
+             ) as TempTable
+             group by mydate
+             order by mydate"""
 
         # Transform the result from seconds into the proper time unit.
-        return time_series.choose_unit_from_multiple_time_units_series(
-           time_series.compute_time_serie(
-               series, stats_main.utils.seconds_to_multiple_time_units), 
-                                                                      "hours") 
-
+        return time_series.seconds_to_time_unit_series(
+            get_sql_data_for_report(string_query, 'stats', locals()), 
+            "minutes")
+        
     def chart_columns(self):
         return """
        {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
-       {% col "number" "# of hours" %}{{ val }}{% endcol %}
+       {% col "number" "# of minutes" %}{{ val }}{% endcol %}
        """
     
     def chart_options(self):
@@ -305,7 +316,7 @@ class AverageUsageByMachine(HoudiniStatsReport):
         return "average_usage_by_machine"
 
     def title(self):
-        return "Average Usage by Machine (in hours)"
+        return "Average Usage by Machine (in minutes)"
 
     def get_data(self, series_range, aggregation):
         string_query = """
@@ -315,7 +326,7 @@ class AverageUsageByMachine(HoudiniStatsReport):
                  select stats_machine_config_id,
                  str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
                     as day,
-                 sum(number_of_seconds) as total_seconds
+                 sum(number_of_seconds - idle_time) as total_seconds
                  from houdini_stats_uptime
                  where {% where_between "date" start_date end_date %}
                  group by stats_machine_config_id, day
@@ -326,12 +337,12 @@ class AverageUsageByMachine(HoudiniStatsReport):
         # Transform the result from seconds into the proper time unit.
         return time_series.seconds_to_time_unit_series(
             get_sql_data_for_report(string_query, 'stats', locals()), 
-            "hours")
+            "minutes")
 
     def chart_columns(self):
         return """
        {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
-       {% col "number" "# of hours" %}{{ val }}{% endcol %}
+       {% col "number" "# of minutes" %}{{ val }}{% endcol %}
        """
 
     def chart_options(self):
@@ -347,7 +358,7 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
         return "breakdown_of_apprentice_usage"
 
     def title(self):
-        return "Histogram of Minutes in Houdini by Apprentice Users"
+        return "Time Spent in Houdini by Apprentice Users (Histogram in Minutes)"
 
     def get_data(self, series_range, aggregation):
         # TODO: Filter by date range.
