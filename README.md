@@ -47,9 +47,10 @@ menu_and_report_options = OrderedDict([
 
 + **How to create new reports?**
 
-The package gives you a set of more than 15 already made reports. Each report is implemented as a python class which inherit from one of the two main report generic classes, _ChartReport_ or _HeatMapReport_, both implemented in stats_core/stats_main/genericreportclasses.py.
+The package gives you a set of more than 15 already made reports. Each report is implemented as a python class which inherit from one of the two main report generic classes, _ChartReport_ or _HeatMapReport_, which inherit from _Report_. All the generic report classes and functions are implemented in stats_core/stats_main/genericreportclasses.py.
 
-......To be continued
+You can check stats_houdini/houdini_stats/reports/houdini.py to see how the existing reports were implemented.  
+
 
 
 
