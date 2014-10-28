@@ -11,6 +11,74 @@ from houdini_stats.models import *
 from stats_main.models import *
 
 #===============================================================================
+linux = ['linux', 'mint', 'debian', 'ubuntu', 'fedora', 'centos', 'rhel', 
+         'opensuse', 'red hat', '/sid']
+windows = ['windows']
+mac = ['mac', 'mavericks', 'mountain lion']
+
+#-------------------------------------------------------------------------------
+def _contains_any(string, substrings):
+    for substring in substrings:
+        if substring in string:
+            return True
+    return False
+
+#-------------------------------------------------------------------------------
+def _clean_os_names(full_os_name_and_counts_list):
+    
+    cleaned_list = []
+    
+    for os_name, count in full_os_name_and_counts_list:
+        os_name = os_name.replace('"','')
+        if os_name == "":
+            os_name = "Unknown"
+        cleaned_list.append((os_name, count))
+        
+    return cleaned_list
+
+#-------------------------------------------------------------------------------        
+def _get_counts_by_os_trans(full_os_name_and_counts_list):
+        """
+        This function does a data transformation.
+        
+        Receiving a list form (example):
+        [(u'linux-x86_64-gcc4.4', 57L), 
+        (u'linux-x86_64-gcc4.6', 38L), (u'linux-x86_64-gcc4.7', 18L), 
+        (u'darwin-x86_64-clang5.1-MacOSX10.9', 16L), 
+        (u'darwin-x86_64-clang4.1-MacOSX10.8', 2L), 
+        (u'windows-i686-cl17', 1L)]
+    
+        Return a list of a more general level, and adding the OS with the same
+        type, for example:
+        
+        [(u'Linux', 113L), 
+        (u'Mac', 18L), 
+        (u'Windows', 1L)]
+        """
+        
+        linux_counts = 0
+        mac_counts = 0
+        win_counts= 0
+        unknown_counts = 0 
+         
+        for os_name, count in full_os_name_and_counts_list:
+            os_name = os_name.lower() 
+            if _contains_any(os_name, linux):
+                linux_counts+=count
+            elif _contains_any(os_name, mac):
+                mac_counts+=count
+            elif 'windows' in os_name:
+                win_counts+=count   
+            else:
+                #print os_name  
+                unknown_counts+=count            
+        
+        return [('Linux', linux_counts),
+                ('Mac OS', mac_counts),
+                ('Windows', win_counts),
+                ('Unknown', unknown_counts)]    
+
+#===============================================================================
 # Houdini Usage Report Classes
 
 class HoudiniStatsReport(ChartReport):
@@ -152,12 +220,16 @@ class MachinesActivelySendingStats(HoudiniStatsReport):
                'stats', locals())
  
         return time_series.merge_time_series([non_sesi_machine_sending_stats, 
-                                              sesi_machines_sending_stats])
+                                 get_events_in_range(series_range, aggregation),
+                                 sesi_machines_sending_stats])
     
     def chart_columns(self):
         return """
-        {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
+        {% col "string" "Date" %}
+              {% show_annotation_title events val %} 
+        {% endcol %}
         {% col "number" "# of external machines " %}{{ val }}{% endcol %}
+        {% col "string" "" "annotation" %}"{{ val }}"{% endcol %}
         {% col "number" "# of internal machines " %}{{ val }}{% endcol %}
        """
     
@@ -166,6 +238,110 @@ class MachinesActivelySendingStats(HoudiniStatsReport):
 
 #-------------------------------------------------------------------------------
 
+class MachinesSendingStatsByOS(HoudiniStatsReport):
+    """
+    Machines sending stats by Operating System. Pie Chart.
+    """
+    
+    def get_query(self):
+        return "" 
+    
+    def get_data(self, series_range, aggregation):
+        
+        ip_pattern1 = "192.168.%%" 
+        ip_pattern2 = "10.1.%%" 
+        
+        machines_sending_stats_by_os = get_sql_data_for_report(
+               self.get_query(), 'stats', 
+                locals(),
+                fill_zeros = False)
+        
+        # Clean os names
+        machines_sending_stats_by_os = _clean_os_names(
+                                                   machines_sending_stats_by_os)
+        
+        # Apply transformation to the data
+        general_machines_os_names_and_counts = _get_counts_by_os_trans(
+                                           machines_sending_stats_by_os)
+        
+        return [general_machines_os_names_and_counts, 
+                machines_sending_stats_by_os]
+        
+    
+    def chart_columns(self):
+        return """
+        {% col "string" "OS" %}"{{ val }}"{% endcol %}
+        {% col "number" "Count" %}{{ val }}{% endcol %}
+       """
+    
+    def chart_options(self):
+        return '"out_options_smaller"'
+    
+    def chart_count(self):
+        return 2  
+
+#-------------------------------------------------------------------------------
+class InternalMachinesSendingStatsByOS(MachinesSendingStatsByOS):
+    """
+    Internal machines sending stats by Operating System. Pie Chart.
+    """
+    def name(self):
+        return "internal_machines_actively_sending_stats_by_os"
+
+    def title(self):
+        return "Internal Machines Sending Stats by Operating System "
+
+    def get_query(self):
+        
+        return """
+                SELECT os, count_by_os 
+                FROM(  
+                SELECT from_days( min( to_days( date ) ) ) AS min_date, 
+                    mc.operating_system AS os, 
+                    count(distinct(mc.machine_id)) AS count_by_os
+                from houdini_stats_uptime AS u, stats_main_machineconfig as mc
+                where mc.id = u.stats_machine_config_id
+                   AND {% where_between "date" start_date end_date %}
+                and (mc.ip_address like '{{ ip_pattern1 }}'
+                or mc.ip_address like '{{ ip_pattern2 }}')    
+                GROUP BY os
+                ORDER BY min_date)
+                as TempTable
+                ORDER BY os
+                """ 
+
+#-------------------------------------------------------------------------------
+class ExternalMachinesSendingStatsByOS(MachinesSendingStatsByOS):
+    """
+    External machines sending stats by Operating System. 
+    Pie Chart.
+    """
+    def name(self):
+        return "external_machines_actively_sending_stats_by_os"
+
+    def title(self):
+        return "External Machines Sending Stats by Operating System "
+
+    def get_query(self):
+        
+        return """
+                SELECT os, count_by_os 
+                FROM(  
+                SELECT from_days( min( to_days( date ) ) ) AS min_date, 
+                    mc.operating_system AS os, 
+                    count(distinct(mc.machine_id)) AS count_by_os
+                from houdini_stats_uptime AS u, stats_main_machineconfig as mc
+                where mc.id = u.stats_machine_config_id
+                   AND {% where_between "date" start_date end_date %}
+                and mc.ip_address not like '{{ ip_pattern1 }}'
+                and mc.ip_address not like '{{ ip_pattern2 }}'   
+                GROUP BY os
+                ORDER BY min_date)
+                as TempTable
+                ORDER BY os
+                """ 
+
+#-------------------------------------------------------------------------------
 class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
     """
     Average number of individual successful connections from the same machine.
@@ -229,25 +405,7 @@ class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
  
         return time_series.merge_time_series([sesi_machines_sending_stats, 
                                               non_sesi_machine_sending_stats])
-#         
-#         string_query = """
-#              select {% aggregated_date "day" aggregation %} AS mydate, 
-#                     avg(total_records)
-#              from (
-#                  select stats_machine_config_id,
-#                  str_to_date(date_format(date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') 
-#                  as day,
-#                  count(stats_machine_config_id) as total_records
-#                  from houdini_stats_uptime
-#                  where {% where_between "date" start_date end_date %}
-#                  group by stats_machine_config_id, day
-#              ) as TempTable
-#              group by mydate
-#              order by mydate"""
-#         
-#         return get_sql_data_for_report(string_query,'stats', locals())      
-#   
-        
+
     def chart_columns(self):
         return """
          {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
@@ -546,46 +704,15 @@ class CrashesByOS(HoudiniStatsReport):
         full_os_names_and_counts = get_sql_data_for_report(string_query,
              'stats', locals(), fill_zeros = False)
          
+        # Clean os names
+        full_os_names_and_counts = _clean_os_names(full_os_names_and_counts) 
+        
         # Apply transformation to the data
-        general_os_names_and_counts = self._get_hou_crashes_by_os_trans(
+        general_os_names_and_counts = _get_counts_by_os_trans(
                                           full_os_names_and_counts)
     
         return [general_os_names_and_counts, full_os_names_and_counts]  
         
-    def _get_hou_crashes_by_os_trans(self, full_os_name_and_counts_list):
-        """
-        This function does a data transformation.
-        
-        Receiving a list form (example):
-        [(u'linux-x86_64-gcc4.4', 57L), 
-        (u'linux-x86_64-gcc4.6', 38L), (u'linux-x86_64-gcc4.7', 18L), 
-        (u'darwin-x86_64-clang5.1-MacOSX10.9', 16L), 
-        (u'darwin-x86_64-clang4.1-MacOSX10.8', 2L), 
-        (u'windows-i686-cl17', 1L)]
-    
-        Return a list of a more general level, and adding the OS with the same
-        type, for example:
-        
-        [(u'Linux', 113L), 
-        (u'Mac', 18L), 
-        (u'Windows', 1L)]
-        """
-        
-        linux_counts = 0
-        mac_counts = 0
-        win_counts= 0
-         
-        for os_name, count in full_os_name_and_counts_list:
-            if 'linux' in os_name:
-                linux_counts+=count
-            elif 'darwin' in os_name:
-                mac_counts+=count
-            elif 'windows' in os_name:
-                win_counts+=count         
-                 
-        return [('Linux', linux_counts),
-                ('Mac OS', mac_counts),
-                ( 'Windows', win_counts)]    
     
     def chart_columns(self):
         return """
