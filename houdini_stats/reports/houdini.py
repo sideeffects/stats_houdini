@@ -9,6 +9,7 @@ import stats_main.time_series
 
 from houdini_stats.models import *
 from stats_main.models import *
+from settings import IP_PATTERNS 
 
 #===============================================================================
 linux = ['linux', 'mint', 'debian', 'ubuntu', 'fedora', 'centos', 'rhel', 
@@ -108,8 +109,8 @@ class NewMachinesOverTime(HoudiniStatsReport):
         # have been inserted earlier, since the distinct operator just do the 
         # lookup in the given time range. 
         
-        ip_pattern1 = "192.168.%%" 
-        ip_pattern2 = "10.1.%%" 
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1] 
         
         sesi_machines_sending_stats = get_sql_data_for_report("""
         select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
@@ -180,8 +181,8 @@ class MachinesActivelySendingStats(HoudiniStatsReport):
 
     def get_data(self, series_range, aggregation):
         
-        ip_pattern1 = "192.168.%%" 
-        ip_pattern2 = "10.1.%%" 
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1] 
         
         sesi_machines_sending_stats = get_sql_data_for_report(
                 """
@@ -248,8 +249,8 @@ class MachinesSendingStatsByOS(HoudiniStatsReport):
     
     def get_data(self, series_range, aggregation):
         
-        ip_pattern1 = "192.168.%%" 
-        ip_pattern2 = "10.1.%%" 
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1] 
         
         machines_sending_stats_by_os = get_sql_data_for_report(
                self.get_query(), 'stats', 
@@ -358,8 +359,8 @@ class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
         # crashes, which means take the crashes table into account too, to compute 
         # the results for the average (Maybe doing a merge using Panda?). 
         
-        ip_pattern1 = "192.168.%%" 
-        ip_pattern2 = "10.1.%%" 
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1] 
         
         sesi_machines_sending_stats = get_sql_data_for_report(
             """

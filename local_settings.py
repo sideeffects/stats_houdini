@@ -8,6 +8,10 @@ REPORT_MODULES += (
      'houdini_stats.reports.houdini',
 )
 
+# SESI internal machines ip patterns
+# You can modify this to have your own internal machines patterns
+IP_PATTERNS = ["192.168.%%", "10.1.%%"]
+
 # Default layout - horizontal menu by reports category 
 menu_and_report_options = OrderedDict([
     ("usage", {
@@ -22,8 +26,10 @@ menu_and_report_options = OrderedDict([
                 "NewMachinesOverTime",
                 "MachinesActivelySendingStats",
                 "AvgNumConnectionsFromSameMachine",
+                 "InternalMachinesSendingStatsByOS",
+                 "ExternalMachinesSendingStatsByOS",
             ]),
-           
+            
             ("tools_usage", "Shelf & Tab Tools usage", [
                 "MostPopularTools",
                 "MostPopularToolsShelf",
@@ -44,7 +50,7 @@ menu_and_report_options = OrderedDict([
             ("uptimes_overview", "Uptimes Overview", [
                 "AverageSessionLength",
                 "AverageUsageByMachine",
-                
+                 
             ]),             
             ("uptimes_apprentice", "Apprentice Uptimes", [
                 "BreakdownOfApprenticeUsage",
@@ -106,6 +112,8 @@ menu_and_report_options = OrderedDict([
 #                 "NewMachinesOverTime",
 #                 "MachinesActivelySendingStats",
 #                 "AvgNumConnectionsFromSameMachine",
+#                 "InternalMachinesSendingStatsByOS",
+#                 "ExternalMachinesSendingStatsByOS",
 #             ]),
 #             ("uptime", "Session Information", [
 #                 "AverageSessionLength",
