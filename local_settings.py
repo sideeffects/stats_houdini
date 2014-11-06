@@ -22,7 +22,7 @@ menu_and_report_options = OrderedDict([
                             are the Number of Machine subscribed and the Number
                             of Machines sending stats.''',
         "menu_options": [
-            ("usage_overview", "Usage Overview", [
+            ("machines_sending_data", "Machines Sending Data", [
                 "NewMachinesOverTime",
                 "MachinesActivelySendingStats",
                 "AvgNumConnectionsFromSameMachine",
@@ -108,7 +108,7 @@ menu_and_report_options = OrderedDict([
 #                                from inside Houdini.''', # default text
 #         # Menu options and reports
 #         "menu_options": [
-#             ("usage", "Usage", [
+#             ("usage", "Machines Sending Data", [
 #                 "NewMachinesOverTime",
 #                 "MachinesActivelySendingStats",
 #                 "AvgNumConnectionsFromSameMachine",
@@ -119,13 +119,6 @@ menu_and_report_options = OrderedDict([
 #                 "AverageSessionLength",
 #                 "AverageUsageByMachine",
 #                 "BreakdownOfApprenticeUsage",
-#             ]),
-#             ("crashes", "Crashes",[
-#                 "NumCrashesOverTime",
-#                 "NumOfMachinesSendingCrashesOverTime",
-#                 "AvgNumCrashesFromSameMachine",
-#                 "CrashesByOS",
-#                 "CrashesByProduct",
 #             ]),
 #             ("tools_usage", "Shelf & Tab menu Tools", [
 #                 "MostPopularTools",
@@ -138,10 +131,17 @@ menu_and_report_options = OrderedDict([
 #                 "VersionsAndBuildsApprentice",
 #                 "VersionsAndBuildsCommercial",
 #             ]),
+#             ("crashes", "Crashes",[
+#                 "NumCrashesOverTime",
+#                 "NumOfMachinesSendingCrashesOverTime",
+#                 "AvgNumCrashesFromSameMachine",
+#                 "CrashesByOS",
+#                 "CrashesByProduct",
+#             ]),             
 #         ],
 #         "groups": ['staff', 'r&d'],
 #     }),                        
 # ])
-   
+#     
 TOP_MENU_OPTIONS = OrderedDict(TOP_MENU_OPTIONS.items() + \
                                menu_and_report_options.items())                            
