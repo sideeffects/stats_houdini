@@ -9,7 +9,7 @@ With the stats_houdini package you will be able to visualize the data collected 
 The stats_houdini package comes with a default horizontal menu and a set of already made reports. But you can easily extend or modify the menus and add reports if you want. 
 
 
-+ **How to extend or modify menus?**
+**How to extend or modify menus?**
 
 The default menu is divided by report categories based on the information we collect from Houdini. You can extend/modify the default menu layout by changing the configuration of the Ordered Dictionary 'menu_and_report_options' in local_settings.py
 
@@ -45,11 +45,12 @@ menu_and_report_options = OrderedDict([
 
 ```
 
-+ **How to create new reports?**
+**How to create new reports?**
 
-The package gives you a set of more than 15 already made reports. Each report is implemented as a python class which inherit from one of the two main report generic classes, _ChartReport_ or _HeatMapReport_, both implemented in stats_core/stats_main/genericreportclasses.py.
+The package gives you a set of more than 15 already made reports. Each report is implemented as a python class which inherit from one of the two main report generic classes, _ChartReport_ or _HeatMapReport_, which inherit from _Report_. All the generic report classes and functions are implemented in stats_core/stats_main/genericreportclasses.py.
 
-......To be continued
+You can check stats_houdini/houdini_stats/reports/houdini.py to see how the existing reports were implemented.  
+
 
 
 
