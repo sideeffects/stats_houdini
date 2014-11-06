@@ -1,9 +1,7 @@
 stats_houdini
 =============
 
-Houdini-specific statistics data collection and reporting system, as an add-on to stats_core
-
-The stats_houdini package is part of [Houdini Anonymous Usage  Statistics](http://www.sidefx.com/index.php?option=com_content&task=view&id=2686) project. With this package installed as an add-on from stats_core you will be able to:
+The stats_houdini package contains the implementation for a Houdini-specific statistics data collection and reporting system. This package is part of the [Houdini Anonymous Usage  Statistics](http://www.sidefx.com/index.php?option=com_content&task=view&id=2686) project. With this package installed as an add-on of stats_core you will be able to:
 
 * Create your own server at your facility and make houdini point to it 
 
