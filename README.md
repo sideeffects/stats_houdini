@@ -3,13 +3,19 @@ stats_houdini
 
 Houdini-specific statistics data collection and reporting system, as an add-on to stats_core
 
-With the stats_houdini package you will be able to visualize the data collected from inside Houdini as part of the [Houdini Anonymous Usage Statistics](http://www.sidefx.com/index.php?option=com_content&task=view&id=2686) project. By default the data collected from inside Houdini will be sent to our servers, but you can send the data collected to your own servers by setting the environment variable HOUDINI_STATS_API_URL to point to your server; somenthing like http://www.servername.com/stats/api.  
+The stats_houdini package is part of [Houdini Anonymous Usage  Statistics](http://www.sidefx.com/index.php?option=com_content&task=view&id=2686) project. With this package installed as an add-on from stats_core you will be able to:
 
+* Create your own server at your facility and make houdini point to it 
 
-The stats_houdini package comes with a default horizontal menu and a set of already made reports. But you can easily extend or modify the menus and add reports if you want. 
+    By default the data collected from inside Houdini will be sent to our servers, but you can send the data collected to your own servers by setting the environment variable HOUDINI_STATS_API_URL to point to your server; somenthing like http://www.servername.com/stats/api.  
+* Record or store more data that houdini sends
+* Create your own menus
+* Implement your own reports 
 
 
 **How to extend or modify menus?**
+
+The stats_houdini package comes with a default horizontal menu and a set of already made reports. But you can easily extend or modify the menus and add reports if you want. 
 
 The default menu is divided by report categories based on the information we collect from Houdini. You can extend/modify the default menu layout by changing the configuration of the Ordered Dictionary 'menu_and_report_options' in local_settings.py
 
