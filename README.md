@@ -30,9 +30,9 @@ menu_and_report_options = OrderedDict([
                 ..............
                 "ReportNameN",
             ]),
-           # ... more menu options withe te same format
+           # ... more menu options with te same format
         ],
-        # Which user grouod can access the reports in the current menu
+        # Which user group can access the reports in the current menu
         "groups": ['staff', 'r&d'],
     }),  
     
