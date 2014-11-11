@@ -9,7 +9,8 @@ REPORT_MODULES += (
 )
 
 # SESI internal machines ip patterns
-# You can modify this to have your own internal machines patterns
+# You can modify this variable to set your own IP patterns for your internal 
+# machines
 IP_PATTERNS = ["192.168.%%", "10.1.%%"]
 
 # Default layout - horizontal menu by reports category 
