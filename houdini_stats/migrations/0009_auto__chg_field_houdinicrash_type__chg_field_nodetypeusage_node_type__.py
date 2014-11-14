@@ -38,6 +38,7 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
+        db = dbs['stats']
         
         # Changing field 'HoudiniCrash.type'
         db.alter_column(u'houdini_stats_houdinicrash', 'type', self.gf('django.db.models.fields.CharField')(max_length=10))
