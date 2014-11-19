@@ -14,7 +14,7 @@ REPORT_MODULES += (
 IP_PATTERNS = ["192.168.%%", "10.1.%%"]
 
 # Default layout - horizontal menu by reports category 
-menu_and_report_options = OrderedDict([
+default_menu_and_report_options = OrderedDict([
     ("usage", {
         "menu_url_prefix": "usage",
         "menu_name": "Houdini Usage",
@@ -100,49 +100,57 @@ menu_and_report_options = OrderedDict([
 
 # Dropdown list menu layout - best options when you have many apps using the
 # same stats system. Preferred option for sesi internal reports.
-# menu_and_report_options = OrderedDict([
-#     ("houdini", {
-#         "menu_url_prefix": "houdini",
-#         "menu_name": "Houdini",
-#         "menu_image": "houdini.png", # default image
-#         "menu_description": '''Graphic reports from data being collected 
-#                                from inside Houdini.''', # default text
-#         # Menu options and reports
-#         "menu_options": [
-#             ("usage", "Machines Sending Data", [
-#                 "NewMachinesOverTime",
-#                 "MachinesActivelySendingStats",
-#                 "AvgNumConnectionsFromSameMachine",
-#                 "InternalMachinesSendingStatsByOS",
-#                 "ExternalMachinesSendingStatsByOS",
-#             ]),
-#             ("uptime", "Session Information", [
-#                 "AverageSessionLength",
-#                 "AverageUsageByMachine",
-#                 "BreakdownOfApprenticeUsage",
-#             ]),
-#             ("tools_usage", "Shelf & Tab menu Tools", [
-#                 "MostPopularTools",
-#                 "MostPopularToolsShelf",
-#                 "MostPopularToolsViewer",
-#                 "MostPopularToolsNetwork",
-#             ]),
-#             ("versions_and_builds", "Versions and builds",[
-#                 "VersionsAndBuilds",
-#                 "VersionsAndBuildsApprentice",
-#                 "VersionsAndBuildsCommercial",
-#             ]),
-#             ("crashes", "Crashes",[
-#                 "NumCrashesOverTime",
-#                 "NumOfMachinesSendingCrashesOverTime",
-#                 "AvgNumCrashesFromSameMachine",
-#                 "CrashesByOS",
-#                 "CrashesByProduct",
-#             ]),             
-#         ],
-#         "groups": ['staff', 'r&d'],
-#     }),                        
-# ])
-#     
+dropdown_menu_and_report_options = OrderedDict([
+    ("houdini", {
+        "menu_url_prefix": "houdini",
+        "menu_name": "Houdini",
+        "menu_image": "houdini.png", # default image
+        "menu_description": '''Graphic reports from data being collected 
+                               from inside Houdini.''', # default text
+        # Menu options and reports
+        "menu_options": [
+            ("usage", "Machines Sending Data", [
+                "NewMachinesOverTime",
+                "MachinesActivelySendingStats",
+                "AvgNumConnectionsFromSameMachine",
+                "InternalMachinesSendingStatsByOS",
+                "ExternalMachinesSendingStatsByOS",
+            ]),
+            ("uptime", "Session Information", [
+                "AverageSessionLength",
+                "AverageUsageByMachine",
+                "BreakdownOfApprenticeUsage",
+            ]),
+            ("tools_usage", "Shelf & Tab menu Tools", [
+                "MostPopularTools",
+                "MostPopularToolsShelf",
+                "MostPopularToolsViewer",
+                "MostPopularToolsNetwork",
+            ]),
+            ("versions_and_builds", "Versions and builds",[
+                "VersionsAndBuilds",
+                "VersionsAndBuildsApprentice",
+                "VersionsAndBuildsCommercial",
+            ]),
+            ("crashes", "Crashes",[
+                "NumCrashesOverTime",
+                "NumOfMachinesSendingCrashesOverTime",
+                "AvgNumCrashesFromSameMachine",
+                "CrashesByOS",
+                "CrashesByProduct",
+            ]),             
+        ],
+        "groups": ['staff', 'r&d'],
+    }),                        
+])
+
+menu_layouts = {
+    "default": default_menu_and_report_options,
+    "dropdown": dropdown_menu_and_report_options,
+}
+
+if "MENU_LAYOUT" not in globals():
+    MENU_LAYOUT = "default"
+
 TOP_MENU_OPTIONS = OrderedDict(TOP_MENU_OPTIONS.items() + \
-                               menu_and_report_options.items())                            
+                               menu_layouts[MENU_LAYOUT].items())
