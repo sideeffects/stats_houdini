@@ -449,9 +449,13 @@ class AverageSessionLength(HoudiniStatsReport):
                  str_to_date(date_format(u.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
                     as day,
                  (u.number_of_seconds - u.idle_time) as total_uptime_seconds
-                 from houdini_stats_uptime u, stats_main_machineconfig mc
-                 where mc.id = u.stats_machine_config_id
+                 from houdini_stats_uptime u, stats_main_machineconfig mc,
+                      houdini_stats_houdinimachineconfig hmc
+                 where mc.id = u.stats_machine_config_id 
+                 and  mc.id = hmc.machine_config_id
                  and {% where_between "u.date" start_date end_date %}
+                 and (hmc.product != 'Mantra' and 
+                      hmc.product != 'Hbatch')   
                  and (mc.ip_address like '{{ ip_pattern1 }}'
                  or mc.ip_address like '{{ ip_pattern2 }}') 
                  group by day
@@ -469,12 +473,16 @@ class AverageSessionLength(HoudiniStatsReport):
                     avg(total_uptime_seconds)
              from (
                  select u.stats_machine_config_id,
-                 str_to_date(date_format(u.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
-                    as day,
-                 (u.number_of_seconds - u.idle_time) as total_uptime_seconds
-                 from houdini_stats_uptime u, stats_main_machineconfig mc
-                 where mc.id = u.stats_machine_config_id
+                   str_to_date(date_format(u.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
+                   as day,
+                   (u.number_of_seconds - u.idle_time) as total_uptime_seconds
+                 from houdini_stats_uptime u, stats_main_machineconfig mc,
+                      houdini_stats_houdinimachineconfig hmc
+                 where mc.id = u.stats_machine_config_id 
+                 and  mc.id = hmc.machine_config_id
                  and {% where_between "u.date" start_date end_date %}
+                 and (hmc.product != 'Mantra' and 
+                      hmc.product != 'Hbatch')   
                  and mc.ip_address not like '{{ ip_pattern1 }}'
                  and mc.ip_address not like '{{ ip_pattern2 }}' 
                  group by day
