@@ -601,8 +601,11 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
         return "Time Spent in Houdini by Apprentice Users (Histogram in Minutes)"
 
     def get_data(self, series_range, aggregation):
-        # TODO: Filter by date range.
-        string_query = """
+        
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1] 
+        
+        string_query_hou13 = """
             select
                 stats_main_machineconfig.machine_id as m_id,
                 min(date) as first_date,
@@ -615,18 +618,50 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
                 houdini_stats_houdinimachineconfig
             where stats_machine_config_id=stats_main_machineconfig.id
             and stats_machine_config_id=houdini_stats_houdinimachineconfig.machine_config_id
-            and is_apprentice=1
-            and product="Houdini"
-            and ip_address not like "192.168.%%"
-            and ip_address not like "10.1.%%"
+            and is_apprentice=1 and product="Houdini" 
+            and houdini_major_version = 13
+            and ip_address not like '{{ ip_pattern1 }}'
+            and ip_address not like '{{ ip_pattern2 }}' 
             group by m_id
             having {% where_between "first_date" start_date end_date %}
             order by first_date;
         """
+        
+        string_query_hou13 = expand_templated_query(string_query_hou13, locals())
+        
+        string_query_hou14 = """
+            select
+                stats_main_machineconfig.machine_id as m_id,
+                min(date) as first_date,
+                max(date) as last_date,
+                sum(number_of_seconds - idle_time) / 60 as non_idle_minutes,
+                count(*) as num_sessions
+            from
+                houdini_stats_uptime,
+                stats_main_machineconfig,
+                houdini_stats_houdinimachineconfig
+            where stats_machine_config_id=stats_main_machineconfig.id
+            and stats_machine_config_id=houdini_stats_houdinimachineconfig.machine_config_id
+            and is_apprentice=1 and product="Houdini" 
+            and houdini_major_version = 14
+            and ip_address not like '{{ ip_pattern1 }}'
+            and ip_address not like '{{ ip_pattern2 }}' 
+            group by m_id
+            having {% where_between "first_date" start_date end_date %}
+            order by first_date;
+        """
+        
+        string_query_hou14 = expand_templated_query(string_query_hou14, locals())
+
+        return time_series.merge_time_series(
+                                 [self._get_histogram_trans(string_query_hou13), 
+                                  self._get_histogram_trans(string_query_hou14)]
+                                 )
+    
+    def _get_histogram_trans(self, string_query):
+        
         bin_size_in_minutes = 2
         max_minutes = 240
-
-        string_query = expand_templated_query(string_query, locals())
 
         connection = django.db.connections["stats"]
         table1 = petl.fromdb(connection, string_query, [])
@@ -644,13 +679,17 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
         return result
 
     def chart_columns(self):
-        return """
-            {% col "string" "# minutes" %}"{{ val }}"{% endcol %}
-            {% col "number" "# users" %}{{ val }}{% endcol %}
-            """
-
+       return """
+           {% col "string" "# minutes" %}"{{ val }}"{% endcol %}
+           {% col "number" "# Apprentice users using Houdini 13" %}
+              {{ val }}
+           {% endcol %}
+           {% col "number" "# Apprentice users using Houdini 14" %}
+              {{ val }}
+          {% endcol %}
+        """
     def chart_options(self):
-        return '"opt_count_wide_columnGreen"'
+        return '"opt_count_with_legend"'
 
 #===============================================================================
 # Houdini Crashes Report Classes
