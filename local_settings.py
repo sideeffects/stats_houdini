@@ -54,7 +54,8 @@ default_menu_and_report_options = OrderedDict([
                  
             ]),             
             ("uptimes_apprentice", "Apprentice Uptimes", [
-                "BreakdownOfApprenticeUsage",
+                "BreakdownOfApprenticeUsageH13",
+                "BreakdownOfApprenticeUsageH14",
             ]),
         ],
         "groups":['staff', 'r&d'],
@@ -119,7 +120,8 @@ dropdown_menu_and_report_options = OrderedDict([
             ("uptime", "Session Information", [
                 "AverageSessionLength",
                 "AverageUsageByMachine",
-                "BreakdownOfApprenticeUsage",
+                "BreakdownOfApprenticeUsageH13",
+                "BreakdownOfApprenticeUsageH14",
             ]),
             ("tools_usage", "Shelf & Tab menu Tools", [
                 "MostPopularTools",

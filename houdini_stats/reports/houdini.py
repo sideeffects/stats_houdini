@@ -594,18 +594,26 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
     """
     Breakdown of users who subscribed to Maya or Unity plugin. Column Chart.
     """  
+    def __init__(self, version_tuple):
+        self.version_tuple = version_tuple[:]
+
+    def _version_name(self):
+        return "%s.%s" % self.version_tuple
+
     def name(self):
-        return "breakdown_of_apprentice_usage"
+        return "breakdown_of_apprentice_usage%s_%s" % self.version_tuple
 
     def title(self):
-        return "Time Spent in Houdini by Apprentice Users (Histogram in Minutes)"
+        return ("Time Spent in Houdini %s by Apprentice Users" +
+            " (Histogram in Minutes)") % self._version_name()
 
     def get_data(self, series_range, aggregation):
-        
         ip_pattern1 = IP_PATTERNS[0] 
         ip_pattern2 = IP_PATTERNS[1] 
+        major_version = self.version_tuple[0]
+        minor_version = self.version_tuple[1]
         
-        string_query_hou13 = """
+        string_query = """
             select
                 stats_main_machineconfig.machine_id as m_id,
                 min(date) as first_date,
@@ -617,49 +625,22 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
                 stats_main_machineconfig,
                 houdini_stats_houdinimachineconfig
             where stats_machine_config_id=stats_main_machineconfig.id
-            and stats_machine_config_id=houdini_stats_houdinimachineconfig.machine_config_id
+            and stats_machine_config_id=
+                houdini_stats_houdinimachineconfig.machine_config_id
             and is_apprentice=1 and product="Houdini" 
-            and houdini_major_version = 13
+            and houdini_major_version = {{ major_version }}
+            and houdini_minor_version = {{ minor_version }}
             and ip_address not like '{{ ip_pattern1 }}'
             and ip_address not like '{{ ip_pattern2 }}' 
             group by m_id
             having {% where_between "first_date" start_date end_date %}
             order by first_date;
         """
-        
-        string_query_hou13 = expand_templated_query(string_query_hou13, locals())
-        
-        string_query_hou14 = """
-            select
-                stats_main_machineconfig.machine_id as m_id,
-                min(date) as first_date,
-                max(date) as last_date,
-                sum(number_of_seconds - idle_time) / 60 as non_idle_minutes,
-                count(*) as num_sessions
-            from
-                houdini_stats_uptime,
-                stats_main_machineconfig,
-                houdini_stats_houdinimachineconfig
-            where stats_machine_config_id=stats_main_machineconfig.id
-            and stats_machine_config_id=houdini_stats_houdinimachineconfig.machine_config_id
-            and is_apprentice=1 and product="Houdini" 
-            and houdini_major_version = 14
-            and ip_address not like '{{ ip_pattern1 }}'
-            and ip_address not like '{{ ip_pattern2 }}' 
-            group by m_id
-            having {% where_between "first_date" start_date end_date %}
-            order by first_date;
-        """
-        
-        string_query_hou14 = expand_templated_query(string_query_hou14, locals())
 
-        return time_series.merge_time_series(
-                                 [self._get_histogram_trans(string_query_hou13), 
-                                  self._get_histogram_trans(string_query_hou14)]
-                                 )
+        string_query = expand_templated_query(string_query, locals())
+        return self._get_histogram_trans(string_query)
     
     def _get_histogram_trans(self, string_query):
-        
         bin_size_in_minutes = 2
         max_minutes = 240
 
@@ -681,15 +662,19 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
     def chart_columns(self):
        return """
            {% col "string" "# minutes" %}"{{ val }}"{% endcol %}
-           {% col "number" "# Apprentice users using Houdini 13" %}
-              {{ val }}
-           {% endcol %}
-           {% col "number" "# Apprentice users using Houdini 14" %}
-              {{ val }}
-          {% endcol %}
+           {% col "number" "# users" %}{{ val }}{% endcol %}
         """
+
     def chart_options(self):
-        return '"opt_count_with_legend"'
+        return '"opt_count_wide_columnGreen"'
+
+class BreakdownOfApprenticeUsageH13(BreakdownOfApprenticeUsage):
+    def __init__(self):
+        super(BreakdownOfApprenticeUsageH13, self).__init__((13, 0))
+
+class BreakdownOfApprenticeUsageH14(BreakdownOfApprenticeUsage):
+    def __init__(self):
+        super(BreakdownOfApprenticeUsageH14, self).__init__((14, 0))
 
 #===============================================================================
 # Houdini Crashes Report Classes
