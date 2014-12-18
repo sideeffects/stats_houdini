@@ -72,7 +72,7 @@ def create_machine_config_extension(machine_config, user_info):
 
 class HoudiniCrash(models.Model):
     """
-    Represent a Houdini Crash.
+    Represents a Houdini Crash and corresponding stack trace.
     """
     
     stats_machine_config = models.ForeignKey(
@@ -95,6 +95,11 @@ class HoudiniCrash(models.Model):
         default='',
         max_length=20
     )
+
+    group = models.ForeignKey(
+        'HoudiniCrashGroup',
+        default=None,
+    )
     
     def __unicode__(self):
         return "HoudiniCrash(%s)" % self.stack_trace
@@ -102,6 +107,35 @@ class HoudiniCrash(models.Model):
     class Meta:
         # How to order results when doing queries:
         ordering = ('date', )
+        db_name = 'stats'
+
+#-------------------------------------------------------------------------------
+
+class HoudiniCrashGroup(models.Model):
+    """
+    Represents a group of HoudiniCrashes (i.e. stack traces) that are the same.
+    """
+    representative_stack_trace = models.TextField(
+        help_text='''Stack trace representing this group.''',
+        blank=True,
+        default=''
+    )
+
+    fixed_in_houdini_build = models.CharField(
+        help_text='''The Houdini build where this was fixed.''',
+        default='',
+        max_length=12
+    )
+
+    is_fixed = models.BooleanField(
+        help_text='''Was the problem causing this crash fixed?''',
+        default=False
+    )
+
+    def __unicode__(self):
+        return "HoudiniCrashGroup(%)" % self.representative_stack_trace
+
+    class Meta:
         db_name = 'stats'
 
 #-------------------------------------------------------------------------------
