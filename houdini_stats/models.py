@@ -133,7 +133,7 @@ class HoudiniCrashGroup(models.Model):
     )
 
     def __unicode__(self):
-        return "HoudiniCrashGroup(%)" % self.representative_stack_trace
+        return "HoudiniCrashGroup(%s)" % self.representative_stack_trace
 
     class Meta:
         db_name = 'stats'
