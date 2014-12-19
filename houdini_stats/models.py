@@ -48,7 +48,7 @@ class HoudiniMachineConfig(models.Model):
     )
     
     def major_minor_version(self):
-        return "%d.%d" % (
+        return "%s.%s" % (
             self.houdini_major_version, self.houdini_minor_version)
 
     def __unicode__(self):
