@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from south.utils import datetime_utils as datetime
-from south.db import db
+from south.db import dbs
+import south.db
 from south.v2 import SchemaMigration
 from django.db import models
 
@@ -8,6 +9,9 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
+
         # Adding model 'HoudiniCrashGroup'
         db.create_table(u'houdini_stats_houdinicrashgroup', (
             (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
@@ -24,6 +28,9 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
+        db = dbs['stats']
+        db.dry_run = south.db.db.dry_run
+
         # Deleting model 'HoudiniCrashGroup'
         db.delete_table(u'houdini_stats_houdinicrashgroup')
 
