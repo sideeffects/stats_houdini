@@ -12,31 +12,15 @@ class Migration(SchemaMigration):
         db = dbs['stats']
         db.dry_run = south.db.db.dry_run
 
-        # Adding model 'HoudiniCrashGroup'
-        db.create_table(u'houdini_stats_houdinicrashgroup', (
-            (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('representative_stack_trace', self.gf('django.db.models.fields.TextField')(default='', blank=True)),
-            ('fixed_in_houdini_build', self.gf('django.db.models.fields.CharField')(default='', max_length=12)),
-            ('is_fixed', self.gf('django.db.models.fields.BooleanField')(default=False)),
-        ))
-        db.send_create_signal(u'houdini_stats', ['HoudiniCrashGroup'])
-
-        # Adding field 'HoudiniCrash.group'
-        db.add_column(u'houdini_stats_houdinicrash', 'group',
-                      self.gf('django.db.models.fields.related.ForeignKey')(default=None, null=True, to=orm['houdini_stats.HoudiniCrashGroup']),
-                      keep_default=False)
-
+        # Changing field 'HoudiniCrash.group'
+        db.alter_column(u'houdini_stats_houdinicrash', 'group_id', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['houdini_stats.HoudiniCrashGroup'], null=True))
 
     def backwards(self, orm):
         db = dbs['stats']
         db.dry_run = south.db.db.dry_run
 
-        # Deleting model 'HoudiniCrashGroup'
-        db.delete_table(u'houdini_stats_houdinicrashgroup')
-
-        # Deleting field 'HoudiniCrash.group'
-        db.delete_column(u'houdini_stats_houdinicrash', 'group_id')
-
+        # Changing field 'HoudiniCrash.group'
+        db.alter_column(u'houdini_stats_houdinicrash', 'group_id', self.gf('django.db.models.fields.related.ForeignKey')(default=None, to=orm['houdini_stats.HoudiniCrashGroup']))
 
     models = {
         u'houdini_stats.houdinicrash': {

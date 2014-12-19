@@ -103,6 +103,7 @@ class HoudiniCrash(models.Model):
     group = models.ForeignKey(
         'HoudiniCrashGroup',
         default=None,
+        null=True,
     )
     
     def __unicode__(self):
