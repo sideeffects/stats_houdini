@@ -212,6 +212,42 @@ class HoudiniToolUsage(models.Model):
 
 #-------------------------------------------------------------------------------
 
+class HoudiniString(models.Model):
+    """
+    Model to represent houdini strings.
+
+    These values are arbitrary key/value string pairs send in the usage data.
+    """
+
+    stats_machine_config = models.ForeignKey(
+        'stats_main.MachineConfig',
+        help_text='''The machine config associated with this data.''',
+    )
+    
+    date = models.DateTimeField(
+        help_text='''Date the data was recorded.'''
+    )
+        
+    key = models.CharField(
+        help_text='''The key.''',
+        max_length=100
+    )
+
+    value = models.TextField(
+        default='',
+        help_text='''The value.'''
+    )
+    
+    def __unicode__(self):
+        return "HoudiniString(%s, %s)" % (self.key, self.value)
+
+    class Meta:
+        # How to order results when doing queries:
+        ordering = ('date',)    
+        db_name = 'stats'        
+
+#-------------------------------------------------------------------------------
+
 class HoudiniUsageCount(models.Model):
     """
     Model to represent houdini usage keys different from the tools.
@@ -314,7 +350,6 @@ class HoudiniFlag(models.Model):
         ordering = ('date',)    
         db_name = 'stats'        
 
-
 #-------------------------------------------------------------------------------
 
 class HoudiniLog(models.Model):
@@ -353,6 +388,7 @@ class HoudiniLog(models.Model):
         # How to order results when doing queries:
         ordering = ('date',)    
         db_name = 'stats'            
+
 #-------------------------------------------------------------------------------
 
 class Uptime(models.Model):
