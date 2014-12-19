@@ -47,6 +47,10 @@ class HoudiniMachineConfig(models.Model):
         default=False
     )
     
+    def major_minor_version(self):
+        return "%d.%d" % (
+            self.houdini_major_version, self.houdini_minor_version)
+
     def __unicode__(self):
         return "MachineConfig(%s)" % (
             self.machine_config.config_hash)
