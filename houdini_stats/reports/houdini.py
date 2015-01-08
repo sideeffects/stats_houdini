@@ -973,7 +973,6 @@ class CrashesByProduct(HoudiniStatsReport):
             SELECT concat_ws( '-', hmc.product, hmc.is_apprentice), 
             count( * ) as counts
             FROM houdini_stats_houdinicrash AS c, 
-                 stats_main_machineconfig AS mc,
                  houdini_stats_houdinimachineconfig AS hmc
             WHERE c.stats_machine_config_id = hmc.machine_config_id
                   AND {% where_between "date" start_date end_date %}
