@@ -136,4 +136,41 @@ class HoudiniLogAdmin(admin.ModelAdmin):
     list_display_links = list_filter
     list_per_page = 20
     ordering = ["-date"]        
+ 
+#------------------------------------------------------------------------------- 
+@admin_site_register(HoudiniPersistentStats)
+class HoudiniPersistentStatsAdmin(admin.ModelAdmin):
+    """
+    Control how the admin site shows persistent stats.
+    """
+    list_filter = ("machine", "houdini_major_version", "houdini_minor_version", 
+                   "hash", "date")
+    
+    list_display = list_filter 
+    
+    list_display_links = list_filter
+    list_per_page = 20
+    ordering = ["-date"]
+    
+#-------------------------------------------------------------------------------
+@admin_site_register(HoudiniPersistentStatsKeyValuePair)
+class HoudiniPersistentStatsKeyValuePairAdmin(admin.ModelAdmin):
+    """
+    Control how the admin site shows persistent stats key-value pairs.
+    """
+    list_filter = ("key", "value")
+    
+    list_display = list_filter 
+    
+    list_display_links = list_filter
+    list_per_page = 20
 
+#-------------------------------------------------------------------------------
+@admin_site_register(HoudiniPersistentStatsEntry)
+class HoudiniPersistentStatsEntryAdmin(admin.ModelAdmin):
+    """
+    Control how the admin site shows persistent stats entries.
+    """
+    list_filter = ('persistent_stats', 'persistent_stats_kvp')
+    list_display = list_filter 
+    list_per_page = 20  

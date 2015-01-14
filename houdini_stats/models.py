@@ -429,33 +429,95 @@ class Uptime(models.Model):
 
 class HoudiniPersistentStats(models.Model):
     """
-    Model to represent houdini persistent stats.
+    Model to represent Houdini Persistent Stats.
     """
-    
-    stats_machine_config = models.ForeignKey(
-        'stats_main.MachineConfig',
-        help_text='''The machine config associated with the persistent stats.''',
-    )
-    
+           
     date = models.DateTimeField(
-        help_text='''Date to record the log.'''
+        help_text='''Date when the Persistent Stats were stored.'''
     )
-        
+           
+    machine = models.ForeignKey(
+        'stats_main.Machine',
+        help_text='''The machine associated with these Persistent Stats.''',
+    )          
+   
+    houdini_major_version = models.IntegerField( 
+        help_text='''Houdini major version.''',
+        default=0
+    )
+   
+    houdini_minor_version = models.IntegerField( 
+        help_text='''Houdini minor version.''',
+        default=0
+    )
+               
+    hash = models.CharField(
+        help_text='''Hash of all the key-value pairs for the persistent stats.''',
+        max_length=80,
+        default = ""
+    )
+   
+    def __unicode__(self):
+        return "HoudiniPersistentStats(%s, %d, %d)" % \
+            (self.machine.hardware_id, self.houdini_major_version,
+             self.houdini_minor_version)
+
+    class Meta:
+        ordering = ('date',)   
+        db_name = 'stats'    
+
+#-------------------------------------------------------------------------------
+
+class HoudiniPersistentStatsKeyValuePair(models.Model):
+    """
+    Model to represent Key Value Pairs for Houdini Persistent Stats.
+    """
+           
     key = models.CharField(
         help_text='''The key.''',
         max_length=100
     )
-    
+       
     value = models.CharField(
-        help_text='''The key.''',
+        help_text='''The value.''',
         max_length=100
     )
-
+   
     def __unicode__(self):
-        return "HoudiniPersistentStats(%s, %s)" % \
-            (self.key, self.stats_machine_config.config_hash)
+        return "HoudiniPersistentStatsKeyValuePair(%s, %s)" % \
+            (self.key, self.value)
 
     class Meta:
-        # How to order results when doing queries:
-        ordering = ('date',)    
-        db_name = 'stats'                     
+        # The combination of key-value must be unique.
+        unique_together = (('key', 'value'),)
+        db_name = 'stats'  
+
+#-------------------------------------------------------------------------------
+
+class HoudiniPersistentStatsEntry(models.Model):
+    """
+    Model to represent Houdini Persistent Stats Entries.
+    """
+    
+    persistent_stats = models.ForeignKey(
+        'HoudiniPersistentStats',
+        help_text='''Foreign Key to Persistent Stats.''',
+    )          
+   
+    persistent_stats_kvp = models.ForeignKey(
+        'HoudiniPersistentStatsKeyValuePair',
+        help_text='''Foreign Key to Persistent Stats Key Values Pairs.''',
+    )
+           
+    def __unicode__(self):
+        return "HoudiniPersistentStatsEntry(%s, %d, %d, %s, %s)" % \
+            (self.persistent_stats.machine.hardware_id,
+             self.persistent_stats.houdini_major_version,
+             self.persistent_stats.houdini_minor_version,
+             self.persistent_stats_kvp.key,
+             self.persistent_stats_kvp.value)
+
+    class Meta:
+        unique_together = (('persistent_stats', 'persistent_stats_kvp'),)
+        db_name = 'stats'             
+
