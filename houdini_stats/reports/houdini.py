@@ -3,6 +3,7 @@ import django.db
 from collections import defaultdict
 import petl
 
+from django.core.exceptions import ObjectDoesNotExist 
 from stats_main.genericreportclasses import *
 import stats_main.utils             
 import stats_main.time_series 
@@ -907,38 +908,35 @@ class CrashesByOS(HoudiniStatsReport):
     """
     Houdini crashes by os. PieChart report.
     """    
+    
+    def machine_type(self):
+        return ""
+    
     def name(self):
-        return "crashes_by_os"
+        return "crashes_by_os_"+ self.machine_type()
 
     def title(self):
-        return "Houdini Crashes by Operating Systems"
+        return "Houdini Crashes by Operating Systems " + "("+\
+               self.machine_type() + " machines)"
 
-    def get_data(self, series_range, aggregation): 
-        string_query = """
-            SELECT os, count_by_os 
-            FROM(  
-            SELECT from_days( min( to_days( date ) ) ) AS min_date, 
-                   mc.operating_system AS os, count( * ) AS count_by_os
-            FROM houdini_stats_houdinicrash AS c, stats_main_machineconfig 
-                 AS mc
-            WHERE c.stats_machine_config_id = mc.id 
-                  AND {% where_between "date" start_date end_date %}
-            GROUP BY os
-            ORDER BY min_date)
-            as TempTable
-            ORDER BY count_by_os desc
-        """
+    def query_set(self):
+        return ""
     
-        full_os_names_and_counts = get_sql_data_for_report(string_query,
-             'stats', locals(), fill_zeros = False)
+    def get_data(self, series_range, aggregation):
+        
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1]
          
+        full_os_names_and_counts = get_sql_data_for_report(self.query_set(),
+             'stats', locals(), fill_zeros = False)
+        
         # Clean os names
-        full_os_names_and_counts = _clean_os_names(full_os_names_and_counts) 
+        full_os_names_and_counts = _clean_os_names(full_os_names_and_counts)
         
         # Apply transformation to the data
         general_os_names_and_counts = _get_counts_by_os_trans(
                                           full_os_names_and_counts)
-    
+        
         return [general_os_names_and_counts, full_os_names_and_counts]  
         
     
@@ -949,10 +947,69 @@ class CrashesByOS(HoudiniStatsReport):
        """
 
     def chart_options(self):
-        return '"out_options"'
+        return '"out_options_smaller"'
     
     def chart_count(self):
         return 2
+
+
+#-------------------------------------------------------------------------------
+
+class CrashesByOSExternalMachines(CrashesByOS):
+    """
+    Houdini crashes by os for external machines. PieChart report.
+    """    
+    
+    def machine_type(self):
+        return "external"
+    
+    def query_set(self):
+        
+        return """
+            SELECT os, count_by_os 
+            FROM(  
+            SELECT from_days( min( to_days( date ) ) ) as min_date, 
+                   mc.operating_system AS os, count( * ) as count_by_os
+            FROM houdini_stats_houdinicrash AS c, stats_main_machineconfig 
+                 as mc
+            WHERE c.stats_machine_config_id = mc.id 
+                  and {% where_between "date" start_date end_date %}
+                  and (mc.ip_address not like '{{ ip_pattern1 }}'
+                  and mc.ip_address not like '{{ ip_pattern2 }}') 
+            GROUP by os
+            ORDER by min_date)
+            as TempTable
+            ORDER by count_by_os desc
+        """
+        
+#-------------------------------------------------------------------------------         
+
+class CrashesByOSInternalMachines(CrashesByOS):
+    """
+    Houdini crashes by os for internal machines. PieChart report.
+    """    
+    
+    def machine_type(self):
+        return "internal"
+    
+    def query_set(self):
+        
+        return """
+            SELECT os, count_by_os 
+            FROM(  
+            SELECT from_days( min( to_days( date ) ) ) as min_date, 
+                   mc.operating_system AS os, count( * ) as count_by_os
+            FROM houdini_stats_houdinicrash AS c, stats_main_machineconfig 
+                 as mc
+            WHERE c.stats_machine_config_id = mc.id 
+                  and {% where_between "date" start_date end_date %}
+                  and (mc.ip_address like '{{ ip_pattern1 }}'
+                  or mc.ip_address like '{{ ip_pattern2 }}') 
+            GROUP by os
+            ORDER by min_date)
+            as TempTable
+            ORDER by count_by_os desc
+        """        
 
 #-------------------------------------------------------------------------------
 
@@ -961,27 +1018,27 @@ class CrashesByProduct(HoudiniStatsReport):
     Houdini crashes by product (Houdini Commercial, Houdini Apprentice,
     Hbatch, etc). PieChart report.
     """    
+    
+    def machine_type(self):
+        return ""
+    
     def name(self):
-        return "crashes_by_product"
+        return "crashes_by_product_"+ self.machine_type()
 
     def title(self):
-        return "Houdini Crashes by Product"
+        return "Houdini Crashes by Product " + "("+\
+               self.machine_type() + " machines)"
 
-    def get_data(self, series_range, aggregation): 
-        
-        string_query = """
-            SELECT concat_ws( '-', hmc.product, hmc.is_apprentice), 
-            count( * ) as counts
-            FROM houdini_stats_houdinicrash AS c, 
-                 houdini_stats_houdinimachineconfig AS hmc
-            WHERE c.stats_machine_config_id = hmc.machine_config_id
-                  AND {% where_between "date" start_date end_date %}
-            GROUP BY hmc.product, hmc.is_apprentice
-            ORDER BY counts desc
-        """
+    def query_set(self):
+        return ""
     
-        crashes_by_product_list = get_sql_data_for_report(string_query,'stats', 
-                                      locals(), fill_zeros = False)
+    def get_data(self, series_range, aggregation):
+        
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1]
+        
+        crashes_by_product_list = get_sql_data_for_report(self.query_set(),
+                                         'stats', locals(), fill_zeros = False)
     
         return self._get_hou_crashes_by_product_trans(crashes_by_product_list) 
 
@@ -1028,8 +1085,62 @@ class CrashesByProduct(HoudiniStatsReport):
        """
 
     def chart_options(self):
-        return '"out_options"'
+        return '"out_options_smaller"'
+
+#-------------------------------------------------------------------------------
+
+class CrashesByProductExternalMachines(CrashesByProduct):
+    """
+    Houdini crashes by product for external machines. PieChart report.
+    """
     
+    def machine_type(self):
+        return "external"
+    
+    def query_set(self):
+        
+        return """
+            SELECT concat_ws( '-', hmc.product, hmc.is_apprentice), 
+            count( * ) as counts
+            FROM houdini_stats_houdinicrash AS c, 
+                 stats_main_machineconfig AS mc,
+                 houdini_stats_houdinimachineconfig AS hmc
+            WHERE c.stats_machine_config_id = mc.id
+                  AND mc.id = hmc.machine_config_id
+                  AND {% where_between "date" start_date end_date %}
+                  AND (mc.ip_address not like '{{ ip_pattern1 }}'
+                  AND mc.ip_address not like '{{ ip_pattern2 }}')
+            GROUP BY hmc.product, hmc.is_apprentice
+            ORDER BY counts desc
+        """       
+        
+#-------------------------------------------------------------------------------         
+
+class CrashesByProductInternalMachines(CrashesByProduct):
+    """
+    Houdini crashes by product for internal machines. PieChart report.
+    """    
+    
+    def machine_type(self):
+        return "internal"
+    
+    def query_set(self):
+        
+        return """
+            SELECT concat_ws( '-', hmc.product, hmc.is_apprentice), 
+            count( * ) as counts
+            FROM houdini_stats_houdinicrash AS c, 
+                 stats_main_machineconfig AS mc,
+                 houdini_stats_houdinimachineconfig AS hmc
+            WHERE c.stats_machine_config_id = mc.id
+                  AND mc.id = hmc.machine_config_id
+                  AND {% where_between "date" start_date end_date %}
+                  AND (mc.ip_address like '{{ ip_pattern1 }}'
+                  OR mc.ip_address like '{{ ip_pattern2 }}')
+            GROUP BY hmc.product, hmc.is_apprentice
+            ORDER BY counts desc
+        """
+        
 #===============================================================================
 # Houdini Tools Usage related reports
 
@@ -1183,11 +1294,13 @@ class VersionsAndBuilds(HoudiniStatsReport):
     
     def query_set(self):
         
-        return MachineConfig.objects.exclude(get_extra_fields__houdini_major_version=0, 
-                                            get_extra_fields__product="") 
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1]  
         
-        #return HoudiniMachineConfig.objects.exclude(houdini_major_version=0, 
-        #                                       product="") 
+        # Excluding internal machines
+        return MachineConfig.objects.exclude(
+                                    get_extra_fields__houdini_major_version=0, 
+                                    get_extra_fields__product="") 
     
     def get_data(self, series_range, aggregation):
         
@@ -1201,26 +1314,31 @@ class VersionsAndBuilds(HoudiniStatsReport):
         Transform the query set to get the product name and counts to draw
         the pie charts. 
         """
-        
         dict_hou_version_counts = defaultdict(int)
         dict_hou_version_builds_counts = defaultdict(int)
         
         for machine_config in machines_queryset:
-            
             # Fill houdini version dict
-            houdini_version = str(machine_config.get_extra_fields.houdini_major_version) + "."+\
-                          str(machine_config.get_extra_fields.houdini_minor_version) 
-            chart_hou_version_text = self.chart_leyend_text() + " " +\
+            houdini_version = ""
+            houdini_version_build = ""
+            
+            try:
+                houdini_version = str(
+                    machine_config.get_extra_fields.houdini_major_version) + "."+\
+                    str(machine_config.get_extra_fields.houdini_minor_version) 
+                houdini_version_build = houdini_version + "." +\
+                    machine_config.get_extra_fields.houdini_build_number
+                
+                chart_hou_version_text = self.chart_leyend_text() + " " +\
                                          houdini_version
-            dict_hou_version_counts[chart_hou_version_text] += 1
-                          
-            # Fill houdini version builds dict
-            houdini_version_build = houdini_version + "." +\
-                                     machine_config.get_extra_fields.houdini_build_number
-            chart_hou_version_build_text = self.chart_leyend_text() + " " +\
+                dict_hou_version_counts[chart_hou_version_text] += 1
+                # Fill houdini version builds dict
+                chart_hou_version_build_text = self.chart_leyend_text() + " " +\
                                                houdini_version_build
-            dict_hou_version_builds_counts[chart_hou_version_build_text] += 1
-        
+                dict_hou_version_builds_counts[chart_hou_version_build_text] += 1    
+            except ObjectDoesNotExist:
+                continue 
+                
         return [self._return_product_counts_list(dict_hou_version_counts),
                 self._return_product_counts_list(
                      dict_hou_version_builds_counts)] 
@@ -1246,7 +1364,7 @@ class VersionsAndBuilds(HoudiniStatsReport):
        """
     
     def chart_options(self):
-        return '"out_options"'
+        return '"out_options_smaller"'
     
     def chart_count(self):
         return 2
@@ -1263,8 +1381,9 @@ class VersionsAndBuildsApprentice(VersionsAndBuilds):
     def title(self):
         return "Houdini Apprentice Versions and Builds"
     
-    def query_set(self):        
-        return MachineConfig.objects.filter(
+    def query_set(self):    
+        
+        return MachineConfig.objects.filter( 
                    get_extra_fields__is_apprentice=True).exclude(
                    get_extra_fields__houdini_major_version=0, 
                    get_extra_fields__product="")
@@ -1298,7 +1417,7 @@ class VersionsAndBuildsCommercial(VersionsAndBuilds):
     
     def chart_aditional_message(self):
         return "" 
-    
+
         
 
    
