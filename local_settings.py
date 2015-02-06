@@ -13,6 +13,9 @@ REPORT_MODULES += (
 # machines
 IP_PATTERNS = ["192.168.%%", "10.1.%%"]
 
+# Houdini versions to compare 
+HOUDINI_VERSIONS = [14, 13]
+
 # Default layout - horizontal menu by reports category 
 default_menu_and_report_options = OrderedDict([
     ("usage", {
@@ -138,6 +141,7 @@ dropdown_menu_and_report_options = OrderedDict([
                 "NumCrashesOverTime",
                 "NumOfMachinesSendingCrashesOverTime",
                 "AvgNumCrashesFromSameMachine",
+                "PercentageOfSessionsEndingInCrash",
                 "CrashesByOSExternalMachines",
                 "CrashesByOSInternalMachines",
                 "CrashesByProductExternalMachines",

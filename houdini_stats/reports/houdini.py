@@ -10,7 +10,7 @@ import stats_main.time_series
 
 from houdini_stats.models import *
 from stats_main.models import *
-from settings import IP_PATTERNS 
+from settings import IP_PATTERNS, HOUDINI_VERSIONS 
 
 #===============================================================================
 linux = ['linux', 'mint', 'debian', 'ubuntu', 'fedora', 'centos', 'rhel', 
@@ -18,6 +18,21 @@ linux = ['linux', 'mint', 'debian', 'ubuntu', 'fedora', 'centos', 'rhel',
 windows = ['windows']
 mac = ['mac', 'mavericks', 'mountain lion']
 
+#-------------------------------------------------------------------------------
+
+def _get_ip_filter(external):
+    """
+    Get the right peace of sql query to filter ip addresses for external and 
+    internal machines
+    """
+    
+    if external:
+        return """(mc.ip_address not like '{{ ip_pattern1 }}'
+                      and mc.ip_address not like '{{ ip_pattern2 }}')""" 
+    
+    return """(mc.ip_address like '{{ ip_pattern1 }}'
+              or mc.ip_address like '{{ ip_pattern2 }}')""" 
+    
 #-------------------------------------------------------------------------------
 def _contains_any(string, substrings):
     for substring in substrings:
@@ -110,50 +125,34 @@ class NewMachinesOverTime(HoudiniStatsReport):
         # have been inserted earlier, since the distinct operator just do the 
         # lookup in the given time range. 
         
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1] 
-        
-        internal_machines_sending_stats = get_sql_data_for_report("""
-        select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
-               count(machines_count)
-        from(  
-            select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'),
+        def num_new_machines_sending_stats_over_time(series_range, aggregation, external):
+            ip_pattern1 = IP_PATTERNS[0] 
+            ip_pattern2 = IP_PATTERNS[1]
+  
+            return get_sql_data_for_report("""
+                select {% aggregated_date "min_creation_date" aggregation %} 
+                       as mydate, count(machines_count)
+                from(  
+                select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'),
                                                                 '%%Y-%%m-%%d')) 
-                   as min_creation_date,
-                   count(distinct machine_id) as machines_count 
-            from stats_main_machineconfig
-            where {% where_between "creation_date" start_date end_date %}
-            and (ip_address like '{{ ip_pattern1 }}'
-            or ip_address like '{{ ip_pattern2 }}') 
-            group by machine_id
-            order by min_creation_date)
-        as TempTable
-        group by mydate
-        order by mydate""",
-        'stats', locals())
+                       as min_creation_date,
+                       count(distinct machine_id) as machines_count 
+                from stats_main_machineconfig mc
+                where {% where_between "creation_date" start_date end_date %}
+                and """ + _get_ip_filter(external) + """ 
+                group by machine_id
+                order by min_creation_date)
+                as TempTable
+                group by mydate
+                order by mydate""",
+                'stats', locals())
         
-        external_machines_sending_stats = get_sql_data_for_report("""
-        select {% aggregated_date "min_creation_date" aggregation %} AS mydate, 
-               count(machines_count)
-        from(  
-            select min(str_to_date(date_format(creation_date, '%%Y-%%m-%%d'),
-                                                                '%%Y-%%m-%%d')) 
-                   as min_creation_date,
-                   count(distinct machine_id) as machines_count 
-            from stats_main_machineconfig
-            where {% where_between "creation_date" start_date end_date %}
-            and ip_address not like '{{ ip_pattern1 }}'
-            and ip_address not like '{{ ip_pattern2 }}' 
-            group by machine_id
-            order by min_creation_date)
-        as TempTable
-        group by mydate
-        order by mydate""",
-        'stats', locals())
-
-        return time_series.merge_time_series([external_machines_sending_stats,
-                                 get_events_in_range(series_range, aggregation),  
-                                 internal_machines_sending_stats])
+        return time_series.merge_time_series(
+            [num_new_machines_sending_stats_over_time(series_range, aggregation, 
+                                                      external=True),
+             get_events_in_range(series_range, aggregation),  
+             num_new_machines_sending_stats_over_time(series_range, aggregation, 
+                                                      external=False)])
     
     def chart_columns(self):
         return """
@@ -182,10 +181,12 @@ class MachinesActivelySendingStats(HoudiniStatsReport):
 
     def get_data(self, series_range, aggregation):
         
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1] 
-        
-        internal_machines_sending_stats = get_sql_data_for_report(
+        def num_machines_actively_sending_stats_over_time(series_range, 
+                                                         aggregation, external):
+            ip_pattern1 = IP_PATTERNS[0] 
+            ip_pattern2 = IP_PATTERNS[1]
+            
+            return get_sql_data_for_report(
                 """
                 select mydate, count( distinct machine )
                 from (
@@ -194,37 +195,21 @@ class MachinesActivelySendingStats(HoudiniStatsReport):
                 from houdini_stats_uptime u, stats_main_machineconfig mc
                 where mc.id = u.stats_machine_config_id
                 and {% where_between "u.date" start_date end_date %}
-                and (mc.ip_address like '{{ ip_pattern1 }}'
-                or mc.ip_address like '{{ ip_pattern2 }}') 
+                and """ + _get_ip_filter(external) + """ 
                 ORDER BY u.date
                 ) as tempTable
                 GROUP BY mydate
                 ORDER BY mydate  
                """ ,
                'stats', locals())
-        
-        external_machine_sending_stats = get_sql_data_for_report(
-                """
-                select mydate, count( distinct machine )
-                from (
-                select {% aggregated_date "u.date" aggregation %} AS mydate, 
-                   mc.machine_id AS machine
-                from houdini_stats_uptime u, stats_main_machineconfig mc
-                where mc.id = u.stats_machine_config_id
-                and {% where_between "u.date" start_date end_date %}
-                and mc.ip_address not like '{{ ip_pattern1 }}'
-                and mc.ip_address not like '{{ ip_pattern2 }}' 
-                ORDER BY u.date
-                ) as tempTable
-                GROUP BY mydate
-                ORDER BY mydate  
-               """ ,
-               'stats', locals())
- 
-        return time_series.merge_time_series([external_machine_sending_stats, 
-                                 get_events_in_range(series_range, aggregation),
-                                 internal_machines_sending_stats])
-    
+  
+        return time_series.merge_time_series(
+                   [num_machines_actively_sending_stats_over_time(series_range, 
+                                                  aggregation, external=True),
+                   get_events_in_range(series_range, aggregation),  
+                   num_machines_actively_sending_stats_over_time(series_range, 
+                                                  aggregation, external=False)])
+
     def chart_columns(self):
         return """
         {% col "string" "Date" %}
@@ -245,13 +230,30 @@ class MachinesSendingStatsByOS(HoudiniStatsReport):
     Machines sending stats by Operating System. Pie Chart.
     """
     
+    def external_machines(self):
+        return ""
+        
     def get_query(self):
-        return "" 
-    
-    def get_data(self, series_range, aggregation):
         
         ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1] 
+        ip_pattern2 = IP_PATTERNS[1]
+        
+        return """
+                select os, count_by_os 
+                from(  
+                select from_days( min( to_days( date ) ) ) AS min_date, 
+                mc.operating_system AS os, 
+                count(distinct(mc.machine_id)) AS count_by_os
+                from houdini_stats_uptime AS u, stats_main_machineconfig as mc
+                where mc.id = u.stats_machine_config_id
+                and {% where_between "date" start_date end_date %}
+                and """ + _get_ip_filter(self.external_machines) + """
+                group by os
+                order by min_date)
+                as TempTable
+                order by os
+                """
+    def get_data(self, series_range, aggregation):
         
         machines_sending_stats_by_os = get_sql_data_for_report(
                self.get_query(), 'stats', 
@@ -283,6 +285,7 @@ class MachinesSendingStatsByOS(HoudiniStatsReport):
         return 2  
 
 #-------------------------------------------------------------------------------
+
 class InternalMachinesSendingStatsByOS(MachinesSendingStatsByOS):
     """
     Internal machines sending stats by Operating System. Pie Chart.
@@ -293,24 +296,8 @@ class InternalMachinesSendingStatsByOS(MachinesSendingStatsByOS):
     def title(self):
         return "Internal Machines Sending Stats by Operating System "
 
-    def get_query(self):
-        
-        return """
-                SELECT os, count_by_os 
-                FROM(  
-                SELECT from_days( min( to_days( date ) ) ) AS min_date, 
-                    mc.operating_system AS os, 
-                    count(distinct(mc.machine_id)) AS count_by_os
-                from houdini_stats_uptime AS u, stats_main_machineconfig as mc
-                where mc.id = u.stats_machine_config_id
-                   AND {% where_between "date" start_date end_date %}
-                and (mc.ip_address like '{{ ip_pattern1 }}'
-                or mc.ip_address like '{{ ip_pattern2 }}')    
-                GROUP BY os
-                ORDER BY min_date)
-                as TempTable
-                ORDER BY os
-                """ 
+    def external_machines(self):
+        return False 
 
 #-------------------------------------------------------------------------------
 class ExternalMachinesSendingStatsByOS(MachinesSendingStatsByOS):
@@ -324,25 +311,9 @@ class ExternalMachinesSendingStatsByOS(MachinesSendingStatsByOS):
     def title(self):
         return "External Machines Sending Stats by Operating System "
 
-    def get_query(self):
+    def external_machines(self):
+        return True 
         
-        return """
-                SELECT os, count_by_os 
-                FROM(  
-                SELECT from_days( min( to_days( date ) ) ) AS min_date, 
-                    mc.operating_system AS os, 
-                    count(distinct(mc.machine_id)) AS count_by_os
-                from houdini_stats_uptime AS u, stats_main_machineconfig as mc
-                where mc.id = u.stats_machine_config_id
-                   AND {% where_between "date" start_date end_date %}
-                and mc.ip_address not like '{{ ip_pattern1 }}'
-                and mc.ip_address not like '{{ ip_pattern2 }}'   
-                GROUP BY os
-                ORDER BY min_date)
-                as TempTable
-                ORDER BY os
-                """ 
-
 #-------------------------------------------------------------------------------
 class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
     """
@@ -359,11 +330,13 @@ class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
         #TO IMPROVE (YB): Take into account the connections that resulted into 
         # crashes, which means take the crashes table into account too, to compute 
         # the results for the average (Maybe doing a merge using Panda?). 
-        
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1] 
-        
-        internal_machines_sending_stats = get_sql_data_for_report(
+         
+        def avg_num_connections_same_machine(series_range, aggregation, 
+                                             external):
+            ip_pattern1 = IP_PATTERNS[0] 
+            ip_pattern2 = IP_PATTERNS[1]
+               
+            return get_sql_data_for_report(
             """
             select {% aggregated_date "day" aggregation %} AS mydate, 
                     avg(total_records)
@@ -375,39 +348,19 @@ class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
                  from houdini_stats_uptime u, stats_main_machineconfig mc
                  where mc.id = u.stats_machine_config_id
                  and {% where_between "u.date" start_date end_date %}
-                 and (mc.ip_address like '{{ ip_pattern1 }}'
-                 or mc.ip_address like '{{ ip_pattern2 }}') 
+                 and """ + _get_ip_filter(external) + """ 
                  group by u.stats_machine_config_id, day
              ) as TempTable
              group by mydate
              order by mydate
              """,
              'stats', locals())
-        
-        external_machines_sending_stats = get_sql_data_for_report(
-            """
-            select {% aggregated_date "day" aggregation %} AS mydate, 
-                    avg(total_records)
-            from (
-                 select u.stats_machine_config_id,
-                 str_to_date(date_format(u.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') 
-                 as day,
-                 count(u.stats_machine_config_id) as total_records
-                 from houdini_stats_uptime u, stats_main_machineconfig mc
-                 where mc.id = u.stats_machine_config_id
-                 and {% where_between "u.date" start_date end_date %}
-                 and mc.ip_address not like '{{ ip_pattern1 }}'
-                 and mc.ip_address not like '{{ ip_pattern2 }}' 
-                 group by u.stats_machine_config_id, day
-            ) as TempTable
-            group by mydate
-            order by mydate
-            """,
-            'stats', locals())
- 
-        return time_series.merge_time_series([external_machines_sending_stats, 
-                                 internal_machines_sending_stats])
-
+               
+        return time_series.merge_time_series(
+                   [avg_num_connections_same_machine(series_range, aggregation, 
+                                                     external=True),
+                   avg_num_connections_same_machine(series_range, aggregation, 
+                                                    external=False)])
     def chart_columns(self):
         return """
           {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
@@ -437,10 +390,12 @@ class AverageSessionLength(HoudiniStatsReport):
 
     def get_data(self, series_range, aggregation):
         
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1] 
-         
-        internal_machines_sending_stats = time_series.seconds_to_time_unit_series(
+        def avg_session_length(series_range, aggregation, 
+                                             external):
+            ip_pattern1 = IP_PATTERNS[0] 
+            ip_pattern2 = IP_PATTERNS[1]
+             
+            return  time_series.seconds_to_time_unit_series(
             get_sql_data_for_report(
             """
             select {% aggregated_date "day" aggregation %} AS mydate, 
@@ -457,45 +412,18 @@ class AverageSessionLength(HoudiniStatsReport):
                  and {% where_between "u.date" start_date end_date %}
                  and (hmc.product != 'Mantra' and 
                       hmc.product != 'Hbatch')   
-                 and (mc.ip_address like '{{ ip_pattern1 }}'
-                 or mc.ip_address like '{{ ip_pattern2 }}') 
+                 and """ + _get_ip_filter(external) + """ 
                  group by day
              ) as TempTable
              group by mydate
              order by mydate
              """,
              'stats', locals()), 
-             "minutes")
-          
-        external_machines_sending_stats = time_series.seconds_to_time_unit_series(
-            get_sql_data_for_report(
-            """
-            select {% aggregated_date "day" aggregation %} AS mydate, 
-                    avg(total_uptime_seconds)
-             from (
-                 select u.stats_machine_config_id,
-                   str_to_date(date_format(u.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
-                   as day,
-                   (u.number_of_seconds - u.idle_time) as total_uptime_seconds
-                 from houdini_stats_uptime u, stats_main_machineconfig mc,
-                      houdini_stats_houdinimachineconfig hmc
-                 where mc.id = u.stats_machine_config_id 
-                 and  mc.id = hmc.machine_config_id
-                 and {% where_between "u.date" start_date end_date %}
-                 and (hmc.product != 'Mantra' and 
-                      hmc.product != 'Hbatch')   
-                 and mc.ip_address not like '{{ ip_pattern1 }}'
-                 and mc.ip_address not like '{{ ip_pattern2 }}' 
-                 group by day
-             ) as TempTable
-             group by mydate
-             order by mydate
-             """,
-             'stats', locals()), 
-             "minutes")
-   
-        return time_series.merge_time_series([external_machines_sending_stats, 
-                                 internal_machines_sending_stats])      
+             "minutes") 
+                
+        return time_series.merge_time_series(
+                 [avg_session_length(series_range, aggregation, external=True),
+                 avg_session_length(series_range, aggregation, external=False)])
         
     def chart_columns(self):
         return """
@@ -523,59 +451,39 @@ class AverageUsageByMachine(HoudiniStatsReport):
     def title(self):
         return "Average Usage by Machine (in minutes)"
 
-    def get_data(self, series_range, aggregation):     
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1] 
-         
-        internal_machines_sending_stats = time_series.seconds_to_time_unit_series(
-            get_sql_data_for_report(
-            """
-            select {% aggregated_date "day" aggregation %} AS mydate, 
-                    avg(total_seconds)
-             from (
-                 select u.stats_machine_config_id,
-                 str_to_date(date_format(u.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
-                    as day,
-                 sum(u.number_of_seconds - u.idle_time) as total_seconds
-                 from houdini_stats_uptime u, stats_main_machineconfig mc
-                 where mc.id = u.stats_machine_config_id
-                 and {% where_between "u.date" start_date end_date %}
-                 and (mc.ip_address like '{{ ip_pattern1 }}'
-                 or mc.ip_address like '{{ ip_pattern2 }}') 
-                 group by u.stats_machine_config_id, day
-             ) as TempTable
-             group by mydate
-             order by mydate
-             """,
-             'stats', locals()), 
-             "minutes")
-          
-        external_machines_sending_stats = time_series.seconds_to_time_unit_series(
-            get_sql_data_for_report(
-            """
-            select {% aggregated_date "day" aggregation %} AS mydate, 
-                    avg(total_seconds)
-             from (
-                 select u.stats_machine_config_id,
-                 str_to_date(date_format(u.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
-                    as day,
-                 sum(u.number_of_seconds - u.idle_time) as total_seconds
-                 from houdini_stats_uptime u, stats_main_machineconfig mc
-                 where mc.id = u.stats_machine_config_id
-                 and {% where_between "u.date" start_date end_date %}
-                 and mc.ip_address not like '{{ ip_pattern1 }}'
-                 and mc.ip_address not like '{{ ip_pattern2 }}' 
-                 group by u.stats_machine_config_id, day
-             ) as TempTable
-             group by mydate
-             order by mydate
-             """,
-             'stats', locals()), 
-             "minutes")
+    def get_data(self, series_range, aggregation):   
         
-        return time_series.merge_time_series([external_machines_sending_stats, 
-                                 internal_machines_sending_stats])    
-
+        def avg_usage_by_machine(series_range, aggregation, external):
+            
+            ip_pattern1 = IP_PATTERNS[0] 
+            ip_pattern2 = IP_PATTERNS[1]
+             
+            return time_series.seconds_to_time_unit_series(
+            get_sql_data_for_report(
+            """
+            select {% aggregated_date "day" aggregation %} AS mydate, 
+                    avg(total_seconds)
+             from (
+                 select u.stats_machine_config_id,
+                 str_to_date(date_format(u.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d')
+                    as day,
+                 sum(u.number_of_seconds - u.idle_time) as total_seconds
+                 from houdini_stats_uptime u, stats_main_machineconfig mc
+                 where mc.id = u.stats_machine_config_id
+                 and {% where_between "u.date" start_date end_date %}
+                 and """ + _get_ip_filter(external) + """  
+                 group by u.stats_machine_config_id, day
+             ) as TempTable
+             group by mydate
+             order by mydate
+             """,
+             'stats', locals()), 
+             "minutes")
+             
+        return time_series.merge_time_series(
+              [avg_usage_by_machine(series_range, aggregation, external=True),
+               avg_usage_by_machine(series_range, aggregation, external=False)])
+          
     def chart_columns(self):
        return """
            {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
@@ -678,8 +586,22 @@ class BreakdownOfApprenticeUsageH14(BreakdownOfApprenticeUsage):
         super(BreakdownOfApprenticeUsageH14, self).__init__((14, 0))
 
 #===============================================================================
+
 # Houdini Crashes Report Classes
 
+def _get_hou_version_filter(latest):
+    """
+    Get the right peace of sql query to filter by houdini versions, latest and
+    previous
+    """
+    if latest:
+        return """hmc.houdini_major_version = '{{ latest_hou }}'  """
+    
+    else:
+        return """hmc.houdini_major_version <= '{{ previous_hou }}' """    
+
+#-------------------------------------------------------------------------------
+    
 class NumCrashesOverTime(HoudiniStatsReport):
     """
     Houdini crashes over time. Line Chart.
@@ -692,10 +614,15 @@ class NumCrashesOverTime(HoudiniStatsReport):
 
     def get_data(self, series_range, aggregation):
         
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1]
-        
-        internal_machines_sending_stats_hou13 = get_sql_data_for_report(
+        def num_crashes_over_time(series_range, aggregation, external, latest):
+             
+            ip_pattern1 = IP_PATTERNS[0] 
+            ip_pattern2 = IP_PATTERNS[1]
+             
+            latest_hou = HOUDINI_VERSIONS[0]
+            previous_hou = HOUDINI_VERSIONS[1] 
+             
+            return get_sql_data_for_report(
                 """
                 select {% aggregated_date "c.date" aggregation %} AS mydate, 
                       count(*) as total_records
@@ -703,72 +630,25 @@ class NumCrashesOverTime(HoudiniStatsReport):
                       houdini_stats_houdinimachineconfig AS hmc
                 where mc.id = c.stats_machine_config_id
                       and mc.id = hmc.machine_config_id
-                      and hmc.houdini_major_version <= 13 
+                      and """ + _get_hou_version_filter(latest) + """
                       and {% where_between "c.date" start_date end_date %}
-                      and (mc.ip_address like '{{ ip_pattern1 }}'
-                      or mc.ip_address like '{{ ip_pattern2 }}') 
+                      and """ + _get_ip_filter(external) + """
                 GROUP BY mydate
                 ORDER BY mydate  
                """ ,
                'stats', locals())
-        
-        internal_machines_sending_stats_hou14 = get_sql_data_for_report(
-                """
-                select {% aggregated_date "c.date" aggregation %} AS mydate, 
-                       count(*) as total_records
-                from houdini_stats_houdinicrash c, stats_main_machineconfig mc,
-                     houdini_stats_houdinimachineconfig AS hmc
-                where mc.id = c.stats_machine_config_id
-                      and mc.id = hmc.machine_config_id
-                      and hmc.houdini_major_version > 13 
-                      and {% where_between "c.date" start_date end_date %}
-                      and (mc.ip_address like '{{ ip_pattern1 }}'
-                      or mc.ip_address like '{{ ip_pattern2 }}') 
-                GROUP BY mydate
-                ORDER BY mydate  
-               """ ,
-               'stats', locals())
-        
-        external_machine_sending_stats_hou13 = get_sql_data_for_report(
-                """
-                select {% aggregated_date "c.date" aggregation %} AS mydate, 
-                       count(*) as total_records
-                from houdini_stats_houdinicrash c, stats_main_machineconfig mc,
-                     houdini_stats_houdinimachineconfig AS hmc
-                where mc.id = c.stats_machine_config_id
-                      and mc.id = hmc.machine_config_id
-                      and hmc.houdini_major_version <= 13 
-                      and {% where_between "c.date" start_date end_date %}
-                      and mc.ip_address not like '{{ ip_pattern1 }}'
-                      and mc.ip_address not like '{{ ip_pattern2 }}'
-                GROUP BY mydate
-                ORDER BY mydate  
-               """ ,
-               'stats', locals())
-        
-        external_machine_sending_stats_hou14 = get_sql_data_for_report(
-                """
-                select {% aggregated_date "c.date" aggregation %} AS mydate, 
-                       count(*) as total_records
-                from houdini_stats_houdinicrash c, stats_main_machineconfig mc,
-                     houdini_stats_houdinimachineconfig AS hmc
-                where mc.id = c.stats_machine_config_id
-                      and mc.id = hmc.machine_config_id
-                      and hmc.houdini_major_version > 13 
-                      and {% where_between "c.date" start_date end_date %}
-                      and mc.ip_address not like '{{ ip_pattern1 }}'
-                      and mc.ip_address not like '{{ ip_pattern2 }}'
-                GROUP BY mydate
-                ORDER BY mydate  
-               """ ,
-               'stats', locals())
- 
-        return time_series.merge_time_series([external_machine_sending_stats_hou13,
-                                 external_machine_sending_stats_hou14,              
-                                 get_events_in_range(series_range, aggregation),
-                                 internal_machines_sending_stats_hou13,
-                                 internal_machines_sending_stats_hou14])
-         
+              
+        return time_series.merge_time_series(
+              [num_crashes_over_time(series_range, aggregation, external=True, 
+                                     latest=False),
+               num_crashes_over_time(series_range, aggregation, external=True, 
+                                     latest=True),
+               get_events_in_range(series_range, aggregation),
+               num_crashes_over_time(series_range, aggregation, external=False, 
+                                     latest=False),
+               num_crashes_over_time(series_range, aggregation, external=False, 
+                                     latest=True)
+               ])
         
     def chart_columns(self):
         return """
@@ -806,56 +686,15 @@ class NumOfMachinesSendingCrashesOverTime(HoudiniStatsReport):
 
     def get_data(self, series_range, aggregation):
         
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1]
-        
-        internal_machines_sending_stats_hou13 = get_sql_data_for_report(
-            """
-            select {% aggregated_date "day" aggregation %} AS mydate, 
-                   sum(total_records)
-            from (
-                select c.stats_machine_config_id,
-                str_to_date(date_format(c.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-                count( DISTINCT c.stats_machine_config_id ) AS total_records
-                from houdini_stats_houdinicrash c, stats_main_machineconfig mc,
-                     houdini_stats_houdinimachineconfig AS hmc
-                where mc.id = c.stats_machine_config_id
-                     and mc.id = hmc.machine_config_id
-                     and hmc.houdini_major_version <= 13
-                     and {% where_between "c.date" start_date end_date %}
-                     and (mc.ip_address like '{{ ip_pattern1 }}'
-                     or mc.ip_address like '{{ ip_pattern2 }}') 
-                     group by c.stats_machine_config_id
-            ) as TempTable
-            group by mydate
-            order by mydate
-            """ ,
-            'stats', locals())
-        
-        internal_machines_sending_stats_hou14 = get_sql_data_for_report(
-            """
-            select {% aggregated_date "day" aggregation %} AS mydate, 
-                   sum(total_records)
-            from (
-                select c.stats_machine_config_id,
-                str_to_date(date_format(c.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-                count( DISTINCT c.stats_machine_config_id ) AS total_records
-                from houdini_stats_houdinicrash c, stats_main_machineconfig mc,
-                     houdini_stats_houdinimachineconfig AS hmc
-                where mc.id = c.stats_machine_config_id
-                    and mc.id = hmc.machine_config_id
-                    and hmc.houdini_major_version > 13
-                    and {% where_between "c.date" start_date end_date %}
-                    and (mc.ip_address like '{{ ip_pattern1 }}'
-                    or mc.ip_address like '{{ ip_pattern2 }}') 
-                    group by c.stats_machine_config_id
-            ) as TempTable
-            group by mydate
-            order by mydate
-            """ ,
-            'stats', locals())
-        
-        external_machine_sending_stats_hou13 = get_sql_data_for_report(
+        def num_machines_sending_crashes_over_time(series_range, aggregation, 
+                                                   external, latest):
+            ip_pattern1 = IP_PATTERNS[0] 
+            ip_pattern2 = IP_PATTERNS[1]
+              
+            latest_hou = HOUDINI_VERSIONS[0]
+            previous_hou = HOUDINI_VERSIONS[1] 
+             
+            return get_sql_data_for_report(
             """
             select {% aggregated_date "day" aggregation %} AS mydate, 
                    sum(total_records)
@@ -867,46 +706,28 @@ class NumOfMachinesSendingCrashesOverTime(HoudiniStatsReport):
                      houdini_stats_houdinimachineconfig AS hmc
                 where mc.id = c.stats_machine_config_id
                       and mc.id = hmc.machine_config_id
-                      and hmc.houdini_major_version <= 13
+                      and """ + _get_hou_version_filter(latest) + """
                       and {% where_between "c.date" start_date end_date %}
-                      and mc.ip_address not like '{{ ip_pattern1 }}'
-                      and mc.ip_address not like '{{ ip_pattern2 }}'
+                      and """ + _get_ip_filter(external) + """
                       group by c.stats_machine_config_id
             ) as TempTable
             group by mydate
             order by mydate
             """ ,
             'stats', locals())
-        
-        external_machine_sending_stats_hou14 = get_sql_data_for_report(
-            """
-            select {% aggregated_date "day" aggregation %} AS mydate, 
-                   sum(total_records)
-            from (
-                select c.stats_machine_config_id,
-                str_to_date(date_format(c.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-                count( DISTINCT c.stats_machine_config_id ) AS total_records
-                from houdini_stats_houdinicrash c, stats_main_machineconfig mc,
-                     houdini_stats_houdinimachineconfig AS hmc
-                where mc.id = c.stats_machine_config_id
-                      and mc.id = hmc.machine_config_id
-                      and hmc.houdini_major_version > 13
-                      and {% where_between "c.date" start_date end_date %}
-                      and mc.ip_address not like '{{ ip_pattern1 }}'
-                      and mc.ip_address not like '{{ ip_pattern2 }}'
-                      group by c.stats_machine_config_id
-            ) as TempTable
-            group by mydate
-            order by mydate
-            """ ,
-            'stats', locals())
- 
-        return time_series.merge_time_series([external_machine_sending_stats_hou13,
-                                 external_machine_sending_stats_hou14,              
-                                 get_events_in_range(series_range, aggregation),
-                                 internal_machines_sending_stats_hou13,
-                                 internal_machines_sending_stats_hou14])
-    
+              
+        return time_series.merge_time_series(
+              [num_machines_sending_crashes_over_time(series_range, aggregation, 
+                                                   external=True, latest=False),
+               num_machines_sending_crashes_over_time(series_range, aggregation, 
+                                                   external=True, latest=True),
+               get_events_in_range(series_range, aggregation),
+               num_machines_sending_crashes_over_time(series_range, aggregation, 
+                                                   external=False, latest=False),
+               num_machines_sending_crashes_over_time(series_range, aggregation, 
+                                                   external=False, latest=True)
+              ])
+
     def chart_columns(self):
         return """
         {% col "string" "Date" %}
@@ -944,10 +765,15 @@ class AvgNumCrashesFromSameMachine(HoudiniStatsReport):
 
     def get_data(self, series_range, aggregation):
         
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1]
-        
-        internal_machines_sending_stats_hou13 = get_sql_data_for_report(
+        def avg_num_crashes_from_same_machine(series_range, aggregation, 
+                                              external, latest):
+            ip_pattern1 = IP_PATTERNS[0] 
+            ip_pattern2 = IP_PATTERNS[1]
+              
+            latest_hou = HOUDINI_VERSIONS[0]
+            previous_hou = HOUDINI_VERSIONS[1] 
+            
+            return get_sql_data_for_report(
             """
             select {% aggregated_date "day" aggregation %} AS mydate, 
                    avg(total_records)
@@ -959,10 +785,9 @@ class AvgNumCrashesFromSameMachine(HoudiniStatsReport):
                      houdini_stats_houdinimachineconfig AS hmc
                 where mc.id = c.stats_machine_config_id
                       and mc.id = hmc.machine_config_id
-                      and hmc.houdini_major_version <= 13
+                      and """ + _get_hou_version_filter(latest) + """
                       and {% where_between "c.date" start_date end_date %}
-                      and (mc.ip_address like '{{ ip_pattern1 }}'
-                      or mc.ip_address like '{{ ip_pattern2 }}') 
+                      and """ + _get_ip_filter(external) + """ 
                       group by c.stats_machine_config_id, day
             ) as TempTable
             group by mydate
@@ -970,81 +795,18 @@ class AvgNumCrashesFromSameMachine(HoudiniStatsReport):
             """ ,
             'stats', locals())
         
-        internal_machines_sending_stats_hou14 = get_sql_data_for_report(
-            """
-            select {% aggregated_date "day" aggregation %} AS mydate, 
-                   avg(total_records)
-            from (
-                select c.stats_machine_config_id,
-                str_to_date(date_format(c.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-                count( c.stats_machine_config_id ) AS total_records
-                from houdini_stats_houdinicrash c, stats_main_machineconfig mc,
-                     houdini_stats_houdinimachineconfig AS hmc
-                where mc.id = c.stats_machine_config_id
-                    and mc.id = hmc.machine_config_id
-                    and hmc.houdini_major_version > 13
-                    and {% where_between "c.date" start_date end_date %}
-                    and (mc.ip_address like '{{ ip_pattern1 }}'
-                    or mc.ip_address like '{{ ip_pattern2 }}') 
-                    group by c.stats_machine_config_id, day
-            ) as TempTable
-            group by mydate
-            order by mydate
-            """ ,
-            'stats', locals())
-        
-        external_machine_sending_stats_hou13 = get_sql_data_for_report(
-            """
-            select {% aggregated_date "day" aggregation %} AS mydate, 
-                   avg(total_records)
-            from (
-                select c.stats_machine_config_id,
-                str_to_date(date_format(c.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-                count( c.stats_machine_config_id ) AS total_records
-                from houdini_stats_houdinicrash c, stats_main_machineconfig mc,
-                     houdini_stats_houdinimachineconfig AS hmc
-                where mc.id = c.stats_machine_config_id
-                      and mc.id = hmc.machine_config_id
-                      and hmc.houdini_major_version <= 13
-                      and {% where_between "c.date" start_date end_date %}
-                      and mc.ip_address not like '{{ ip_pattern1 }}'
-                      and mc.ip_address not like '{{ ip_pattern2 }}'
-                      group by c.stats_machine_config_id, day
-            ) as TempTable
-            group by mydate
-            order by mydate
-            """ ,
-            'stats', locals())
-        
-        external_machine_sending_stats_hou14 = get_sql_data_for_report(
-            """
-            select {% aggregated_date "day" aggregation %} AS mydate, 
-                   avg(total_records)
-            from (
-                select c.stats_machine_config_id,
-                str_to_date(date_format(c.date, '%%Y-%%m-%%d'),'%%Y-%%m-%%d') as day,
-                count( c.stats_machine_config_id ) AS total_records
-                from houdini_stats_houdinicrash c, stats_main_machineconfig mc,
-                     houdini_stats_houdinimachineconfig AS hmc
-                where mc.id = c.stats_machine_config_id
-                      and mc.id = hmc.machine_config_id
-                      and hmc.houdini_major_version > 13
-                      and {% where_between "c.date" start_date end_date %}
-                      and mc.ip_address not like '{{ ip_pattern1 }}'
-                      and mc.ip_address not like '{{ ip_pattern2 }}'
-                      group by c.stats_machine_config_id, day
-            ) as TempTable
-            group by mydate
-            order by mydate
-            """ ,
-            'stats', locals())
- 
-        return time_series.merge_time_series([external_machine_sending_stats_hou13,
-                                 external_machine_sending_stats_hou14,              
-                                 get_events_in_range(series_range, aggregation),
-                                 internal_machines_sending_stats_hou13,
-                                 internal_machines_sending_stats_hou14])
-    
+        return time_series.merge_time_series(
+              [avg_num_crashes_from_same_machine(series_range, aggregation, 
+                                                 external=True, latest=False),
+               avg_num_crashes_from_same_machine(series_range, aggregation, 
+                                                 external=True, latest=True),
+               get_events_in_range(series_range, aggregation),
+               avg_num_crashes_from_same_machine(series_range, aggregation, 
+                                                 external=False, latest=False),
+               avg_num_crashes_from_same_machine(series_range, aggregation, 
+                                                 external=False, latest=True)
+              ])
+
     def chart_columns(self):
         return """
         {% col "string" "Date" %}
@@ -1086,15 +848,36 @@ class CrashesByOS(HoudiniStatsReport):
         return "Houdini Crashes by Operating Systems " + "("+\
                self.machine_type() + " machines)"
 
-    def query_set(self):
+    def external_machines(self):
         return ""
-    
+        
+    def get_query(self):
+        
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1]
+        
+        return """
+            SELECT os, count_by_os 
+            FROM(  
+            SELECT from_days( min( to_days( date ) ) ) as min_date, 
+                   mc.operating_system AS os, count( * ) as count_by_os
+            FROM houdini_stats_houdinicrash AS c, stats_main_machineconfig 
+                 as mc
+            WHERE c.stats_machine_config_id = mc.id 
+                  and {% where_between "date" start_date end_date %}
+                  and """ + _get_ip_filter(self.external_machines) + """
+            GROUP by os
+            ORDER by min_date)
+            as TempTable
+            ORDER by count_by_os desc
+            """
+        
     def get_data(self, series_range, aggregation):
         
         ip_pattern1 = IP_PATTERNS[0] 
         ip_pattern2 = IP_PATTERNS[1]
          
-        full_os_names_and_counts = get_sql_data_for_report(self.query_set(),
+        full_os_names_and_counts = get_sql_data_for_report(self.get_query(),
              'stats', locals(), fill_zeros = False)
         
         # Clean os names
@@ -1126,28 +909,11 @@ class CrashesByOSExternalMachines(CrashesByOS):
     """
     Houdini crashes by os for external machines. PieChart report.
     """    
-    
     def machine_type(self):
         return "external"
     
-    def query_set(self):
-        
-        return """
-            SELECT os, count_by_os 
-            FROM(  
-            SELECT from_days( min( to_days( date ) ) ) as min_date, 
-                   mc.operating_system AS os, count( * ) as count_by_os
-            FROM houdini_stats_houdinicrash AS c, stats_main_machineconfig 
-                 as mc
-            WHERE c.stats_machine_config_id = mc.id 
-                  and {% where_between "date" start_date end_date %}
-                  and (mc.ip_address not like '{{ ip_pattern1 }}'
-                  and mc.ip_address not like '{{ ip_pattern2 }}') 
-            GROUP by os
-            ORDER by min_date)
-            as TempTable
-            ORDER by count_by_os desc
-        """
+    def external_machines(self):
+        return True
         
 #-------------------------------------------------------------------------------         
 
@@ -1155,28 +921,11 @@ class CrashesByOSInternalMachines(CrashesByOS):
     """
     Houdini crashes by os for internal machines. PieChart report.
     """    
-    
     def machine_type(self):
         return "internal"
     
-    def query_set(self):
-        
-        return """
-            SELECT os, count_by_os 
-            FROM(  
-            SELECT from_days( min( to_days( date ) ) ) as min_date, 
-                   mc.operating_system AS os, count( * ) as count_by_os
-            FROM houdini_stats_houdinicrash AS c, stats_main_machineconfig 
-                 as mc
-            WHERE c.stats_machine_config_id = mc.id 
-                  and {% where_between "date" start_date end_date %}
-                  and (mc.ip_address like '{{ ip_pattern1 }}'
-                  or mc.ip_address like '{{ ip_pattern2 }}') 
-            GROUP by os
-            ORDER by min_date)
-            as TempTable
-            ORDER by count_by_os desc
-        """        
+    def external_machines(self):
+        return False
 
 #-------------------------------------------------------------------------------
 
@@ -1196,15 +945,34 @@ class CrashesByProduct(HoudiniStatsReport):
         return "Houdini Crashes by Product " + "("+\
                self.machine_type() + " machines)"
 
-    def query_set(self):
+    def external_machines(self):
         return ""
-    
+        
+    def get_query(self):
+        
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1]
+        
+        return """
+            SELECT concat_ws( '-', hmc.product, hmc.is_apprentice), 
+            count( * ) as counts
+            FROM houdini_stats_houdinicrash AS c, 
+                 stats_main_machineconfig AS mc,
+                 houdini_stats_houdinimachineconfig AS hmc
+            WHERE c.stats_machine_config_id = mc.id
+                  AND mc.id = hmc.machine_config_id
+                  AND {% where_between "date" start_date end_date %}
+                  AND """ + _get_ip_filter(self.external_machines) + """
+            GROUP BY hmc.product, hmc.is_apprentice
+            ORDER BY counts desc
+        """    
+        
     def get_data(self, series_range, aggregation):
         
         ip_pattern1 = IP_PATTERNS[0] 
         ip_pattern2 = IP_PATTERNS[1]
         
-        crashes_by_product_list = get_sql_data_for_report(self.query_set(),
+        crashes_by_product_list = get_sql_data_for_report(self.get_query(),
                                          'stats', locals(), fill_zeros = False)
     
         return self._get_hou_crashes_by_product_trans(crashes_by_product_list) 
@@ -1264,23 +1032,9 @@ class CrashesByProductExternalMachines(CrashesByProduct):
     def machine_type(self):
         return "external"
     
-    def query_set(self):
-        
-        return """
-            SELECT concat_ws( '-', hmc.product, hmc.is_apprentice), 
-            count( * ) as counts
-            FROM houdini_stats_houdinicrash AS c, 
-                 stats_main_machineconfig AS mc,
-                 houdini_stats_houdinimachineconfig AS hmc
-            WHERE c.stats_machine_config_id = mc.id
-                  AND mc.id = hmc.machine_config_id
-                  AND {% where_between "date" start_date end_date %}
-                  AND (mc.ip_address not like '{{ ip_pattern1 }}'
-                  AND mc.ip_address not like '{{ ip_pattern2 }}')
-            GROUP BY hmc.product, hmc.is_apprentice
-            ORDER BY counts desc
-        """       
-        
+    def external_machines(self):
+        return True
+            
 #-------------------------------------------------------------------------------         
 
 class CrashesByProductInternalMachines(CrashesByProduct):
@@ -1291,23 +1045,85 @@ class CrashesByProductInternalMachines(CrashesByProduct):
     def machine_type(self):
         return "internal"
     
-    def query_set(self):
+    def external_machines(self):
+        return False
+
+#------------------------------------------------------------------
+
+class PercentageOfSessionsEndingInCrash(HoudiniStatsReport):
+    """
+    Percentage of sessions ending in crashes. Column Chart.
+    """
+    
+    def name(self):
+        return "percentage_session_crashing"
+
+    def title(self):
+        return "Percentage of Sessions Ending in Crashes"
+
+    def get_data(self, series_range, aggregation):
+        def percentage_of_crashes(sessions_without_crashes, crashes):
+            if sessions_without_crashes == 0 and crashes == 0:
+                return 0
+            return 100 * crashes / float(crashes + sessions_without_crashes)
         
+        def total_num_sessions(series_range, aggregation, external):
+            ip_pattern1 = IP_PATTERNS[0] 
+            ip_pattern2 = IP_PATTERNS[1] 
+             
+            return get_sql_data_for_report(
+                """
+                select {% aggregated_date "u.date" aggregation %} AS mydate, 
+                      count(*) as total_records
+                from houdini_stats_uptime u, stats_main_machineconfig mc
+                where mc.id = u.stats_machine_config_id 
+                      and {% where_between "u.date" start_date end_date %}
+                      and """ + _get_ip_filter(external) + """
+                GROUP BY mydate
+                ORDER BY mydate  
+               """ ,
+               'stats', locals())
+        
+        def total_num_crashes_over_time(series_range, aggregation, external):
+            ip_pattern1 = IP_PATTERNS[0] 
+            ip_pattern2 = IP_PATTERNS[1]
+ 
+            return get_sql_data_for_report(
+                """
+                select {% aggregated_date "c.date" aggregation %} AS mydate, 
+                      count(*) as total_records
+                from  houdini_stats_houdinicrash c, stats_main_machineconfig mc
+                where mc.id = c.stats_machine_config_id
+                      and {% where_between "c.date" start_date end_date %}
+                      and """ + _get_ip_filter(external) + """
+                GROUP BY mydate
+                ORDER BY mydate  
+               """,
+               'stats', locals())
+        
+        percentages_internal_machines = time_series.compute_time_series(
+                 [total_num_sessions(series_range, aggregation, external=False),
+                 total_num_crashes_over_time(series_range, aggregation,
+                 external=False)], percentage_of_crashes)                                                          
+        
+        percentages_external_machines = time_series.compute_time_series(
+                  [total_num_sessions(series_range, aggregation, external=True),
+                  total_num_crashes_over_time(series_range, aggregation,
+                  external=True)], percentage_of_crashes) 
+                
+        return time_series.merge_time_series([percentages_internal_machines, 
+                                              percentages_external_machines])
+        
+    def chart_columns(self):
         return """
-            SELECT concat_ws( '-', hmc.product, hmc.is_apprentice), 
-            count( * ) as counts
-            FROM houdini_stats_houdinicrash AS c, 
-                 stats_main_machineconfig AS mc,
-                 houdini_stats_houdinimachineconfig AS hmc
-            WHERE c.stats_machine_config_id = mc.id
-                  AND mc.id = hmc.machine_config_id
-                  AND {% where_between "date" start_date end_date %}
-                  AND (mc.ip_address like '{{ ip_pattern1 }}'
-                  OR mc.ip_address like '{{ ip_pattern2 }}')
-            GROUP BY hmc.product, hmc.is_apprentice
-            ORDER BY counts desc
-        """
-        
+    {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
+    {% col "number" "% for internal machines" %}{{ val }}{% endcol %}
+    {% col "number" "% for external machines" %}{{ val }}{% endcol %}
+   """
+
+    def chart_options(self):
+        return '"opt_count_with_legend"'  
+            
 #===============================================================================
 # Houdini Tools Usage related reports
 
@@ -1459,7 +1275,7 @@ class VersionsAndBuilds(HoudiniStatsReport):
     def show_date_picker(self):
         return False
     
-    def query_set(self):
+    def get_query(self):
         
         ip_pattern1 = IP_PATTERNS[0] 
         ip_pattern2 = IP_PATTERNS[1]  
@@ -1472,7 +1288,7 @@ class VersionsAndBuilds(HoudiniStatsReport):
     def get_data(self, series_range, aggregation):
         
         # All machines with all products
-        machines_queryset = self.query_set()
+        machines_queryset = self.get_query()
         # Transform the result from seconds into the proper time unit.
         return self._get_versions_builds_trans(machines_queryset)
     
@@ -1548,7 +1364,7 @@ class VersionsAndBuildsApprentice(VersionsAndBuilds):
     def title(self):
         return "Houdini Apprentice Versions and Builds"
     
-    def query_set(self):    
+    def get_query(self):    
         
         return MachineConfig.objects.filter( 
                    get_extra_fields__is_apprentice=True).exclude(
@@ -1573,7 +1389,7 @@ class VersionsAndBuildsCommercial(VersionsAndBuilds):
     def title(self):
         return "Houdini Commercial Versions and Builds"
     
-    def query_set(self):        
+    def get_query(self):        
         return MachineConfig.objects.filter(
                   get_extra_fields__is_apprentice=False).exclude(
                   get_extra_fields__houdini_major_version=0, 
