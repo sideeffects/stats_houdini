@@ -874,9 +874,6 @@ class CrashesByOS(HoudiniStatsReport):
         
     def get_data(self, series_range, aggregation):
         
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1]
-         
         full_os_names_and_counts = get_sql_data_for_report(self.get_query(),
              'stats', locals(), fill_zeros = False)
         
@@ -1275,61 +1272,54 @@ class VersionsAndBuilds(HoudiniStatsReport):
     def show_date_picker(self):
         return False
     
-    def get_query(self):
-        
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1]  
-        
-        # Excluding internal machines
-        return MachineConfig.objects.exclude(
-                                    get_extra_fields__houdini_major_version=0, 
-                                    get_extra_fields__product="") 
+    def show_just_apprentice(self):
+        return "" 
     
     def get_data(self, series_range, aggregation):
         
-        # All machines with all products
-        machines_queryset = self.get_query()
-        # Transform the result from seconds into the proper time unit.
-        return self._get_versions_builds_trans(machines_queryset)
-    
-    def _get_versions_builds_trans(self, machines_queryset):
-        """
-        Transform the query set to get the product name and counts to draw
-        the pie charts. 
-        """
-        dict_hou_version_counts = defaultdict(int)
-        dict_hou_version_builds_counts = defaultdict(int)
+        houdini_version_and_counts = get_sql_data_for_report(
+            """
+            SELECT count( * ) AS counts, 
+            CONCAT( 'Houdini ', hmc.houdini_major_version, ".", 
+                  hmc.houdini_minor_version ) 
+                  AS houdini_version
+            FROM stats_main_machineconfig mc, 
+                 houdini_stats_houdinimachineconfig AS hmc
+                 WHERE mc.id = hmc.machine_config_id
+                 AND hmc.houdini_major_version !=0 
+                 AND hmc.product != ""
+                 AND {% where_between "mc.creation_date" start_date end_date %}
+                 """ + self.show_just_apprentice() + """
+            GROUP BY hmc.houdini_major_version, hmc.houdini_minor_version
+            ORDER BY houdini_version desc;
+            """,
+            'stats', locals(), fill_zeros = False)
         
-        for machine_config in machines_queryset:
-            # Fill houdini version dict
-            houdini_version = ""
-            houdini_version_build = ""
-            
-            try:
-                houdini_version = str(
-                    machine_config.get_extra_fields.houdini_major_version) + "."+\
-                    str(machine_config.get_extra_fields.houdini_minor_version) 
-                houdini_version_build = houdini_version + "." +\
-                    machine_config.get_extra_fields.houdini_build_number
-                
-                chart_hou_version_text = self.chart_leyend_text() + " " +\
-                                         houdini_version
-                dict_hou_version_counts[chart_hou_version_text] += 1
-                # Fill houdini version builds dict
-                chart_hou_version_build_text = self.chart_leyend_text() + " " +\
-                                               houdini_version_build
-                dict_hou_version_builds_counts[chart_hou_version_build_text] += 1    
-            except ObjectDoesNotExist:
-                continue 
-                
-        return [self._return_product_counts_list(dict_hou_version_counts),
-                self._return_product_counts_list(
-                     dict_hou_version_builds_counts)] 
+        houdini_builds_and_counts = get_sql_data_for_report(
+            """
+            SELECT count( * ) AS counts, 
+            CONCAT(hmc.houdini_major_version, ".", hmc.houdini_minor_version, 
+                  ".", hmc.houdini_build_number) 
+                  AS houdini_version_build 
+            FROM stats_main_machineconfig mc, 
+                 houdini_stats_houdinimachineconfig AS hmc
+                 WHERE mc.id = hmc.machine_config_id
+                 AND hmc.houdini_major_version !=0 
+                 AND hmc.product != ""
+                 AND {% where_between "mc.creation_date" start_date end_date %}
+                 """ + self.show_just_apprentice() + """
+            GROUP BY hmc.houdini_major_version, hmc.houdini_minor_version,
+            hmc.houdini_build_number
+            ORDER BY houdini_version_build desc;
+            """,
+            'stats', locals(), fill_zeros = False) 
         
-    def _return_product_counts_list(self, dict_hou_versions_or_builds_counts):
+        return [self._return_product_counts_list(houdini_version_and_counts),
+                self._return_product_counts_list(houdini_builds_and_counts)] 
         
-        return [[houdini, count] for houdini, count in
-                   dict_hou_versions_or_builds_counts.iteritems()] 
+    def _return_product_counts_list(self, list_hou_versions_or_builds_counts):        
+        return [[houdini, count] for count, houdini in \
+                list_hou_versions_or_builds_counts] 
             
     
     def chart_leyend_text(self):
@@ -1364,19 +1354,12 @@ class VersionsAndBuildsApprentice(VersionsAndBuilds):
     def title(self):
         return "Houdini Apprentice Versions and Builds"
     
-    def get_query(self):    
-        
-        return MachineConfig.objects.filter( 
-                   get_extra_fields__is_apprentice=True).exclude(
-                   get_extra_fields__houdini_major_version=0, 
-                   get_extra_fields__product="")
+    def show_just_apprentice(self):
+        return "AND hmc.is_apprentice=true" 
     
     def chart_leyend_text(self):
         return "Houdini Apprentice"
-    
-    def chart_aditional_message(self):
-        return "" 
-
+   
 #-------------------------------------------------------------------------------  
   
 class VersionsAndBuildsCommercial(VersionsAndBuilds):
@@ -1389,18 +1372,13 @@ class VersionsAndBuildsCommercial(VersionsAndBuilds):
     def title(self):
         return "Houdini Commercial Versions and Builds"
     
-    def get_query(self):        
-        return MachineConfig.objects.filter(
-                  get_extra_fields__is_apprentice=False).exclude(
-                  get_extra_fields__houdini_major_version=0, 
-                  get_extra_fields__product="")
+    def show_just_apprentice(self):
+        return "AND hmc.is_apprentice=false" 
     
     def chart_leyend_text(self):
         return "Houdini FX"    
     
-    def chart_aditional_message(self):
-        return "" 
-
+    
         
 
    
