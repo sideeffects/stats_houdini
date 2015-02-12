@@ -555,8 +555,8 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
 
         connection = django.db.connections["stats"]
         table1 = petl.fromdb(connection, string_query, [])
-        table2 = petl.rangeaggregate(
-            table1, "non_idle_minutes", bin_size_in_minutes, len, minv=0)
+        table2 = petl.rangecounts(
+            table1, "non_idle_minutes", bin_size_in_minutes, minv=0)
 
         result = []
         for minutes, value in table2[1:]:
