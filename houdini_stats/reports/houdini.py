@@ -517,56 +517,50 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
             " (Histogram in Minutes)") % self._version_name()
 
     def get_data(self, series_range, aggregation):
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1] 
+        # Get the number of seconds of use for each user who started using
+        # Apprentice in the date range.  For each user, we only consider
+        # the amount of time they used Houdini in the first 30 days after
+        # activation.
         major_version = self.version_tuple[0]
         minor_version = self.version_tuple[1]
-        
         string_query = """
             select
-                stats_main_machineconfig.machine_id as m_id,
-                min(date) as first_date,
-                max(date) as last_date,
-                sum(number_of_seconds - idle_time) / 60 as non_idle_minutes,
-                count(*) as num_sessions
+                usage_in_seconds
             from
-                houdini_stats_uptime,
-                stats_main_machineconfig,
-                houdini_stats_houdinimachineconfig
-            where stats_machine_config_id=stats_main_machineconfig.id
-            and stats_machine_config_id=
-                houdini_stats_houdinimachineconfig.machine_config_id
-            and is_apprentice=1 and product="Houdini" 
-            and houdini_major_version = {{ major_version }}
+                warehouse_ApprenticeUsageInFirst30Days
+            where houdini_major_version = {{ major_version }}
             and houdini_minor_version = {{ minor_version }}
-            and ip_address not like '{{ ip_pattern1 }}'
-            and ip_address not like '{{ ip_pattern2 }}' 
-            group by m_id
-            having {% where_between "first_date" start_date end_date %}
-            order by first_date;
+            and {% where_between "start_date" start_date end_date %}
         """
-
         string_query = expand_templated_query(string_query, locals())
-        return self._get_histogram_trans(string_query)
-    
-    def _get_histogram_trans(self, string_query):
-        bin_size_in_minutes = 2
-        max_minutes = 240
 
-        connection = django.db.connections["stats"]
-        table1 = petl.fromdb(connection, string_query, [])
-        table2 = petl.rangecounts(
-            table1, "non_idle_minutes", bin_size_in_minutes, minv=0)
+        # Now group the values into bins and display a histogram.  Convert
+        # the number of seconds into number of minutes.
+        cursor = stats_main.genericreportclasses._get_cursor("stats")
+        cursor.execute(string_query, [])
+        return self._bin_data(
+            (row[0] / 60.0 for row in cursor.fetchall()),
+            bin_size=2,
+            bin_max=240)
 
-        result = []
-        for minutes, value in table2[1:]:
-            if minutes[0] <= max_minutes and minutes[1] > max_minutes:
-                result.append(["%s+" % minutes[0], value])
-            elif minutes[0] > max_minutes:
-                result[-1][1] += value
+    def _bin_data(self, values, bin_size, bin_max):
+        """Given a series of values, a bin size, and a range from 0 to bin_max,
+        return a sequence of (label, count) bins, where the label is the
+        range for values in that bin and count is the number of values in
+        that bin.
+        """
+        bin_labels = ["%s - %s" % (i, i + bin_size)
+            for i in range(0, bin_max, bin_size)]
+        bin_labels.append("%s+" % bin_max)
+        bin_counts = [0] * ((bin_max / bin_size) + 1)
+
+        for value in values:
+            if value >= bin_max:
+                bin_counts[-1] += 1
             else:
-                result.append(("%s - %s" % (minutes[0], minutes[1]), value))
-        return result
+                bin_counts[int(value / bin_size)] += 1
+
+        return zip(bin_labels, bin_counts)
 
     def chart_columns(self):
        return """
