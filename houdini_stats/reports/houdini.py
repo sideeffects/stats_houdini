@@ -847,9 +847,6 @@ class CrashesByOS(HoudiniStatsReport):
         
     def get_query(self):
         
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1]
-        
         return """
             SELECT os, count_by_os 
             FROM(  
@@ -859,7 +856,7 @@ class CrashesByOS(HoudiniStatsReport):
                  as mc
             WHERE c.stats_machine_config_id = mc.id 
                   and {% where_between "date" start_date end_date %}
-                  and """ + _get_ip_filter(self.external_machines) + """
+                  and """ + _get_ip_filter(self.external_machines()) + """
             GROUP by os
             ORDER by min_date)
             as TempTable
@@ -867,6 +864,9 @@ class CrashesByOS(HoudiniStatsReport):
             """
         
     def get_data(self, series_range, aggregation):
+        
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1]
         
         full_os_names_and_counts = get_sql_data_for_report(self.get_query(),
              'stats', locals(), fill_zeros = False)
@@ -941,9 +941,6 @@ class CrashesByProduct(HoudiniStatsReport):
         
     def get_query(self):
         
-        ip_pattern1 = IP_PATTERNS[0] 
-        ip_pattern2 = IP_PATTERNS[1]
-        
         return """
             SELECT concat_ws( '-', hmc.product, hmc.is_apprentice), 
             count( * ) as counts
@@ -953,7 +950,7 @@ class CrashesByProduct(HoudiniStatsReport):
             WHERE c.stats_machine_config_id = mc.id
                   AND mc.id = hmc.machine_config_id
                   AND {% where_between "date" start_date end_date %}
-                  AND """ + _get_ip_filter(self.external_machines) + """
+                  AND """ + _get_ip_filter(self.external_machines()) + """
             GROUP BY hmc.product, hmc.is_apprentice
             ORDER BY counts desc
         """    
