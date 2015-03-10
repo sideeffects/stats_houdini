@@ -118,7 +118,7 @@ class NewMachinesOverTime(HoudiniStatsReport):
     def title(self):
         return "Number of New Machines Subscribed"
 
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         # Observation: When aggregating different dates the query don't take  
         # into account that the machine configs might have been inserted to the
         # DB in an earlier period of time and counts machine configs that might 
@@ -154,7 +154,7 @@ class NewMachinesOverTime(HoudiniStatsReport):
              num_new_machines_sending_stats_over_time(series_range, aggregation, 
                                                       external=False)])
     
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
         {% col "string" "Date" %}
               {% show_annotation_title events val %} 
@@ -179,7 +179,7 @@ class MachinesActivelySendingStats(HoudiniStatsReport):
     def title(self):
         return "Number of Machines Actively Sending Stats"
 
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         
         def num_machines_actively_sending_stats_over_time(series_range, 
                                                          aggregation, external):
@@ -210,7 +210,7 @@ class MachinesActivelySendingStats(HoudiniStatsReport):
                    num_machines_actively_sending_stats_over_time(series_range, 
                                                   aggregation, external=False)])
 
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
         {% col "string" "Date" %}
               {% show_annotation_title events val %} 
@@ -253,7 +253,7 @@ class MachinesSendingStatsByOS(HoudiniStatsReport):
                 as TempTable
                 order by os
                 """
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         
         machines_sending_stats_by_os = get_sql_data_for_report(
                self.get_query(), 'stats', 
@@ -272,7 +272,7 @@ class MachinesSendingStatsByOS(HoudiniStatsReport):
                 machines_sending_stats_by_os]
         
     
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
         {% col "string" "OS" %}"{{ val }}"{% endcol %}
         {% col "number" "Count" %}{{ val }}{% endcol %}
@@ -326,7 +326,7 @@ class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
     def title(self):
         return "Average Num of Individual Connections From the Same Machine "
 
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         #TO IMPROVE (YB): Take into account the connections that resulted into 
         # crashes, which means take the crashes table into account too, to compute 
         # the results for the average (Maybe doing a merge using Panda?). 
@@ -361,7 +361,7 @@ class AvgNumConnectionsFromSameMachine(HoudiniStatsReport):
                                                      external=True),
                    avg_num_connections_same_machine(series_range, aggregation, 
                                                     external=False)])
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
           {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
           {% col "number" "Avg # of connections from external machines" %}
@@ -388,7 +388,7 @@ class AverageSessionLength(HoudiniStatsReport):
     def title(self):
         return "Average Session Length (in minutes)"
 
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         
         def avg_session_length(series_range, aggregation, 
                                              external):
@@ -425,7 +425,7 @@ class AverageSessionLength(HoudiniStatsReport):
                  [avg_session_length(series_range, aggregation, external=True),
                  avg_session_length(series_range, aggregation, external=False)])
         
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
            {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
            {% col "number" "Avg session length for external machines" %}
@@ -451,7 +451,7 @@ class AverageUsageByMachine(HoudiniStatsReport):
     def title(self):
         return "Average Usage by Machine (in minutes)"
 
-    def get_data(self, series_range, aggregation):   
+    def get_data(self, series_range, aggregation, filter_values):   
         
         def avg_usage_by_machine(series_range, aggregation, external):
             
@@ -484,7 +484,7 @@ class AverageUsageByMachine(HoudiniStatsReport):
               [avg_usage_by_machine(series_range, aggregation, external=True),
                avg_usage_by_machine(series_range, aggregation, external=False)])
           
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
        return """
            {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
            {% col "number" "Avg usage for external machines" %}
@@ -516,7 +516,7 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
         return ("Time Spent in Houdini %s by Apprentice Users" +
             " (Histogram in Minutes)") % self._version_name()
 
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         # Get the number of seconds of use for each user who started using
         # Apprentice in the date range.  For each user, we only consider
         # the amount of time they used Houdini in the first 30 days after
@@ -562,7 +562,7 @@ class BreakdownOfApprenticeUsage(HoudiniStatsReport):
 
         return zip(bin_labels, bin_counts)
 
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
        return """
            {% col "string" "# minutes" %}"{{ val }}"{% endcol %}
            {% col "number" "# users" %}{{ val }}{% endcol %}
@@ -606,7 +606,7 @@ class NumCrashesOverTime(HoudiniStatsReport):
     def title(self):
         return "Number of Crashes Over Time"
 
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         
         def num_crashes_over_time(series_range, aggregation, external, latest):
              
@@ -644,7 +644,7 @@ class NumCrashesOverTime(HoudiniStatsReport):
                                      latest=True)
                ])
         
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
         {% col "string" "Date" %}
               {% show_annotation_title events val %} 
@@ -678,7 +678,7 @@ class NumOfMachinesSendingCrashesOverTime(HoudiniStatsReport):
     def title(self):
         return "Number of Individual Machines Sending Crashes Over Time"
 
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         
         def num_machines_sending_crashes_over_time(series_range, aggregation, 
                                                    external, latest):
@@ -722,7 +722,7 @@ class NumOfMachinesSendingCrashesOverTime(HoudiniStatsReport):
                                                    external=False, latest=True)
               ])
 
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
         {% col "string" "Date" %}
               {% show_annotation_title events val %} 
@@ -757,7 +757,7 @@ class AvgNumCrashesFromSameMachine(HoudiniStatsReport):
     def title(self):
         return "Average Num of Crashes From the Same Machine"
 
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         
         def avg_num_crashes_from_same_machine(series_range, aggregation, 
                                               external, latest):
@@ -801,7 +801,7 @@ class AvgNumCrashesFromSameMachine(HoudiniStatsReport):
                                                  external=False, latest=True)
               ])
 
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
         {% col "string" "Date" %}
               {% show_annotation_title events val %} 
@@ -866,7 +866,7 @@ class CrashesByOS(HoudiniStatsReport):
             ORDER by count_by_os desc
             """
         
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         
         full_os_names_and_counts = get_sql_data_for_report(self.get_query(),
              'stats', locals(), fill_zeros = False)
@@ -881,7 +881,7 @@ class CrashesByOS(HoudiniStatsReport):
         return [general_os_names_and_counts, full_os_names_and_counts]  
         
     
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
         {% col "string" "OS" %}"{{ val }}"{% endcol %}
         {% col "number" "Count" %}{{ val }}{% endcol %}
@@ -906,7 +906,7 @@ class CrashesByOSExternalMachines(CrashesByOS):
     def external_machines(self):
         return True
         
-#-------------------------------------------------------------------------------         
+#-------------------------------------------------------------------------------
 
 class CrashesByOSInternalMachines(CrashesByOS):
     """
@@ -958,7 +958,7 @@ class CrashesByProduct(HoudiniStatsReport):
             ORDER BY counts desc
         """    
         
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         
         ip_pattern1 = IP_PATTERNS[0] 
         ip_pattern2 = IP_PATTERNS[1]
@@ -1004,7 +1004,7 @@ class CrashesByProduct(HoudiniStatsReport):
         return [(r.sub(replacer, tup[0]), tup[1]) for tup in \
                 crashes_by_product_list]  
     
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
         {% col "string" "Product" %}"{{ val }}"{% endcol %}
         {% col "number" "Count" %}{{ val }}{% endcol %}
@@ -1052,7 +1052,7 @@ class PercentageOfSessionsEndingInCrash(HoudiniStatsReport):
     def title(self):
         return "Percentage of Sessions Ending in Crashes"
 
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         def percentage_of_crashes(sessions_without_crashes, crashes):
             if sessions_without_crashes == 0 and crashes == 0:
                 return 0
@@ -1095,7 +1095,7 @@ class PercentageOfSessionsEndingInCrash(HoudiniStatsReport):
         percentages_internal_machines = time_series.compute_time_series(
                  [total_num_sessions(series_range, aggregation, external=False),
                  total_num_crashes_over_time(series_range, aggregation,
-                 external=False)], percentage_of_crashes)                                                          
+                 external=False)], percentage_of_crashes)
         
         percentages_external_machines = time_series.compute_time_series(
                   [total_num_sessions(series_range, aggregation, external=True),
@@ -1105,7 +1105,7 @@ class PercentageOfSessionsEndingInCrash(HoudiniStatsReport):
         return time_series.merge_time_series([percentages_internal_machines, 
                                               percentages_external_machines])
         
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
     {% col "string" "Date" %}"{{ val|date:date_format }}"{% endcol %}
     {% col "number" "% for internal machines" %}{{ val }}{% endcol %}
@@ -1143,7 +1143,7 @@ class MostPopularTools(HoudiniStatsReport):
         """ 
         return "(1,2,3)"
 
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         
         tool_usage_count = self.tool_usage_count()
         tool_creation_mode = self.creation_mode()
@@ -1166,7 +1166,7 @@ class MostPopularTools(HoudiniStatsReport):
         return get_sql_data_for_report(string_query, 'stats', locals(), 
                    fill_zeros=False)
     
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
         {% col "string" "Houdini Tool" %}"{{ val }}"{% endcol %}
         {% col "number" "# of times used" %}{{ val }}{% endcol %}
@@ -1269,7 +1269,7 @@ class VersionsAndBuilds(HoudiniStatsReport):
     def show_just_apprentice(self):
         return "" 
     
-    def get_data(self, series_range, aggregation):
+    def get_data(self, series_range, aggregation, filter_values):
         
         houdini_version_and_counts = get_sql_data_for_report(
             """
@@ -1324,7 +1324,7 @@ class VersionsAndBuilds(HoudiniStatsReport):
         """
         return "Houdini"
     
-    def chart_columns(self):
+    def chart_columns(self, filter_values):
         return """
         {% col "string" "Name" %}"{{ val }}"{% endcol %}
         {% col "number" "Value" %}{{ val }}{% endcol %}
