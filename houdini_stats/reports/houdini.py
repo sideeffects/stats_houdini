@@ -1132,7 +1132,7 @@ class MostPopularTools(HoudiniStatsReport):
         """
         How many times does the tool needs to be used to be shown the chart.
         """
-        return 3
+        return 1
     
     def creation_mode(self):
         """
@@ -1140,26 +1140,53 @@ class MostPopularTools(HoudiniStatsReport):
         """ 
         return "(1,2,3)"
 
+    def get_filters(self):
+        return (
+            DropdownFilter(
+                self, "num_bars_to_show", "Number of bars to show:", 
+                ["10", "20", "30", "Unlimited"]),
+            DropdownFilter(self, "ip_filter", "Type of Machines:", 
+                ["External Machines", "Internal Machines", "All"]),
+        )
+        
     def get_data(self, series_range, aggregation, filter_values):
+        
+        ip_pattern1 = IP_PATTERNS[0] 
+        ip_pattern2 = IP_PATTERNS[1]
         
         tool_usage_count = self.tool_usage_count()
         tool_creation_mode = self.creation_mode()
-
+        
+        # Set filter to control the num of bars to be shown
+        limit_clause = ""
+        bars_to_show_num =  filter_values['num_bars_to_show']
+        if bars_to_show_num != "Unlimited":
+            limit_clause = "limit {{ bars_to_show_num }}"
+        
+        # Set filter to control external or internal machines
+        ip_filter = filter_values['ip_filter'] 
+        external = ""
+        if ip_filter == "External Machines":
+            external = True
+        elif ip_filter == "Internal Machines":
+            external = False
+        ip_filter_clause = " and " + _get_ip_filter(external) if external!="" else ""
+        
         string_query = """
             select tool_name, tool_count 
                from (
                select sum(count) as tool_count, tool_name, tool_creation_mode
-                from houdini_stats_houdinitoolusage
-                where {% where_between "date" start_date end_date %}
+                from houdini_stats_houdinitoolusage, stats_main_machineconfig mc
+                where mc.id = houdini_stats_houdinitoolusage.stats_machine_config_id 
+                and {% where_between "date" start_date end_date %} """ + \
+                ip_filter_clause  + """
                 group by tool_name 
                 order by tool_count
            ) as TempTable
            where tool_count >=  {{ tool_usage_count }} and 
            tool_creation_mode in {{ tool_creation_mode }} 
-           order by tool_count desc
-           limit 20
-        """
-        
+           order by tool_count desc """ + limit_clause 
+                   
         return get_sql_data_for_report(string_query, 'stats', locals(), 
                    fill_zeros=False)
     
