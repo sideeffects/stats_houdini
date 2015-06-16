@@ -62,14 +62,15 @@ def _get_counts_by_os_trans(full_os_name_and_counts_list):
         [(u'linux-x86_64-gcc4.4', 57L), 
         (u'linux-x86_64-gcc4.6', 38L), (u'linux-x86_64-gcc4.7', 18L), 
         (u'darwin-x86_64-clang5.1-MacOSX10.9', 16L), 
-        (u'darwin-x86_64-clang4.1-MacOSX10.8', 2L), 
+        (u'darwin-x86_64-clang4.1-MacOSX10.8', 3L), 
+        (u'macosx10.10-x86_64-clang6.1', 2L), 
         (u'windows-i686-cl17', 1L)]
-    
+
         Return a list of a more general level, and adding the OS with the same
         type, for example:
         
         [(u'Linux', 113L), 
-        (u'Mac', 18L), 
+        (u'Mac', 21L), 
         (u'Windows', 1L)]
         """
         
