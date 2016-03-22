@@ -53,7 +53,7 @@ def _clean_os_names(full_os_name_and_counts_list):
         
     return cleaned_list
 
-#-------------------------------------------------------------------------------        
+#-------------------------------------------------------------------------------
 def _get_counts_by_os_trans(full_os_name_and_counts_list):
         """
         This function does a data transformation.
